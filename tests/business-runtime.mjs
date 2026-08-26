@@ -13,15 +13,17 @@ const fail=message=>{throw new Error(message)};
 
 try{
   await page.goto(baseUrl,{waitUntil:'commit',timeout:15000});
-  await page.waitForFunction(()=>window.__KFE_RUNTIME__,{timeout:15000});
+  await page.waitForTimeout(2000);
 
   const contract=await page.evaluate(()=>({
     keys:Object.keys(window.__KFE_RUNTIME||{}),
     models:Object.keys(window.KFE_VIEW_MODELS||{}),
     actions:Object.keys(window.__KFE_RUNTIME?.actions||{}),
     vue:!!window.KFE_VUE_RUNTIME,
-    initialTab:document.querySelector('.tab-panel.active')?.id||null
+    initialTab:document.querySelector('.tab-panel.active')?.id||null,
+    bootError:window.KFE_BOOT_ERROR||null
   }));
+  if(!contract.keys.length)fail(`Runtime contract was not published. Diagnostics=${JSON.stringify(contract)} Errors=${errors.join(' | ')}`);
 
   for(const name of ['workViewModel','fuelViewModel','expensesViewModel','revenueViewModel']){
     if(!contract.keys.includes(name))fail(`Runtime contract missing ${name}`);
@@ -33,7 +35,6 @@ try{
   if(!contract.vue)fail('Vue composition boundary is not mounted');
   if(contract.initialTab!=='tab-work')fail(`Unexpected initial tab: ${contract.initialTab}`);
 
-  // Exercise the existing UI navigation and input controls, not module imports.
   for(const tab of ['fuel','expenses','dashboard','backup','work']){
     await page.locator(`#nav-${tab}`).click();
     await page.waitForTimeout(60);
@@ -45,7 +46,6 @@ try{
   await page.evaluate(async()=>{await window.KFE_REPOSITORY?.clear();});
   await page.locator('#start-odo').fill('10000');
 
-  // Use the stable public action boundary after collecting input through the real UI.
   await page.evaluate(()=>window.__KFE_RUNTIME__.actions.startWork({
     startOdo:Number(document.querySelector('#start-odo').value),
     now:1700000000000
