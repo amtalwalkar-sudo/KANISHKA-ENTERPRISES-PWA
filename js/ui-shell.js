@@ -1,14 +1,43 @@
-import {getScreenViewModel,getDashboardSnapshot,getCoreLoopViewModel,coreLoop,network,repository} from './app.js';
+import {getScreenViewModel,getDashboardSnapshot,getCoreLoopViewModel,coreLoop,network,repository,actions as appActions} from './app.js';
 
 const screenNames=['work','fuel','expenses','revenue','maintenance','loan','renewals'];
+
+function syncExistingUi(models,dashboard){
+  // Existing DOM remains the visual shell. This adapter only projects view-model
+  // values into already-owned UI fields; it contains no business calculations.
+  const work=models.work||{};
+  const todayKm=document.getElementById('today-km');
+  if(todayKm && Number.isFinite(Number(work.km))) todayKm.textContent=String(work.km);
+  const dashboardWork=dashboard?.work||{};
+  const dashboardKm=document.getElementById('dash-km');
+  if(dashboardKm && Number.isFinite(Number(dashboardWork.km))) dashboardKm.textContent=`${dashboardWork.km} km`;
+}
+
 function publish(){
   const models=Object.fromEntries(screenNames.map(n=>[n,getScreenViewModel(n)]));
+  const dashboardSnapshot=getDashboardSnapshot();
+  const coreLoopViewModel=getCoreLoopViewModel();
+  const legacyActions=window.KFE_ACTIONS||{};
+  const mergedActions=Object.freeze({...legacyActions,...appActions});
+  window.KFE_ACTIONS=mergedActions;
   window.KFE_VIEW_MODELS=Object.freeze(models);
-  window.KFE_DASHBOARD_SNAPSHOT=Object.freeze(getDashboardSnapshot());
+  window.KFE_DASHBOARD_SNAPSHOT=Object.freeze(dashboardSnapshot);
   window.KFE_CORE_LOOP=coreLoop;
   window.KFE_REPOSITORY=repository;
   window.KFE_NETWORK=network;
-  window.KFE_CORE_LOOP_VIEW_MODEL=Object.freeze(getCoreLoopViewModel());
+  window.KFE_CORE_LOOP_VIEW_MODEL=Object.freeze(coreLoopViewModel);
+  window.__KFE_RUNTIME__=Object.freeze({
+    workViewModel:models.work,
+    fuelViewModel:models.fuel,
+    expensesViewModel:models.expenses,
+    revenueViewModel:models.revenue,
+    maintenanceViewModel:models.maintenance,
+    loanViewModel:models.loan,
+    renewalsViewModel:models.renewals,
+    dashboardViewModel:dashboardSnapshot,
+    actions:mergedActions
+  });
+  syncExistingUi(models,dashboardSnapshot);
   return models;
 }
 function parseArgs(raw,event){
@@ -30,9 +59,6 @@ function boot(){
   window.addEventListener('kfe:network',publish);window.addEventListener('kfe:runtime',publish);
   window.dispatchEvent(new CustomEvent('kfe:view-models-ready',{detail:window.KFE_VIEW_MODELS}));
 }
-// Publish as soon as the module evaluates. This makes the application contract
-// available independently of DOMContentLoaded timing, while boot() still installs
-// the UI event boundary once the document is ready.
 publish();
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 export{publish};
