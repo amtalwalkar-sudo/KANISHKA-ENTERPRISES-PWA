@@ -54,16 +54,24 @@ jobs:
           const errors = [];
           page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
           page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+          page.on('requestfailed', r => errors.push(`requestfailed: ${r.url()} :: ${r.failure()?.errorText||'unknown'}`));
           const fail = message => { throw new Error(message); };
 
           try {
             await page.goto('http://127.0.0.1:4173/', {waitUntil:'domcontentloaded', timeout:15000});
-            await page.waitForFunction(() =>
-              window.KFE_VIEW_MODELS &&
-              window.KFE_DASHBOARD_SNAPSHOT &&
-              window.KFE_CORE_LOOP_VIEW_MODEL,
-              {timeout:15000}
-            );
+            await page.waitForTimeout(1000);
+            const diagnostics = await page.evaluate(() => ({
+              bootError:window.KFE_BOOT_ERROR||null,
+              models:!!window.KFE_VIEW_MODELS,
+              dashboard:!!window.KFE_DASHBOARD_SNAPSHOT,
+              runtime:!!window.KFE_CORE_LOOP_VIEW_MODEL,
+              actions:Object.keys(window.KFE_ACTIONS||{}),
+              vue:!!window.KFE_VUE_RUNTIME
+            }));
+            if(diagnostics.bootError) fail(`UI shell bootstrap failed: ${JSON.stringify(diagnostics.bootError)}`);
+            if(!diagnostics.models || !diagnostics.dashboard || !diagnostics.runtime){
+              fail(`Runtime contract was not published. Diagnostics=${JSON.stringify(diagnostics)} Errors=${errors.join(' | ')}`);
+            }
 
             const boot = await page.evaluate(() => ({
               models:Object.keys(window.KFE_VIEW_MODELS||{}),
@@ -91,7 +99,6 @@ jobs:
             }
 
             await page.evaluate(async()=>{ await window.KFE_REPOSITORY?.clear(); });
-            await page.locator('#nav-work').click();
             await page.evaluate(() => window.KFE_ACTIONS.startWork({startOdo:10000,now:1700000000000}));
             await page.waitForTimeout(150);
 
