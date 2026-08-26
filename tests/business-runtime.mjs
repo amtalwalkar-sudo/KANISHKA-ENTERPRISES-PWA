@@ -1,6 +1,6 @@
 import {chromium} from 'playwright';
 const baseUrl=process.env.KFE_BASE_URL||'http://127.0.0.1:4173/';
-const browser=await chromium.launch({headless:true,channel:'chrome'});
+const browser=await chromium.launch({headless:true});
 const context=await browser.newContext();
 const page=await context.newPage();
 page.setDefaultTimeout(10000);
@@ -19,7 +19,9 @@ try{
   if(!contract.vue)fail('Vue composition boundary is not mounted');
   if(contract.initialTab!=='tab-work')fail(`Unexpected initial tab: ${contract.initialTab}`);
   for(const tab of ['fuel','expenses','dashboard','backup','work']){await page.locator(`#nav-${tab}`).click();await page.waitForTimeout(60);const active=await page.locator('.tab-panel.active').getAttribute('id');if(active!==`tab-${tab}`)fail(`Existing UI navigation failed for ${tab}: ${active}`);}
-  await page.locator('#nav-work').click();await page.evaluate(async()=>{await window.KFE_REPOSITORY?.clear();});await page.locator('#start-odo').fill('10000');
+  await page.locator('#nav-work').click();
+  await page.evaluate(async()=>{if(window.KFE_REPOSITORY?.clear) await window.KFE_REPOSITORY.clear();});
+  await page.locator('#start-odo').fill('10000');
   await page.evaluate(()=>window.__KFE_RUNTIME__.actions.startWork({startOdo:Number(document.querySelector('#start-odo').value),now:1700000000000}));await page.waitForTimeout(100);
   const afterStart=await page.evaluate(async()=>({state:await window.KFE_REPOSITORY.load(),work:window.__KFE_RUNTIME__.workViewModel,domKm:document.querySelector('#today-km')?.textContent?.trim()}));
   if(afterStart.state?.work?.startOdo!==10000||afterStart.state?.work?.status!=='Open')fail(`Repository-backed start failed: ${JSON.stringify(afterStart.state)}`);if(afterStart.work?.startOdo!==10000)fail(`Work view-model did not reflect start: ${JSON.stringify(afterStart.work)}`);if(afterStart.domKm!=='0')fail(`Existing Work UI did not consume the work view-model: ${afterStart.domKm}`);
