@@ -9,7 +9,8 @@ page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
 page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
 
 async function boot() {
-  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => location.origin !== 'null');
   await page.waitForFunction(() => window.KFE_VIEW_MODELS && window.KFE_DASHBOARD_SNAPSHOT);
 }
 
@@ -29,6 +30,7 @@ async function assertShell() {
   return state;
 }
 
+await page.goto(BASE, { waitUntil: 'domcontentloaded' });
 await page.evaluate(() => localStorage.clear());
 const coldStarts = [];
 for (let i = 0; i < 5; i++) { await boot(); coldStarts.push(await assertShell()); }
@@ -47,7 +49,7 @@ await page.evaluate(() => window.KFE_ACTIONS.startWork());
 await page.waitForTimeout(100);
 const beforeReload = await page.evaluate(() => JSON.parse(localStorage.getItem('betafleet_sessions') || '[]'));
 if (beforeReload.length !== 1 || beforeReload[0].startOdo !== 12345 || beforeReload[0].status !== 'Open') throw new Error(`Persistence failed before reload: ${JSON.stringify(beforeReload)}`);
-await page.reload({ waitUntil: 'networkidle' });
+await page.reload({ waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => window.KFE_VIEW_MODELS && window.KFE_DASHBOARD_SNAPSHOT);
 const afterReload = await page.evaluate(() => JSON.parse(localStorage.getItem('betafleet_sessions') || '[]'));
 if (JSON.stringify(afterReload) !== JSON.stringify(beforeReload)) throw new Error(`Persistence changed after reload: ${JSON.stringify(afterReload)}`);
