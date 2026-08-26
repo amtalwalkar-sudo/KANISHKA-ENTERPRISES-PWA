@@ -1,0 +1,8 @@
+{
+  "name": "kanishka-enterprises-pwa",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:https": "node tools/https-server.mjs"
+  }
+}
