@@ -33,16 +33,34 @@ const publishMutation=fn=>(args={})=>{
   return result;
 };
 
-// App-owned mutations. The UI shell composes these with any legacy-only UI
-// handlers that still exist during the migration; app-owned actions always win.
 export const actions=Object.freeze({
   startWork:publishMutation(args=>screens.work.startWork(args)),
   endWork:publishMutation(args=>screens.work.endWork(args))
 });
 window.KFE_APP_ACTIONS=actions;
 
+const getViewModel=name=>screens[name].getViewModel();
+const runtime={
+  repository,
+  state,
+  screens,
+  actions,
+  getViewModel,
+  getDashboardSnapshot:()=>dashboard.getSnapshot(),
+  getCoreLoopViewModel:()=>coreLoop.getViewModel()
+};
+window.__KFE_RUNTIME__=runtime;
+window.KFE_VIEW_MODELS=Object.fromEntries(Object.keys(screens).map(name=>[name,getViewModel(name)]));
+window.KFE_DASHBOARD_SNAPSHOT=dashboard.getSnapshot();
+window.KFE_REPOSITORY=repository;
+
+state.subscribe(()=>{
+  window.KFE_VIEW_MODELS=Object.fromEntries(Object.keys(screens).map(name=>[name,getViewModel(name)]));
+  window.KFE_DASHBOARD_SNAPSHOT=dashboard.getSnapshot();
+});
+
 void initializeResilience({sendOutbox:noTransport});
 
-export function getScreenViewModel(name){const s=screens[name];if(!s)throw new Error(`Unknown screen: ${name}`);return s.getViewModel();}
+export function getScreenViewModel(name){return getViewModel(name);}
 export function getDashboardSnapshot(){return dashboard.getSnapshot();}
 export function getCoreLoopViewModel(){return coreLoop.getViewModel();}
