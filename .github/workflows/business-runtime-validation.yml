@@ -13,21 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Install project dependencies
         run: npm install
-
       - name: Install Playwright test runner
         run: npm install --no-save playwright@1.55.0
-
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
       - name: Build production PWA
         run: npm run build
-
       - name: Start production PWA server
         run: |
           npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/kfe-server.log 2>&1 &
@@ -37,15 +34,12 @@ jobs:
           done
           cat /tmp/kfe-server.log
           exit 1
-
       - name: Gate 1 — 12-step architecture validation
         run: npm run validate:architecture
-
       - name: Gate 2 — real Chromium business-runtime proof
         run: npm run test:business-runtime
         env:
           KFE_BASE_URL: http://127.0.0.1:4173/
-
       - name: Upload server log on failure
         if: failure()
         uses: actions/upload-artifact@v4
