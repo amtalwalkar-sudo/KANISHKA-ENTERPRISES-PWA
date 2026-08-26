@@ -43,8 +43,8 @@ jobs:
           page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
 
           try {
-            await page.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
-            await page.waitForFunction(() => window.KFE_VIEW_MODELS && window.KFE_DASHBOARD_SNAPSHOT);
+            await page.goto('http://127.0.0.1:4173/', {waitUntil:'domcontentloaded', timeout:15000});
+            await page.waitForFunction(() => window.KFE_VIEW_MODELS && window.KFE_DASHBOARD_SNAPSHOT, {timeout:15000});
 
             const result = await page.evaluate(() => ({
               models: Object.keys(window.KFE_VIEW_MODELS || {}),
