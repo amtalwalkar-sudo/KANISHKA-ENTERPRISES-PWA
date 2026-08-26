@@ -11,13 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # This repository intentionally has no npm lockfile yet. Keep CI usable
-      # without forcing a lockfile solely to satisfy setup-node caching.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install project dependencies
         run: npm install
@@ -33,7 +32,7 @@ jobs:
 
       - name: Run business runtime smoke test
         run: |
-          cat > /tmp/kfe-runtime-test.mjs <<'EOF'
+          cat > kfe-runtime-test.mjs <<'EOF'
           import { chromium } from 'playwright';
 
           const browser = await chromium.launch({headless:true});
@@ -42,49 +41,50 @@ jobs:
           page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
           page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
 
-          await page.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
-          await page.waitForFunction(() => window.KFE_VIEW_MODELS && window.KFE_DASHBOARD_SNAPSHOT);
+          try {
+            await page.goto('http://127.0.0.1:4173/', {waitUntil:'networkidle'});
+            await page.waitForFunction(() => window.KFE_VIEW_MODELS && window.KFE_DASHBOARD_SNAPSHOT);
 
-          const result = await page.evaluate(() => ({
-            models: Object.keys(window.KFE_VIEW_MODELS || {}),
-            actions: Object.keys(window.KFE_ACTIONS || {}),
-            dashboard: window.KFE_DASHBOARD_SNAPSHOT,
-            activeTab: document.querySelector('.tab-panel.active')?.id || null,
-            tabButtons: document.querySelectorAll('#tabbar button').length
-          }));
+            const result = await page.evaluate(() => ({
+              models: Object.keys(window.KFE_VIEW_MODELS || {}),
+              actions: Object.keys(window.KFE_ACTIONS || {}),
+              dashboard: window.KFE_DASHBOARD_SNAPSHOT,
+              activeTab: document.querySelector('.tab-panel.active')?.id || null,
+              tabButtons: document.querySelectorAll('#tabbar button').length
+            }));
 
-          const expectedModels = ['work','fuel','expenses','revenue','maintenance','loan','renewals'];
-          for (const name of expectedModels) {
-            if (!result.models.includes(name)) throw new Error(`Missing screen view-model: ${name}`);
+            const expectedModels = ['work','fuel','expenses','revenue','maintenance','loan','renewals'];
+            for (const name of expectedModels) {
+              if (!result.models.includes(name)) throw new Error(`Missing screen view-model: ${name}`);
+            }
+            if (result.activeTab !== 'tab-work') throw new Error(`Unexpected initial tab: ${result.activeTab}`);
+            if (result.tabButtons < 5) throw new Error(`Unexpected tab count: ${result.tabButtons}`);
+
+            for (const tab of ['fuel','expenses','dashboard','backup','work']) {
+              await page.locator(`#nav-${tab}`).click();
+              await page.waitForTimeout(50);
+              const active = await page.locator('.tab-panel.active').getAttribute('id');
+              if (active !== `tab-${tab}`) throw new Error(`Tab navigation failed for ${tab}: ${active}`);
+            }
+
+            await page.evaluate(() => localStorage.clear());
+            await page.locator('#nav-work').click();
+            await page.locator('#start-odo').fill('10000');
+            await page.evaluate(() => window.KFE_ACTIONS.startWork());
+            await page.waitForTimeout(100);
+            const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('betafleet_sessions') || '[]'));
+            if (stored.length !== 1 || stored[0].startOdo !== 10000 || stored[0].status !== 'Open') {
+              throw new Error(`Start-work persistence/business mutation failed: ${JSON.stringify(stored)}`);
+            }
+
+            const vmAfterMutation = await page.evaluate(() => window.KFE_VIEW_MODELS.work);
+            if (!vmAfterMutation || typeof vmAfterMutation !== 'object') throw new Error('Work view-model unavailable after mutation');
+            if (errors.length) throw new Error(errors.join('\n'));
+
+            console.log(JSON.stringify({ok:true, result, stored, vmAfterMutation}, null, 2));
+          } finally {
+            await browser.close();
           }
-          if (result.activeTab !== 'tab-work') throw new Error(`Unexpected initial tab: ${result.activeTab}`);
-          if (result.tabButtons < 5) throw new Error(`Unexpected tab count: ${result.tabButtons}`);
-
-          // Exercise the real UI boundary: tab navigation must still work without inline handlers.
-          for (const tab of ['fuel','expenses','dashboard','backup','work']) {
-            await page.locator(`#nav-${tab}`).click();
-            await page.waitForTimeout(50);
-            const active = await page.locator('.tab-panel.active').getAttribute('id');
-            if (active !== `tab-${tab}`) throw new Error(`Tab navigation failed for ${tab}: ${active}`);
-          }
-
-          // Exercise a business mutation through the action boundary and verify persistence.
-          await page.evaluate(() => localStorage.clear());
-          await page.locator('#nav-work').click();
-          await page.locator('#start-odo').fill('10000');
-          await page.evaluate(() => window.KFE_ACTIONS.startWork());
-          await page.waitForTimeout(100);
-          const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('betafleet_sessions') || '[]'));
-          if (stored.length !== 1 || stored[0].startOdo !== 10000 || stored[0].status !== 'Open') {
-            throw new Error(`Start-work persistence/business mutation failed: ${JSON.stringify(stored)}`);
-          }
-
-          // The new screen view-model layer must remain available after the mutation.
-          const vmAfterMutation = await page.evaluate(() => window.KFE_VIEW_MODELS.work);
-          if (!vmAfterMutation || typeof vmAfterMutation !== 'object') throw new Error('Work view-model unavailable after mutation');
-
-          if (errors.length) throw new Error(errors.join('\n'));
-          console.log(JSON.stringify({ok:true, result, stored, vmAfterMutation}, null, 2));
-          await browser.close();
           EOF
-          node /tmp/kfe-runtime-test.mjs
+          node ./kfe-runtime-test.mjs
+          rm -f ./kfe-runtime-test.mjs
