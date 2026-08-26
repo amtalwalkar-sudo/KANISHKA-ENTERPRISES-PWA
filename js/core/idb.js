@@ -1,32 +1,14 @@
 // KFE IndexedDB foundation: explicit schema versions + non-destructive migrations.
 const DB_NAME='kfe';
-export const DB_VERSION=1;
+export const DB_VERSION=2;
+export const STORES={state:{keyPath:'id'},rides:{keyPath:'id'},logs:{keyPath:'id'},settings:{keyPath:'id'},outbox:{keyPath:'id'}};
 
-export const STORES={
-  state:{keyPath:'id'},
-  rides:{keyPath:'id'},
-  logs:{keyPath:'id'},
-  settings:{keyPath:'id'}
-};
-
-export function openKfeDb(){
-  return new Promise((resolve,reject)=>{
-    if(typeof indexedDB==='undefined'){reject(new Error('IndexedDB unavailable'));return;}
-    const request=indexedDB.open(DB_NAME,DB_VERSION);
-    request.onupgradeneeded=event=>{
-      const db=request.result;
-      if(!db.objectStoreNames.contains('state')) db.createObjectStore('state',STORES.state);
-      if(!db.objectStoreNames.contains('rides')) db.createObjectStore('rides',STORES.rides);
-      if(!db.objectStoreNames.contains('logs')) db.createObjectStore('logs',STORES.logs);
-      if(!db.objectStoreNames.contains('settings')) db.createObjectStore('settings',STORES.settings);
-      // Future schema changes MUST increment DB_VERSION and add a migration branch here.
-      // Never delete/replace an existing store without an explicit migration.
-    };
-    request.onsuccess=()=>resolve(request.result);
-    request.onerror=()=>reject(request.error||new Error('IndexedDB open failed'));
-  });
-}
-
+export function openKfeDb(){return new Promise((resolve,reject)=>{if(typeof indexedDB==='undefined'){reject(new Error('IndexedDB unavailable'));return;}const request=indexedDB.open(DB_NAME,DB_VERSION);request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains('state'))db.createObjectStore('state',STORES.state);if(!db.objectStoreNames.contains('rides'))db.createObjectStore('rides',STORES.rides);if(!db.objectStoreNames.contains('logs'))db.createObjectStore('logs',STORES.logs);if(!db.objectStoreNames.contains('settings'))db.createObjectStore('settings',STORES.settings);if(!db.objectStoreNames.contains('outbox'))db.createObjectStore('outbox',STORES.outbox);};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB open failed'));});}
 export async function read(storeName,id){const db=await openKfeDb();return new Promise((resolve,reject)=>{const r=db.transaction(storeName,'readonly').objectStore(storeName).get(id);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
 export async function write(storeName,value){const db=await openKfeDb();return new Promise((resolve,reject)=>{const r=db.transaction(storeName,'readwrite').objectStore(storeName).put(value);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
 export async function remove(storeName,id){const db=await openKfeDb();return new Promise((resolve,reject)=>{const r=db.transaction(storeName,'readwrite').objectStore(storeName).delete(id);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error);});}
+export async function all(storeName){const db=await openKfeDb();return new Promise((resolve,reject)=>{const r=db.transaction(storeName,'readonly').objectStore(storeName).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
+export async function requestPersistentStorage(){try{if(navigator.storage?.persist){return await navigator.storage.persist();}}catch{}return false;}
+export async function queueOutbox(payload){return write('outbox',{id:crypto.randomUUID(),payload,createdAt:Date.now(),attempts:0});}
+export async function flushOutbox(send){const pending=await all('outbox');for(const item of pending){try{await send(item.payload);await remove('outbox',item.id);}catch{await write('outbox',{...item,attempts:item.attempts+1,lastAttemptAt:Date.now()});}}return pending.length;}
+export async function bufferCrash(error,meta={}){try{return write('logs',{id:crypto.randomUUID(),type:'crash',error:{name:error?.name||'Error',message:error?.message||String(error),stack:error?.stack||null},meta,createdAt:Date.now()});}catch{return null;}}
