@@ -6,13 +6,10 @@ function copyRuntimeAssets(){
   return {
     name:'kfe-runtime-assets',
     transformIndexHtml(html){
-      if(html.includes('id="vue-runtime"')) return html;
+      if(html.includes('src="/src/main.js"') || html.includes('src="src/main.js"')) return html;
       return {
         html,
-        tags:[
-          {tag:'div',attrs:{id:'vue-runtime'},injectTo:'body-prepend'},
-          {tag:'script',attrs:{type:'module',src:'/src/main.js'},injectTo:'body'}
-        ]
+        tags:[{tag:'script',attrs:{type:'module',src:'/src/main.js'},injectTo:'body'}]
       };
     },
     closeBundle(){
