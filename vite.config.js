@@ -1,6 +1,6 @@
 import {defineConfig} from 'vite';
 import {resolve} from 'node:path';
-import {copyFileSync,cpSync,existsSync} from 'node:fs';
+import {cpSync,existsSync} from 'node:fs';
 
 function copyRuntimeAssets(){
   return {
@@ -20,8 +20,6 @@ function copyRuntimeAssets(){
     },
     closeBundle(){
       const out=resolve('dist');
-      const files=['manifest.json','service-worker.js','icon-192.png','icon-512.png'];
-      for(const file of files){if(existsSync(file))copyFileSync(file,resolve(out,file));}
       if(existsSync('js'))cpSync('js',resolve(out,'js'),{recursive:true});
     }
   };
