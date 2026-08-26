@@ -17,6 +17,11 @@ jobs:
           node-version: 20
       - name: Verify repository and local-first boundaries
         run: node js/testing/architecture-boundaries.mjs
+      - name: Syntax-check runtime modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in js/app.js js/ui-shell.js js/core/*.js js/services/*.js; do node --check "$f"; done
       - name: Guard UI shell imports
         shell: bash
         run: |
@@ -32,6 +37,7 @@ jobs:
           test -f js/pwa/sw-strategies.js
           grep -q "importScripts('./js/pwa/sw-strategies.js')" service-worker.js
           grep -q "event.request.mode==='navigate'" service-worker.js
+          grep -q "kfe-outbox-retry" service-worker.js
           echo "Architecture guards passed."
 
   resilience-reliability-offline:
