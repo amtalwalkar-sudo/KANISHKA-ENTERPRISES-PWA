@@ -26,18 +26,18 @@ jobs:
           marker = '<!-- KFE-12-STEP-UI-SHELL -->'
 
           if marker not in html:
-              scripts = list(re.finditer(r'<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)</script>', html, re.I))
+              scripts = list(re.finditer(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>', html, re.I))
               if not scripts:
                   raise SystemExit('No inline application script found.')
               legacy = scripts[-1]
-              runtime = legacy.group(1).strip() + '\\n'
+              runtime = legacy.group(1).strip() + '\n'
               Path('js/legacy-runtime.js').write_text(runtime, encoding='utf-8')
-              replacement = '<script src="js/legacy-runtime.js"></script>\\n<script type="module" src="js/ui-shell.js"></script>\\n' + marker
+              replacement = '<script src="js/legacy-runtime.js"></script>\n<script type="module" src="js/ui-shell.js"></script>\n' + marker
               html = html[:legacy.start()] + replacement + html[legacy.end():]
 
           def replace_handler(m):
               attr, call = m.group(1), m.group(2).strip()
-              fn = re.match(r'^([A-Za-z_$][\\w$]*)\\((.*)\\)$', call, re.S)
+              fn = re.match(r'^([A-Za-z_$][\w$]*)\((.*)\)$', call, re.S)
               if not fn:
                   return m.group(0)
               name, args = fn.group(1), fn.group(2).strip()
@@ -48,7 +48,7 @@ jobs:
                   out += f' data-kfe-args="{args.replace(chr(34), chr(39))}"'
               return out
 
-          html = re.sub(r'\\b(onclick|onchange)="([^"]+)"', replace_handler, html, flags=re.I)
+          html = re.sub(r'\b(onclick|onchange)="([^"]+)"', replace_handler, html, flags=re.I)
           html = html.replace(
               'onclick="document.getElementById(\'import-file-input\').click()"',
               'data-kfe-action="open-import-picker" data-kfe-event="click"'
@@ -80,7 +80,7 @@ jobs:
           assert '<!-- KFE-12-STEP-UI-SHELL -->' in html
           assert 'js/legacy-runtime.js' in html
           assert 'js/ui-shell.js' in html
-          inline = re.findall(r'<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)</script>', html, re.I)
+          inline = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>', html, re.I)
           assert len(inline) <= 1, f'Unexpected inline application scripts: {len(inline)}'
           assert 'onclick=' not in html and 'onchange=' not in html
           assert 'window.KFE_ACTIONS' in runtime
