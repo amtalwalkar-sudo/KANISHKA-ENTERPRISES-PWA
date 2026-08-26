@@ -25,67 +25,113 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Start local PWA server
-        run: python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/kfe-server.log 2>&1 &
+      - name: Build production PWA
+        run: npm run build
 
-      - name: Run architecture validation
+      - name: Start production PWA server
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/kfe-server.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/kfe-server.log
+          exit 1
+
+      - name: Run 12-step architecture validation
         run: npm run validate:architecture
 
-      - name: Run business runtime smoke test
+      - name: Run real browser business-runtime proof
         run: |
           cat > kfe-runtime-test.mjs <<'EOF'
           import { chromium } from 'playwright';
 
           const browser = await chromium.launch({headless:true});
-          const page = await browser.newPage({permissions: []});
+          const context = await browser.newContext();
+          const page = await context.newPage();
           const errors = [];
           page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
           page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
 
+          const fail = message => { throw new Error(message); };
+
           try {
             await page.goto('http://127.0.0.1:4173/', {waitUntil:'domcontentloaded', timeout:15000});
-            await page.waitForFunction(() => window.KFE_VIEW_MODELS && window.KFE_DASHBOARD_SNAPSHOT, {timeout:15000});
+            await page.waitForFunction(() =>
+              window.KFE_VIEW_MODELS &&
+              window.KFE_DASHBOARD_SNAPSHOT &&
+              window.KFE_CORE_LOOP_VIEW_MODEL,
+              {timeout:15000}
+            );
 
-            const result = await page.evaluate(() => ({
+            const boot = await page.evaluate(() => ({
               models: Object.keys(window.KFE_VIEW_MODELS || {}),
-              actions: Object.keys(window.KFE_ACTIONS || {}),
               dashboard: window.KFE_DASHBOARD_SNAPSHOT,
+              runtime: window.KFE_CORE_LOOP_VIEW_MODEL,
+              vue: !!window.KFE_VUE_RUNTIME,
               activeTab: document.querySelector('.tab-panel.active')?.id || null,
               tabButtons: document.querySelectorAll('#tabbar button').length
             }));
 
             const expectedModels = ['work','fuel','expenses','revenue','maintenance','loan','renewals'];
             for (const name of expectedModels) {
-              if (!result.models.includes(name)) throw new Error(`Missing screen view-model: ${name}`);
+              if (!boot.models.includes(name)) fail(`Missing screen view-model: ${name}`);
             }
-            if (result.activeTab !== 'tab-work') throw new Error(`Unexpected initial tab: ${result.activeTab}`);
-            if (result.tabButtons < 5) throw new Error(`Unexpected tab count: ${result.tabButtons}`);
+            if (boot.activeTab !== 'tab-work') fail(`Unexpected initial tab: ${boot.activeTab}`);
+            if (boot.tabButtons < 5) fail(`Unexpected tab count: ${boot.tabButtons}`);
+            if (!boot.vue) fail('Vue runtime composition boundary is not mounted');
 
             for (const tab of ['fuel','expenses','dashboard','backup','work']) {
               await page.locator(`#nav-${tab}`).click();
               await page.waitForTimeout(50);
               const active = await page.locator('.tab-panel.active').getAttribute('id');
-              if (active !== `tab-${tab}`) throw new Error(`Tab navigation failed for ${tab}: ${active}`);
+              if (active !== `tab-${tab}`) fail(`Tab navigation failed for ${tab}: ${active}`);
             }
 
             await page.evaluate(() => localStorage.clear());
             await page.locator('#nav-work').click();
             await page.locator('#start-odo').fill('10000');
-            await page.evaluate(() => window.KFE_ACTIONS.startWork());
-            await page.waitForTimeout(100);
-            const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('betafleet_sessions') || '[]'));
-            if (stored.length !== 1 || stored[0].startOdo !== 10000 || stored[0].status !== 'Open') {
-              throw new Error(`Start-work persistence/business mutation failed: ${JSON.stringify(stored)}`);
+
+            // Exercise the existing UI boundary. The action must be reachable through
+            // the shell contract rather than invoking a legacy function by name.
+            const actionState = await page.evaluate(() => ({
+              hasActionMap: !!window.KFE_ACTIONS,
+              startWorkAction: typeof window.KFE_ACTIONS?.startWork === 'function'
+            }));
+            if (!actionState.hasActionMap || !actionState.startWorkAction) {
+              fail('UI action boundary is not exposed through KFE_ACTIONS.startWork');
             }
 
-            const vmAfterMutation = await page.evaluate(() => window.KFE_VIEW_MODELS.work);
-            if (!vmAfterMutation || typeof vmAfterMutation !== 'object') throw new Error('Work view-model unavailable after mutation');
-            if (errors.length) throw new Error(errors.join('\n'));
+            await page.evaluate(() => window.KFE_ACTIONS.startWork());
+            await page.waitForTimeout(250);
 
-            console.log(JSON.stringify({ok:true, result, stored, vmAfterMutation}, null, 2));
+            const after = await page.evaluate(() => ({
+              stored: JSON.parse(localStorage.getItem('betafleet_sessions') || '[]'),
+              work: window.KFE_VIEW_MODELS?.work,
+              dashboard: window.KFE_DASHBOARD_SNAPSHOT
+            }));
+
+            if (after.stored.length !== 1 || after.stored[0].startOdo !== 10000 || after.stored[0].status !== 'Open') {
+              fail(`Start-work persistence/business mutation failed: ${JSON.stringify(after.stored)}`);
+            }
+            if (!after.work || typeof after.work !== 'object') fail('Work view-model unavailable after mutation');
+            if (after.work.startOdo !== 10000 && after.work.startOdometer !== 10000) {
+              fail(`Work view-model did not reflect the business mutation: ${JSON.stringify(after.work)}`);
+            }
+            if (errors.length) fail(errors.join('\n'));
+
+            console.log(JSON.stringify({ok:true, boot, after}, null, 2));
           } finally {
             await browser.close();
           }
           EOF
           node ./kfe-runtime-test.mjs
           rm -f ./kfe-runtime-test.mjs
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: business-runtime-server-log
+          path: /tmp/kfe-server.log
+          if-no-files-found: ignore
