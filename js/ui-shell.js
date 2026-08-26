@@ -28,7 +28,7 @@ function dispatch(event){
 function boot(){
   publish();
   document.addEventListener('click',dispatch);document.addEventListener('change',dispatch);
-  window.addEventListener('kfe:network',publish);window.addEventListener('kfe:runtime',publish);
+  window.addEventListener('kfe:network',publish);window.addEventListener('kfe:runtime',publish);window.addEventListener('kfe:state-changed',publish);
   window.dispatchEvent(new CustomEvent('kfe:view-models-ready',{detail:window.KFE_VIEW_MODELS}));
 }
 function safeBoot(){
@@ -39,6 +39,5 @@ function safeBoot(){
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 }
-// Publish immediately so the runtime contract is available independently of DOM readiness.
 safeBoot();
 export{publish};
