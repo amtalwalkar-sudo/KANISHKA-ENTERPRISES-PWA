@@ -1,4 +1,5 @@
 import {createStore} from './core/store.js';
+import {createRepository} from './core/repository.js';
 import {createWorkScreen} from './screens/work.js';
 import {createFuelScreen} from './screens/fuel.js';
 import {createExpensesScreen} from './screens/expenses.js';
@@ -8,7 +9,9 @@ import {createLoanScreen} from './screens/loan.js';
 import {createRenewalsScreen} from './screens/renewals.js';
 import {createDashboardAggregator} from './dashboard/aggregator.js';
 
-const state=createStore({work:{},fuel:{},expenses:{items:[]},revenue:{items:[]},maintenance:{},loan:{},renewals:{}});
+const initialState={work:{},fuel:{},expenses:{items:[]},revenue:{items:[]},maintenance:{},loan:{},renewals:{}};
+export const repository=createRepository({initial:initialState});
+export const state=createStore(initialState,repository);
 
 export const screens={
   work:createWorkScreen({state}),
