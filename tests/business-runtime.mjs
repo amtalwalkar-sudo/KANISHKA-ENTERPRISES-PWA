@@ -4,6 +4,7 @@ const baseUrl=process.env.KFE_BASE_URL||'http://127.0.0.1:4173/';
 const browser=await chromium.launch({headless:true});
 const context=await browser.newContext();
 const page=await context.newPage();
+page.setDefaultTimeout(10000);
 const errors=[];
 page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));
 page.on('console',m=>{if(m.type()==='error')errors.push(`console: ${m.text()}`)});
@@ -11,7 +12,7 @@ page.on('requestfailed',r=>errors.push(`requestfailed: ${r.url()} :: ${r.failure
 const fail=message=>{throw new Error(message)};
 
 try{
-  await page.goto(baseUrl,{waitUntil:'domcontentloaded',timeout:15000});
+  await page.goto(baseUrl,{waitUntil:'commit',timeout:15000});
   await page.waitForFunction(()=>window.__KFE_RUNTIME__,{timeout:15000});
 
   const contract=await page.evaluate(()=>({
