@@ -27,11 +27,17 @@ export const dashboard=createDashboardAggregator({screens});
 export const coreLoop=createCoreLoop({state,onStatus:detail=>window.dispatchEvent(new CustomEvent('kfe:runtime',{detail}))});
 export const network=createNetworkManager({sendOutbox:noTransport,onStatus:online=>window.dispatchEvent(new CustomEvent('kfe:network',{detail:{online}}))});
 
+const publishMutation=fn=>(args={})=>{
+  const result=fn(args);
+  window.dispatchEvent(new CustomEvent('kfe:runtime',{detail:{source:'app-action'}}));
+  return result;
+};
+
 // App-owned mutations. The UI shell composes these with any legacy-only UI
 // handlers that still exist during the migration; app-owned actions always win.
 export const actions=Object.freeze({
-  startWork:(args={})=>screens.work.startWork(args),
-  endWork:(args={})=>screens.work.endWork(args)
+  startWork:publishMutation(args=>screens.work.startWork(args)),
+  endWork:publishMutation(args=>screens.work.endWork(args))
 });
 window.KFE_APP_ACTIONS=actions;
 
