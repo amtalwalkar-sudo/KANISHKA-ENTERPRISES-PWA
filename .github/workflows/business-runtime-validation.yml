@@ -15,9 +15,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
-      - name: Install Playwright
-        run: npx --yes playwright@1.55.0 install --with-deps chromium
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install Playwright test dependency
+        run: npm install --no-save playwright@1.55.0
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Start local PWA server
         run: python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/kfe-server.log 2>&1 &
@@ -70,7 +77,7 @@ jobs:
             throw new Error(`Start-work persistence/business mutation failed: ${JSON.stringify(stored)}`);
           }
 
-          // The new screen view-model layer must not silently claim that it owns the legacy mutation.
+          // The new screen view-model layer must remain available after the mutation.
           const vmAfterMutation = await page.evaluate(() => window.KFE_VIEW_MODELS.work);
           if (!vmAfterMutation || typeof vmAfterMutation !== 'object') throw new Error('Work view-model unavailable after mutation');
 
