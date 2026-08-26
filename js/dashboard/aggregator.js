@@ -3,12 +3,9 @@
 export function createDashboardAggregator({ screens }) {
   return {
     getSnapshot() {
-      return {
-        work: screens.work.getViewModel(),
-        fuel: screens.fuel.getViewModel(),
-        expenses: screens.expenses.getViewModel(),
-        revenue: screens.revenue.getViewModel()
-      };
+      return Object.fromEntries([
+        'work','fuel','expenses','revenue','maintenance','loan','renewals'
+      ].map(name => [name, screens[name].getViewModel()]));
     }
   };
 }
