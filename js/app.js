@@ -14,6 +14,7 @@ import {initializeResilience} from './core/resilience.js';
 import {createCoreLoop} from './services/core-loop.js';
 
 const initialState={work:{onDuty:false},fuel:{},expenses:{items:[]},revenue:{items:[]},maintenance:{},loan:{},renewals:{}};
+const noTransport=async payload=>{throw new Error(`No remote transport configured for outbox item: ${payload?.type||'unknown'}`);};
 export const repository=createRepository({initial:initialState});
 export const state=createStore(initialState,repository);
 installCrashBuffer();
@@ -24,8 +25,8 @@ export const screens={
 };
 export const dashboard=createDashboardAggregator({screens});
 export const coreLoop=createCoreLoop({state,onStatus:detail=>window.dispatchEvent(new CustomEvent('kfe:runtime',{detail}))});
-export const network=createNetworkManager({onStatus:online=>window.dispatchEvent(new CustomEvent('kfe:network',{detail:{online}}))});
-void initializeResilience({sendOutbox:async payload=>{throw new Error(`No remote transport configured for outbox item: ${payload?.type||'unknown'}`);}});
+export const network=createNetworkManager({sendOutbox:noTransport,onStatus:online=>window.dispatchEvent(new CustomEvent('kfe:network',{detail:{online}}))});
+void initializeResilience({sendOutbox:noTransport});
 
 export function getScreenViewModel(name){const s=screens[name];if(!s)throw new Error(`Unknown screen: ${name}`);return s.getViewModel();}
 export function getDashboardSnapshot(){return dashboard.getSnapshot();}
