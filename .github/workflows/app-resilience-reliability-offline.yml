@@ -30,10 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -En "from ['\"]\./(domain|screens|dashboard)/|from ['\"]\.\./(domain|screens|dashboard)/" js/ui-shell.js; then
-            echo "ui-shell.js must not import business modules directly."
-            exit 1
-          fi
+          if grep -En "from ['\"]\./(domain|screens|dashboard)/|from ['\"]\.\./(domain|screens|dashboard)/" js/ui-shell.js; then exit 1; fi
       - name: Guard Service Worker modular boundary
         shell: bash
         run: |
@@ -42,7 +39,6 @@ jobs:
           grep -q "importScripts('./js/pwa/sw-strategies.js')" service-worker.js
           grep -q "event.request.mode==='navigate'" service-worker.js
           grep -q "kfe-outbox-retry" service-worker.js
-          echo "Architecture guards passed."
 
   resilience-reliability-offline:
     needs: architecture-boundaries
@@ -57,14 +53,14 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
-      - name: Install Playwright Chromium
-        run: npx --yes playwright@1.55.0 install --with-deps chromium
+      - name: Install Playwright package and Chromium
+        run: npm install --no-save playwright@1.55.0 && npx playwright install --with-deps chromium
       - name: Build Vue + Vite PWA
         run: npm run build
       - name: Start built PWA server
         run: python3 -m http.server 4173 --directory dist --bind 127.0.0.1 >/tmp/kfe-server.log 2>&1 &
       - name: Run resilience, reliability and offline-first tests
-        run: npx --yes -p playwright@1.55.0 node js/testing/app-resilience-reliability-offline.mjs
+        run: node js/testing/app-resilience-reliability-offline.mjs
       - name: Upload server log on failure
         if: failure()
         uses: actions/upload-artifact@v4
