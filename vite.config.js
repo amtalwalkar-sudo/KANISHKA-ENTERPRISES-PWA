@@ -6,11 +6,11 @@ function copyRuntimeAssets(){
   return {
     name:'kfe-runtime-assets',
     transformIndexHtml(html){
-      if(html.includes('id="vue-runtime"')) return html;
+      if(html.includes('/src/main.js')) return html;
       return {
         html,
         tags:[
-          {tag:'div',attrs:{id:'vue-runtime'},injectTo:'body'},
+          ...(html.includes('id="vue-runtime"')?[]:[{tag:'div',attrs:{id:'vue-runtime'},injectTo:'body'}]),
           {tag:'script',attrs:{type:'module',src:'/src/main.js'},injectTo:'body'}
         ]
       };
