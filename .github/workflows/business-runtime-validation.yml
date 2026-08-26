@@ -15,8 +15,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: package-lock.json
 
       - name: Install project dependencies
         run: npm install
@@ -29,6 +27,9 @@ jobs:
 
       - name: Start local PWA server
         run: python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/kfe-server.log 2>&1 &
+
+      - name: Run architecture validation
+        run: npm run validate:architecture
 
       - name: Run business runtime smoke test
         run: |
