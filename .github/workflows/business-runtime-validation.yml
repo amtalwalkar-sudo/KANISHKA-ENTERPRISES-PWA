@@ -11,14 +11,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # This repository intentionally has no npm lockfile yet. Keep CI usable
+      # without forcing a lockfile solely to satisfy setup-node caching.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          package-manager-cache: false
 
       - name: Install project dependencies
-        run: npm ci
+        run: npm install
 
       - name: Install Playwright test dependency
         run: npm install --no-save playwright@1.55.0
