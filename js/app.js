@@ -8,10 +8,13 @@ import {createMaintenanceScreen} from './screens/maintenance.js';
 import {createLoanScreen} from './screens/loan.js';
 import {createRenewalsScreen} from './screens/renewals.js';
 import {createDashboardAggregator} from './dashboard/aggregator.js';
+import {installCrashBuffer} from './pwa/crash-buffer.js';
 
 const initialState={work:{},fuel:{},expenses:{items:[]},revenue:{items:[]},maintenance:{},loan:{},renewals:{}};
 export const repository=createRepository({initial:initialState});
 export const state=createStore(initialState,repository);
+
+installCrashBuffer();
 
 export const screens={
   work:createWorkScreen({state}),
