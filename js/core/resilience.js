@@ -3,21 +3,22 @@ import {requestPersistentStorage,queueOutbox,flushOutbox,bufferCrash} from './id
 const CHANNEL='kfe-sync';
 let channel=null;
 let cleanupFns=[];
+let sendOutboxFn=async()=>{};
 
-export async function initializeResilience({sendOutbox=async()=>{},sendCrashes=async()=>{}}={}){
+export async function initializeResilience({sendOutbox=async()=>{}}={}){
+  sendOutboxFn=sendOutbox;
   await requestPersistentStorage();
   if('BroadcastChannel' in globalThis){channel=new BroadcastChannel(CHANNEL);channel.onmessage=event=>globalThis.dispatchEvent(new CustomEvent('kfe:sync',{detail:event.data}));}
-  const flush=async()=>{if(!navigator.onLine)return;await flushOutbox(sendOutbox);};
-  const online=()=>{void flush();};
-  const visible=()=>{if(document.visibilityState==='visible')void flush();};
-  window.addEventListener('online',online);document.addEventListener('visibilitychange',visible);
   window.addEventListener('error',event=>{void bufferCrash(event.error||new Error(event.message),{source:event.filename||null,line:event.lineno||null,column:event.colno||null});});
   window.addEventListener('unhandledrejection',event=>{void bufferCrash(event.reason instanceof Error?event.reason:new Error(String(event.reason)),{type:'unhandledrejection'});});
-  cleanupFns=[()=>window.removeEventListener('online',online),()=>document.removeEventListener('visibilitychange',visible)];
-  void flush();
+  cleanupFns=[()=>window.removeEventListener('error',onError),()=>window.removeEventListener('unhandledrejection',onRejection)];
+  void flushOutbox(sendOutboxFn);
 }
 
-export async function enqueueNetworkMutation(payload){await queueOutbox(payload);if(navigator.onLine)void flushOutbox(async()=>{});}
+function onError(event){void bufferCrash(event.error||new Error(event.message),{source:event.filename||null,line:event.lineno||null,column:event.colno||null});}
+function onRejection(event){void bufferCrash(event.reason instanceof Error?event.reason:new Error(String(event.reason)),{type:'unhandledrejection'});}
+
+export async function enqueueNetworkMutation(payload){await queueOutbox(payload);if(navigator.onLine)void flushOutbox(sendOutboxFn);}
 export function broadcast(type,payload){channel?.postMessage({type,payload,at:Date.now()});}
 export function closeResilience(){cleanupFns.forEach(fn=>fn());cleanupFns=[];channel?.close();channel=null;}
 
