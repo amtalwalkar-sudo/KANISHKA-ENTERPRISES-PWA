@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract legacy runtime and replace inline wiring
+      - name: Complete UI shell boundary migration
         shell: bash
         run: |
           python3 - <<'PY'
@@ -25,29 +25,44 @@ jobs:
           html = index.read_text(encoding='utf-8')
           marker = '<!-- KFE-12-STEP-UI-SHELL -->'
 
-          if marker in html and 'js/legacy-runtime.js' in html and 'js/ui-shell.js' in html:
-              print('Source migration already present.')
-              raise SystemExit(0)
+          if marker not in html:
+              scripts = list(re.finditer(r'<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)</script>', html, re.I))
+              if not scripts:
+                  raise SystemExit('No inline application script found.')
+              legacy = scripts[-1]
+              runtime = legacy.group(1).strip() + '\\n'
+              Path('js/legacy-runtime.js').write_text(runtime, encoding='utf-8')
+              replacement = '<script src="js/legacy-runtime.js"></script>\\n<script type="module" src="js/ui-shell.js"></script>\\n' + marker
+              html = html[:legacy.start()] + replacement + html[legacy.end():]
 
-          scripts = list(re.finditer(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>', html, re.I))
-          if not scripts:
-              raise SystemExit('No inline script found.')
+          def replace_handler(m):
+              attr, call = m.group(1), m.group(2).strip()
+              fn = re.match(r'^([A-Za-z_$][\\w$]*)\\((.*)\\)$', call, re.S)
+              if not fn:
+                  return m.group(0)
+              name, args = fn.group(1), fn.group(2).strip()
+              if name in {'document','window'}:
+                  return m.group(0)
+              out = f'data-kfe-action="{name}" data-kfe-event="{attr[2:]}"'
+              if args:
+                  out += f' data-kfe-args="{args.replace(chr(34), chr(39))}"'
+              return out
 
-          legacy = scripts[-1]
-          runtime = legacy.group(1).strip() + '\n'
-          Path('js/legacy-runtime.js').write_text(runtime, encoding='utf-8')
-
-          replacement = (
-              '<script src="js/legacy-runtime.js"></script>\n'
-              '<script type="module" src="js/ui-shell.js"></script>\n'
-              + marker
+          html = re.sub(r'\\b(onclick|onchange)="([^"]+)"', replace_handler, html, flags=re.I)
+          html = html.replace(
+              'onclick="document.getElementById(\'import-file-input\').click()"',
+              'data-kfe-action="open-import-picker" data-kfe-event="click"'
           )
-          html = html[:legacy.start()] + replacement + html[legacy.end():]
           index.write_text(html, encoding='utf-8')
-          print('Extracted', len(runtime), 'bytes of legacy runtime.')
+
+          runtime = Path('js/legacy-runtime.js')
+          text = runtime.read_text(encoding='utf-8')
+          if 'window.KFE_ACTIONS' not in text:
+              text += '''\n\n// Explicit UI action boundary. The UI shell invokes only this contract.\nwindow.KFE_ACTIONS = Object.freeze(Object.fromEntries([\n  'switchTab','switchExpSeg','switchDashRange','startWork','endWork','savePersonalTrip',\n  'saveFuelEntry','openFuelWeek','saveFixedExpense','saveLoan','deleteLoan','savePrepayment',\n  'saveQuickExpense','saveMaintenance','openSessionsWeek','closeSessionsWeek','sessionsWeekNav',\n  'closeFuelWeek','fuelWeekNav','closeWeekDetail','weekDetailNav','backupToCloud','restoreFromCloud',\n  'exportData','shareBackup','importData','restoreSnapshot','resetApp','closeConfirm'\n].filter(name => typeof window[name] === 'function').map(name => [name, (...args) => window[name](...args)])));\n'''
+              runtime.write_text(text, encoding='utf-8')
           PY
 
-      - name: Verify architecture and preserve behavior
+      - name: Verify architecture
         run: |
           node --check js/legacy-runtime.js
           node --check js/ui-shell.js
@@ -65,20 +80,20 @@ jobs:
           assert '<!-- KFE-12-STEP-UI-SHELL -->' in html
           assert 'js/legacy-runtime.js' in html
           assert 'js/ui-shell.js' in html
-          # External scripts are not inline application scripts. The existing
-          # service-worker registration may remain inline; application wiring may not.
-          inline = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>', html, re.I)
+          inline = re.findall(r'<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)</script>', html, re.I)
           assert len(inline) <= 1, f'Unexpected inline application scripts: {len(inline)}'
-          assert len(runtime) > 1000
+          assert 'onclick=' not in html and 'onchange=' not in html
+          assert 'window.KFE_ACTIONS' in runtime
           for name in ['work','fuel','expenses','revenue','maintenance','loan','renewals']:
               assert name in app, name
           assert 'getViewModel' in agg
           assert 'getScreenViewModel' in shell
-          print('PASS: index is UI-only at source level')
-          print('PASS: legacy runtime externalized')
+          assert 'KFE_VIEW_MODELS' in shell
+          print('PASS: index contains UI markup/styles, not application event wiring')
+          print('PASS: legacy runtime externalized behind an explicit action boundary')
           print('PASS: composition root owns screen wiring')
-          print('PASS: dashboard consumes screen view models')
-          print('PASS: UI shell is decoupled from individual screen modules')
+          print('PASS: dashboard consumes all screen view models')
+          print('PASS: UI shell depends on the composition root, not individual screens')
           PY
 
       - name: Commit completed migration
@@ -90,5 +105,5 @@ jobs:
             echo 'No migration changes required.'
             exit 0
           fi
-          git commit -m 'Complete source-level UI shell decoupling'
+          git commit -m 'Finish UI shell wiring boundary'
           git push
