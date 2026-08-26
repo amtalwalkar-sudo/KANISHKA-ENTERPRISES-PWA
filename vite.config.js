@@ -5,15 +5,18 @@ import {copyFileSync,cpSync,existsSync} from 'node:fs';
 function copyRuntimeAssets(){
   return {
     name:'kfe-runtime-assets',
-    transformIndexHtml(html){
-      if(html.includes('/src/main.js')) return html;
-      return {
-        html,
-        tags:[
-          ...(html.includes('id="vue-runtime"')?[]:[{tag:'div',attrs:{id:'vue-runtime'},injectTo:'body'}]),
-          {tag:'script',attrs:{type:'module',src:'/src/main.js'},injectTo:'body'}
-        ]
-      };
+    transformIndexHtml:{
+      order:'pre',
+      handler(html){
+        if(html.includes('/src/main.js')) return html;
+        return {
+          html,
+          tags:[
+            ...(html.includes('id="vue-runtime"')?[]:[{tag:'div',attrs:{id:'vue-runtime'},injectTo:'body'}]),
+            {tag:'script',attrs:{type:'module',src:'/src/main.js'},injectTo:'body'}
+          ]
+        };
+      }
     },
     closeBundle(){
       const out=resolve('dist');
