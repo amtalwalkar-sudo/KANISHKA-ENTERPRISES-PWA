@@ -1,8 +1,20 @@
 {
   "name": "kanishka-enterprises-pwa",
   "private": true,
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev:https": "node tools/https-server.mjs"
+    "dev": "vite",
+    "dev:https": "vite --host 0.0.0.0 --https",
+    "build": "vite build",
+    "preview": "vite preview",
+    "validate:architecture": "node js/12-step-verify.mjs"
+  },
+  "dependencies": {
+    "vue": "^3.5.18"
+  },
+  "devDependencies": {
+    "vite": "^7.1.3",
+    "vite-plugin-pwa": "^1.0.2"
   }
 }
