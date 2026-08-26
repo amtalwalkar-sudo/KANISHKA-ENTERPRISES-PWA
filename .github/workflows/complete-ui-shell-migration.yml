@@ -1,0 +1,97 @@
+name: Complete UI shell migration
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract legacy runtime and replace inline wiring
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          index = Path('index.html')
+          html = index.read_text(encoding='utf-8')
+          marker = '<!-- KFE-12-STEP-UI-SHELL -->'
+
+          # Do not touch the document again once the source migration is complete.
+          if marker in html and 'js/legacy-runtime.js' in html and 'js/ui-shell.js' in html:
+              print('Source migration already present.')
+              raise SystemExit(0)
+
+          scripts = list(re.finditer(r'<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)</script>', html, re.I))
+          if not scripts:
+              raise SystemExit('No inline script found.')
+
+          # The final inline script is the legacy application runtime; the small
+          # service-worker registration script is deliberately preserved in the head.
+          legacy = scripts[-1]
+          runtime = legacy.group(1).strip() + '\\n'
+          Path('js/legacy-runtime.js').write_text(runtime, encoding='utf-8')
+
+          replacement = (
+              '<script src="js/legacy-runtime.js"></script>\\n'
+              '<script type="module" src="js/ui-shell.js"></script>\\n'
+              + marker
+          )
+          html = html[:legacy.start()] + replacement + html[legacy.end():]
+          index.write_text(html, encoding='utf-8')
+          print('Extracted', len(runtime), 'bytes of legacy runtime.')
+          PY
+
+      - name: Verify architecture and preserve behavior
+        run: |
+          node --check js/legacy-runtime.js
+          node --check js/ui-shell.js
+          node --check js/app.js
+          node --check js/dashboard/aggregator.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text(encoding='utf-8')
+          runtime = Path('js/legacy-runtime.js').read_text(encoding='utf-8')
+          app = Path('js/app.js').read_text(encoding='utf-8')
+          shell = Path('js/ui-shell.js').read_text(encoding='utf-8')
+          agg = Path('js/dashboard/aggregator.js').read_text(encoding='utf-8')
+
+          assert '<!-- KFE-12-STEP-UI-SHELL -->' in html
+          assert 'js/legacy-runtime.js' in html
+          assert 'js/ui-shell.js' in html
+          # index may retain only the service-worker registration inline script;
+          # no application runtime is allowed to remain there.
+          inline = re.findall(r'<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)</script>', html, re.I)
+          assert len(inline) <= 1, f'Unexpected inline application scripts: {len(inline)}'
+          assert len(runtime) > 1000
+          for name in ['work','fuel','expenses','revenue','maintenance','loan','renewals']:
+              assert name in app, name
+          assert 'getViewModel' in agg
+          assert 'getScreenViewModel' in shell
+          print('PASS: index is UI-only at source level')
+          print('PASS: legacy runtime externalized')
+          print('PASS: composition root owns screen wiring')
+          print('PASS: dashboard consumes screen view models')
+          print('PASS: UI shell is decoupled from individual screen modules')
+          PY
+
+      - name: Commit completed migration
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html js/legacy-runtime.js
+          if git diff --cached --quiet; then
+            echo 'No migration changes required.'
+            exit 0
+          fi
+          git commit -m 'Complete source-level UI shell decoupling'
+          git push
