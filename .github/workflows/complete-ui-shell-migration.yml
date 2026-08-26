@@ -25,24 +25,21 @@ jobs:
           html = index.read_text(encoding='utf-8')
           marker = '<!-- KFE-12-STEP-UI-SHELL -->'
 
-          # Do not touch the document again once the source migration is complete.
           if marker in html and 'js/legacy-runtime.js' in html and 'js/ui-shell.js' in html:
               print('Source migration already present.')
               raise SystemExit(0)
 
-          scripts = list(re.finditer(r'<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)</script>', html, re.I))
+          scripts = list(re.finditer(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>', html, re.I))
           if not scripts:
               raise SystemExit('No inline script found.')
 
-          # The final inline script is the legacy application runtime; the small
-          # service-worker registration script is deliberately preserved in the head.
           legacy = scripts[-1]
-          runtime = legacy.group(1).strip() + '\\n'
+          runtime = legacy.group(1).strip() + '\n'
           Path('js/legacy-runtime.js').write_text(runtime, encoding='utf-8')
 
           replacement = (
-              '<script src="js/legacy-runtime.js"></script>\\n'
-              '<script type="module" src="js/ui-shell.js"></script>\\n'
+              '<script src="js/legacy-runtime.js"></script>\n'
+              '<script type="module" src="js/ui-shell.js"></script>\n'
               + marker
           )
           html = html[:legacy.start()] + replacement + html[legacy.end():]
@@ -68,9 +65,9 @@ jobs:
           assert '<!-- KFE-12-STEP-UI-SHELL -->' in html
           assert 'js/legacy-runtime.js' in html
           assert 'js/ui-shell.js' in html
-          # index may retain only the service-worker registration inline script;
-          # no application runtime is allowed to remain there.
-          inline = re.findall(r'<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)</script>', html, re.I)
+          # External scripts are not inline application scripts. The existing
+          # service-worker registration may remain inline; application wiring may not.
+          inline = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>', html, re.I)
           assert len(inline) <= 1, f'Unexpected inline application scripts: {len(inline)}'
           assert len(runtime) > 1000
           for name in ['work','fuel','expenses','revenue','maintenance','loan','renewals']:
