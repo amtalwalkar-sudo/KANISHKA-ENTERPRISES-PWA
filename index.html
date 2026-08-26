@@ -284,7 +284,7 @@ if('serviceWorker' in navigator){
       <div class="stat"><div class="k">Today's Income</div><div class="v neu" id="today-income">₹0</div></div>
     </div>
 
-    <div class="divider-label" onclick="openSessionsWeek()" style="cursor:pointer;">Today's Sessions ›</div>
+    <div class="divider-label" data-kfe-action="openSessionsWeek" data-kfe-event="click" style="cursor:pointer;">Today's Sessions ›</div>
     <div class="card" id="work-history"></div>
 
     <details id="personal-trip-details">
@@ -300,7 +300,7 @@ if('serviceWorker' in navigator){
         <div class="helptext" id="pt-odo-warning" style="min-height:14px;"></div>
         <label>Note (optional)</label>
         <input type="text" id="pt-note" placeholder="e.g. family visit">
-        <button class="btn btn-ghost" onclick="savePersonalTrip()">Log Personal Trip</button>
+        <button class="btn btn-ghost" data-kfe-action="savePersonalTrip" data-kfe-event="click">Log Personal Trip</button>
         <div class="helptext">Personal trips don't count as income and their km/fuel cost are excluded from the breakeven and profit calendar — logging them here just keeps your odometer and fuel records continuous and explainable.</div>
       </div>
       <div class="card" id="personal-history"></div>
@@ -329,18 +329,18 @@ if('serviceWorker' in navigator){
         </div>
       </div>
       <div class="helptext" id="fuel-preview"></div>
-      <button class="btn btn-primary" onclick="saveFuelEntry()">Save Fuel Entry</button>
+      <button class="btn btn-primary" data-kfe-action="saveFuelEntry" data-kfe-event="click">Save Fuel Entry</button>
     </div>
-    <div class="divider-label" onclick="openFuelWeek()" style="cursor:pointer;">History ›</div>
+    <div class="divider-label" data-kfe-action="openFuelWeek" data-kfe-event="click" style="cursor:pointer;">History ›</div>
     <div class="card" id="fuel-history"></div>
   </section>
 
   <!-- EXPENSES & LOAN TAB -->
   <section class="tab-panel" id="tab-expenses">
     <div class="segmented">
-      <button class="active" id="seg-fixed" onclick="switchExpSeg('fixed')">Fixed Expenses</button>
-      <button id="seg-loan" onclick="switchExpSeg('loan')">Loan</button>
-      <button id="seg-variable" onclick="switchExpSeg('variable')">Quick & Maint.</button>
+      <button class="active" id="seg-fixed" data-kfe-action="switchExpSeg" data-kfe-event="click" data-kfe-args="'fixed'">Fixed Expenses</button>
+      <button id="seg-loan" data-kfe-action="switchExpSeg" data-kfe-event="click" data-kfe-args="'loan'">Loan</button>
+      <button id="seg-variable" data-kfe-action="switchExpSeg" data-kfe-event="click" data-kfe-args="'variable'">Quick & Maint.</button>
     </div>
 
     <div id="exp-fixed-panel">
@@ -363,7 +363,7 @@ if('serviceWorker' in navigator){
         </div>
         <label>Renewal Cost (₹)</label>
         <input type="number" inputmode="decimal" id="fx-cost" placeholder="18500">
-        <button class="btn btn-primary" onclick="saveFixedExpense()">Save</button>
+        <button class="btn btn-primary" data-kfe-action="saveFixedExpense" data-kfe-event="click">Save</button>
       </div>
       <div class="divider-label">Daily Fixed Cost</div>
       <div class="card" id="fx-list"></div>
@@ -380,8 +380,8 @@ if('serviceWorker' in navigator){
         </div>
         <label>Start Date</label>
         <input type="date" id="ln-start">
-        <button class="btn btn-primary" onclick="saveLoan()">Save Loan Terms</button>
-        <button class="btn btn-danger" id="ln-delete-btn" onclick="deleteLoan()" style="display:none;">Delete Loan Record</button>
+        <button class="btn btn-primary" data-kfe-action="saveLoan" data-kfe-event="click">Save Loan Terms</button>
+        <button class="btn btn-danger" id="ln-delete-btn" data-kfe-action="deleteLoan" data-kfe-event="click" style="display:none;">Delete Loan Record</button>
         <div class="helptext" id="ln-emi-preview"></div>
       </div>
 
@@ -391,7 +391,7 @@ if('serviceWorker' in navigator){
           <div><label>Date</label><input type="date" id="pp-date"></div>
           <div><label>Amount (₹)</label><input type="number" inputmode="decimal" id="pp-amount" placeholder="50000"></div>
         </div>
-        <button class="btn btn-ghost" onclick="savePrepayment()">Add Prepayment</button>
+        <button class="btn btn-ghost" data-kfe-action="savePrepayment" data-kfe-event="click">Add Prepayment</button>
         <div class="helptext">A prepayment keeps your EMI the same but pays the loan off sooner — it reduces the balance shown below straight away.</div>
       </div>
 
@@ -414,7 +414,7 @@ if('serviceWorker' in navigator){
         <input type="text" id="qe-category-other" placeholder="Enter custom category" style="margin-top:8px; display:none;">
         <label>Amount (₹)</label>
         <input type="number" inputmode="decimal" id="qe-amount" placeholder="50">
-        <button class="btn btn-primary" onclick="saveQuickExpense()">Log Expense</button>
+        <button class="btn btn-primary" data-kfe-action="saveQuickExpense" data-kfe-event="click">Log Expense</button>
         <div class="helptext">These count as real costs and are subtracted from your profit on the Dashboard and Weekly Statement — same as fuel.</div>
       </div>
       <div class="divider-label">Today's Quick Expenses</div>
@@ -443,7 +443,7 @@ if('serviceWorker' in navigator){
           <div><label>Next Due Odometer (optional)</label><input type="number" inputmode="decimal" id="mt-next-odo" placeholder="e.g. 22000"></div>
           <div><label>Next Due Date (optional)</label><input type="date" id="mt-next-date"></div>
         </div>
-        <button class="btn btn-primary" onclick="saveMaintenance()">Log Service</button>
+        <button class="btn btn-primary" data-kfe-action="saveMaintenance" data-kfe-event="click">Log Service</button>
         <div class="helptext">Set either or both "next due" fields — you'll get a warning when you're within 500 km or 30 days of whichever comes first, same logic as real service schedules. Service cost is also subtracted from your profit like other expenses.</div>
       </div>
       <div class="divider-label">Service History</div>
@@ -455,9 +455,9 @@ if('serviceWorker' in navigator){
   <section class="tab-panel" id="tab-dashboard">
     <div id="renewal-banner"></div>
     <div class="segmented">
-      <button class="active" id="seg-day" onclick="switchDashRange('day')">Today</button>
-      <button id="seg-week" onclick="switchDashRange('week')">7 Days</button>
-      <button id="seg-month" onclick="switchDashRange('month')">30 Days</button>
+      <button class="active" id="seg-day" data-kfe-action="switchDashRange" data-kfe-event="click" data-kfe-args="'day'">Today</button>
+      <button id="seg-week" data-kfe-action="switchDashRange" data-kfe-event="click" data-kfe-args="'week'">7 Days</button>
+      <button id="seg-month" data-kfe-action="switchDashRange" data-kfe-event="click" data-kfe-args="'month'">30 Days</button>
     </div>
     <div class="hero-profit" id="profit-hero">
       <div class="k">Profit — <span id="profit-hero-range">Today</span></div>
@@ -500,52 +500,52 @@ if('serviceWorker' in navigator){
     <div class="card">
       <h2>Cloud Backup (BETA slot — separate from Stable)</h2>
       <div class="helptext" id="cloud-backup-status">Checking last cloud backup…</div>
-      <button class="btn btn-primary" onclick="backupToCloud()">Backup Now</button>
-      <button class="btn btn-ghost" onclick="restoreFromCloud()">Restore Now</button>
+      <button class="btn btn-primary" data-kfe-action="backupToCloud" data-kfe-event="click">Backup Now</button>
+      <button class="btn btn-ghost" data-kfe-action="restoreFromCloud" data-kfe-event="click">Restore Now</button>
       <div class="helptext">Backs up to your own Firebase project — no sign-in needed. Overwrites the previous cloud backup each time (only the latest copy is kept). Restoring replaces whatever's on this device, so it also takes a local safety snapshot first, same as Import.</div>
     </div>
     <div id="export-reminder-banner"></div>
     <div class="card">
       <h2>Export / Import Data</h2>
-      <button class="btn btn-primary" onclick="exportData()">Save Backup File (.json)</button>
+      <button class="btn btn-primary" data-kfe-action="exportData" data-kfe-event="click">Save Backup File (.json)</button>
       <div class="helptext" id="export-location-note">Saves to your phone's regular <strong>Downloads</strong> folder — open the Files app → Downloads to find <span id="export-filename-preview"></span>, then move it to Drive/Dropbox/email yourself from there.</div>
-      <button class="btn btn-ghost" id="share-backup-btn" onclick="shareBackup()" style="display:none; margin-top:14px;">Try Direct Share Instead</button>
-      <button class="btn btn-ghost" onclick="document.getElementById('import-file-input').click()">Import Data (.json)</button>
-      <input type="file" id="import-file-input" accept="application/json" style="display:none;" onchange="importData(event)">
+      <button class="btn btn-ghost" id="share-backup-btn" data-kfe-action="shareBackup" data-kfe-event="click" style="display:none; margin-top:14px;">Try Direct Share Instead</button>
+      <button class="btn btn-ghost" data-kfe-action="open-import-picker" data-kfe-event="click">Import Data (.json)</button>
+      <input type="file" id="import-file-input" accept="application/json" style="display:none;" data-kfe-action="importData" data-kfe-event="change" data-kfe-args="event">
       <div class="helptext">"Try Direct Share Instead" attempts to open your phone's native share sheet directly to Drive/Gmail/WhatsApp — but this doesn't work reliably on every phone or browser (Chrome's file-sharing support varies), so it's offered as an extra option, not the main path. If it fails, it automatically falls back to the regular Save above.</div>
     </div>
     <div class="card">
       <h2>Same-Day Snapshot</h2>
       <div class="helptext" id="snapshot-info">No snapshot yet.</div>
-      <button class="btn btn-ghost" id="snapshot-restore-btn" onclick="restoreSnapshot()" style="display:none;">Restore from Snapshot</button>
+      <button class="btn btn-ghost" id="snapshot-restore-btn" data-kfe-action="restoreSnapshot" data-kfe-event="click" style="display:none;">Restore from Snapshot</button>
       <div class="helptext">The app quietly saves a same-day snapshot automatically, and right before every Import — so a bad import or an accidental mistake can be undone. <strong>This does not protect against clearing browser data or reinstalling</strong> — only Export (above) is a true off-device backup.</div>
     </div>
     <div class="card">
       <h2>Reset App</h2>
-      <button class="btn btn-danger" onclick="resetApp()">Delete All Data & Reset</button>
+      <button class="btn btn-danger" data-kfe-action="resetApp" data-kfe-event="click">Delete All Data & Reset</button>
       <div class="helptext">Wipes everything on this device — sessions, fuel log, expenses, loan, personal trips, and the snapshot. Useful for starting fresh or troubleshooting. <strong>This cannot be undone</strong> — export a backup first if there's anything you want to keep.</div>
     </div>
   </section>
 </main>
 
 <nav id="tabbar">
-  <button class="active" id="nav-work" onclick="switchTab('work')">
+  <button class="active" id="nav-work" data-kfe-action="switchTab" data-kfe-event="click" data-kfe-args="'work'">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12l2-6h14l2 6M5 12h14v5H5z"/><circle cx="7.5" cy="17.5" r="1.3"/><circle cx="16.5" cy="17.5" r="1.3"/></svg>
     <span>Work</span><span class="dot"></span>
   </button>
-  <button id="nav-fuel" onclick="switchTab('fuel')">
+  <button id="nav-fuel" data-kfe-action="switchTab" data-kfe-event="click" data-kfe-args="'fuel'">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3c2 2.5 5 6 5 9a5 5 0 0 1-10 0c0-3 3-6.5 5-9z"/></svg>
     <span>Fuel</span><span class="dot"></span>
   </button>
-  <button id="nav-expenses" onclick="switchTab('expenses')">
+  <button id="nav-expenses" data-kfe-action="switchTab" data-kfe-event="click" data-kfe-args="'expenses'">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>
     <span>Expenses</span><span class="dot"></span>
   </button>
-  <button id="nav-dashboard" onclick="switchTab('dashboard')">
+  <button id="nav-dashboard" data-kfe-action="switchTab" data-kfe-event="click" data-kfe-args="'dashboard'">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 12l4-4M12 7v1M17 12h1M7 12h1"/></svg>
     <span>Dashboard</span><span class="dot"></span>
   </button>
-  <button id="nav-backup" onclick="switchTab('backup')">
+  <button id="nav-backup" data-kfe-action="switchTab" data-kfe-event="click" data-kfe-args="'backup'">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
     <span>Backup</span><span class="dot"></span>
   </button>
@@ -556,22 +556,22 @@ if('serviceWorker' in navigator){
     <div id="confirm-message" style="font-size:15px; margin-bottom:14px; line-height:1.5; white-space:pre-line;"></div>
     <input type="number" inputmode="decimal" id="confirm-amount-input" placeholder="Amount (₹)" style="display:none; margin-bottom:14px;">
     <div class="row">
-      <button class="btn btn-ghost" style="margin-top:0;" onclick="closeConfirm(false)">Cancel</button>
-      <button class="btn btn-danger" id="confirm-action-btn" style="margin-top:0;" onclick="closeConfirm(true)">Delete</button>
+      <button class="btn btn-ghost" style="margin-top:0;" data-kfe-action="closeConfirm" data-kfe-event="click" data-kfe-args="false">Cancel</button>
+      <button class="btn btn-danger" id="confirm-action-btn" style="margin-top:0;" data-kfe-action="closeConfirm" data-kfe-event="click" data-kfe-args="true">Delete</button>
     </div>
   </div>
 </div>
 
 <div id="week-detail-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:120; overflow-y:auto;">
   <div style="padding:16px 16px 40px 16px;">
-    <button class="btn btn-ghost" style="margin-top:0; margin-bottom:16px;" onclick="closeWeekDetail()">✕ Close</button>
+    <button class="btn btn-ghost" style="margin-top:0; margin-bottom:16px;" data-kfe-action="closeWeekDetail" data-kfe-event="click">✕ Close</button>
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" onclick="weekDetailNav(-1)">‹</button>
+      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" data-kfe-action="weekDetailNav" data-kfe-event="click" data-kfe-args="-1">‹</button>
       <div style="text-align:center;">
         <div style="font-family:var(--display); font-weight:600; font-size:16px;" id="week-detail-title"></div>
         <div style="font-family:var(--mono); font-size:11px; color:var(--text-dim);" id="week-detail-subtitle"></div>
       </div>
-      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" onclick="weekDetailNav(1)">›</button>
+      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" data-kfe-action="weekDetailNav" data-kfe-event="click" data-kfe-args="1">›</button>
     </div>
     <div class="hero-profit" id="week-detail-hero">
       <div class="k">Week Profit</div>
@@ -592,14 +592,14 @@ if('serviceWorker' in navigator){
 
 <div id="session-week-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:120; overflow-y:auto;">
   <div style="padding:16px 16px 40px 16px;">
-    <button class="btn btn-ghost" style="margin-top:0; margin-bottom:16px;" onclick="closeSessionsWeek()">✕ Close</button>
+    <button class="btn btn-ghost" style="margin-top:0; margin-bottom:16px;" data-kfe-action="closeSessionsWeek" data-kfe-event="click">✕ Close</button>
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" onclick="sessionsWeekNav(-1)">‹</button>
+      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" data-kfe-action="sessionsWeekNav" data-kfe-event="click" data-kfe-args="-1">‹</button>
       <div style="text-align:center;">
         <div style="font-family:var(--display); font-weight:600; font-size:16px;" id="session-week-title"></div>
         <div style="font-family:var(--mono); font-size:11px; color:var(--text-dim);">Tap ‹ › to browse other weeks</div>
       </div>
-      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" onclick="sessionsWeekNav(1)">›</button>
+      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" data-kfe-action="sessionsWeekNav" data-kfe-event="click" data-kfe-args="1">›</button>
     </div>
     <div class="stat-grid" style="margin-bottom:14px;">
       <div class="stat"><div class="k">Week Income</div><div class="v neu" id="session-week-income">₹0</div></div>
@@ -611,14 +611,14 @@ if('serviceWorker' in navigator){
 
 <div id="fuel-week-overlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:120; overflow-y:auto;">
   <div style="padding:16px 16px 40px 16px;">
-    <button class="btn btn-ghost" style="margin-top:0; margin-bottom:16px;" onclick="closeFuelWeek()">✕ Close</button>
+    <button class="btn btn-ghost" style="margin-top:0; margin-bottom:16px;" data-kfe-action="closeFuelWeek" data-kfe-event="click">✕ Close</button>
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" onclick="fuelWeekNav(-1)">‹</button>
+      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" data-kfe-action="fuelWeekNav" data-kfe-event="click" data-kfe-args="-1">‹</button>
       <div style="text-align:center;">
         <div style="font-family:var(--display); font-weight:600; font-size:16px;" id="fuel-week-title"></div>
         <div style="font-family:var(--mono); font-size:11px; color:var(--text-dim);">Tap ‹ › to browse other weeks</div>
       </div>
-      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" onclick="fuelWeekNav(1)">›</button>
+      <button class="btn-ghost" style="width:44px; height:44px; padding:0; border-radius:10px; font-size:18px; background:var(--surface-2); border:1px solid var(--surface-3); color:var(--text);" data-kfe-action="fuelWeekNav" data-kfe-event="click" data-kfe-args="1">›</button>
     </div>
     <div class="card" id="fuel-week-entries"></div>
   </div>

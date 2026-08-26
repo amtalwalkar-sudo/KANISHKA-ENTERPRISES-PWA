@@ -1533,3 +1533,13 @@ async function init(){
   setInterval(()=>{ if(document.getElementById('tab-work').classList.contains('active')) updateElapsedDisplay(); }, 15000);
 }
 init();
+
+
+// Explicit UI action boundary. The UI shell invokes only this contract.
+window.KFE_ACTIONS = Object.freeze(Object.fromEntries([
+  'switchTab','switchExpSeg','switchDashRange','startWork','endWork','savePersonalTrip',
+  'saveFuelEntry','openFuelWeek','saveFixedExpense','saveLoan','deleteLoan','savePrepayment',
+  'saveQuickExpense','saveMaintenance','openSessionsWeek','closeSessionsWeek','sessionsWeekNav',
+  'closeFuelWeek','fuelWeekNav','closeWeekDetail','weekDetailNav','backupToCloud','restoreFromCloud',
+  'exportData','shareBackup','importData','restoreSnapshot','resetApp','closeConfirm'
+].filter(name => typeof window[name] === 'function').map(name => [name, (...args) => window[name](...args)])));
