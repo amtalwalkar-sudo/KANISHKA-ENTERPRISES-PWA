@@ -52,7 +52,6 @@ jobs:
           const errors = [];
           page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
           page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
-
           const fail = message => { throw new Error(message); };
 
           try {
@@ -65,62 +64,58 @@ jobs:
             );
 
             const boot = await page.evaluate(() => ({
-              models: Object.keys(window.KFE_VIEW_MODELS || {}),
-              dashboard: window.KFE_DASHBOARD_SNAPSHOT,
-              runtime: window.KFE_CORE_LOOP_VIEW_MODEL,
-              vue: !!window.KFE_VUE_RUNTIME,
-              activeTab: document.querySelector('.tab-panel.active')?.id || null,
-              tabButtons: document.querySelectorAll('#tabbar button').length
+              models:Object.keys(window.KFE_VIEW_MODELS||{}),
+              dashboard:window.KFE_DASHBOARD_SNAPSHOT,
+              runtime:window.KFE_CORE_LOOP_VIEW_MODEL,
+              vue:!!window.KFE_VUE_RUNTIME,
+              actions:Object.keys(window.KFE_ACTIONS||{}),
+              activeTab:document.querySelector('.tab-panel.active')?.id||null,
+              tabButtons:document.querySelectorAll('#tabbar button').length
             }));
 
-            const expectedModels = ['work','fuel','expenses','revenue','maintenance','loan','renewals'];
-            for (const name of expectedModels) {
-              if (!boot.models.includes(name)) fail(`Missing screen view-model: ${name}`);
+            for(const name of ['work','fuel','expenses','revenue','maintenance','loan','renewals']){
+              if(!boot.models.includes(name)) fail(`Missing screen view-model: ${name}`);
             }
-            if (boot.activeTab !== 'tab-work') fail(`Unexpected initial tab: ${boot.activeTab}`);
-            if (boot.tabButtons < 5) fail(`Unexpected tab count: ${boot.tabButtons}`);
-            if (!boot.vue) fail('Vue runtime composition boundary is not mounted');
+            if(boot.activeTab!=='tab-work') fail(`Unexpected initial tab: ${boot.activeTab}`);
+            if(boot.tabButtons<5) fail(`Unexpected tab count: ${boot.tabButtons}`);
+            if(!boot.vue) fail('Vue runtime composition boundary is not mounted');
+            if(!boot.actions.includes('startWork') || !boot.actions.includes('endWork')) fail('Stable UI action boundary is incomplete');
 
-            for (const tab of ['fuel','expenses','dashboard','backup','work']) {
+            for(const tab of ['fuel','expenses','dashboard','backup','work']){
               await page.locator(`#nav-${tab}`).click();
               await page.waitForTimeout(50);
-              const active = await page.locator('.tab-panel.active').getAttribute('id');
-              if (active !== `tab-${tab}`) fail(`Tab navigation failed for ${tab}: ${active}`);
+              const active=await page.locator('.tab-panel.active').getAttribute('id');
+              if(active!==`tab-${tab}`) fail(`Tab navigation failed for ${tab}: ${active}`);
             }
 
-            await page.evaluate(() => localStorage.clear());
+            await page.evaluate(async()=>{ await window.KFE_REPOSITORY?.clear(); });
             await page.locator('#nav-work').click();
-            await page.locator('#start-odo').fill('10000');
+            await page.evaluate(() => window.KFE_ACTIONS.startWork({startOdo:10000,now:1700000000000}));
+            await page.waitForTimeout(150);
 
-            // Exercise the existing UI boundary. The action must be reachable through
-            // the shell contract rather than invoking a legacy function by name.
-            const actionState = await page.evaluate(() => ({
-              hasActionMap: !!window.KFE_ACTIONS,
-              startWorkAction: typeof window.KFE_ACTIONS?.startWork === 'function'
+            const afterStart=await page.evaluate(async()=>({
+              state:window.KFE_REPOSITORY ? await window.KFE_REPOSITORY.load() : null,
+              work:window.KFE_VIEW_MODELS?.work,
+              dashboard:window.KFE_DASHBOARD_SNAPSHOT
             }));
-            if (!actionState.hasActionMap || !actionState.startWorkAction) {
-              fail('UI action boundary is not exposed through KFE_ACTIONS.startWork');
+            if(afterStart.state?.work?.startOdo!==10000 || afterStart.state?.work?.status!=='Open'){
+              fail(`Repository-backed start-work mutation failed: ${JSON.stringify(afterStart.state)}`);
             }
+            if(afterStart.work?.startOdo!==10000) fail(`Work view-model did not reflect start: ${JSON.stringify(afterStart.work)}`);
 
-            await page.evaluate(() => window.KFE_ACTIONS.startWork());
-            await page.waitForTimeout(250);
-
-            const after = await page.evaluate(() => ({
-              stored: JSON.parse(localStorage.getItem('betafleet_sessions') || '[]'),
-              work: window.KFE_VIEW_MODELS?.work,
-              dashboard: window.KFE_DASHBOARD_SNAPSHOT
+            await page.evaluate(() => window.KFE_ACTIONS.endWork({endOdo:10050,now:1700003600000}));
+            await page.waitForTimeout(150);
+            const afterEnd=await page.evaluate(async()=>({
+              state:window.KFE_REPOSITORY ? await window.KFE_REPOSITORY.load() : null,
+              work:window.KFE_VIEW_MODELS?.work
             }));
-
-            if (after.stored.length !== 1 || after.stored[0].startOdo !== 10000 || after.stored[0].status !== 'Open') {
-              fail(`Start-work persistence/business mutation failed: ${JSON.stringify(after.stored)}`);
+            if(afterEnd.state?.work?.endOdo!==10050 || afterEnd.state?.work?.status!=='Closed'){
+              fail(`Repository-backed end-work mutation failed: ${JSON.stringify(afterEnd.state)}`);
             }
-            if (!after.work || typeof after.work !== 'object') fail('Work view-model unavailable after mutation');
-            if (after.work.startOdo !== 10000 && after.work.startOdometer !== 10000) {
-              fail(`Work view-model did not reflect the business mutation: ${JSON.stringify(after.work)}`);
-            }
-            if (errors.length) fail(errors.join('\n'));
+            if(afterEnd.work?.km!==50) fail(`Work view-model mileage calculation failed: ${JSON.stringify(afterEnd.work)}`);
+            if(errors.length) fail(errors.join('\n'));
 
-            console.log(JSON.stringify({ok:true, boot, after}, null, 2));
+            console.log(JSON.stringify({ok:true,boot,afterStart,afterEnd},null,2));
           } finally {
             await browser.close();
           }
