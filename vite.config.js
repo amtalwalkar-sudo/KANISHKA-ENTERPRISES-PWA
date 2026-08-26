@@ -6,9 +6,14 @@ function copyRuntimeAssets(){
   return {
     name:'kfe-runtime-assets',
     transformIndexHtml(html){
-      const host='<div id="vue-runtime"></div>';
-      const script='<script type="module" src="/src/main.js"></script>';
-      return html.includes('id="vue-runtime"')?html:html.replace('</body>',`${host}${script}</body>`);
+      if(html.includes('id="vue-runtime"')) return html;
+      return {
+        html,
+        tags:[
+          {tag:'div',attrs:{id:'vue-runtime'},injectTo:'body'},
+          {tag:'script',attrs:{type:'module',src:'/src/main.js'},injectTo:'body'}
+        ]
+      };
     },
     closeBundle(){
       const out=resolve('dist');
