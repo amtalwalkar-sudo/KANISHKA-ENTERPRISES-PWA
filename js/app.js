@@ -26,6 +26,15 @@ export const screens={
 export const dashboard=createDashboardAggregator({screens});
 export const coreLoop=createCoreLoop({state,onStatus:detail=>window.dispatchEvent(new CustomEvent('kfe:runtime',{detail}))});
 export const network=createNetworkManager({sendOutbox:noTransport,onStatus:online=>window.dispatchEvent(new CustomEvent('kfe:network',{detail:{online}}))});
+
+// Stable UI action boundary. The DOM shell calls this contract; business mutations
+// remain owned by screen modules and the repository-backed state store.
+export const actions=Object.freeze({
+  startWork:(args={})=>screens.work.startWork(args),
+  endWork:(args={})=>screens.work.endWork(args)
+});
+window.KFE_ACTIONS=actions;
+
 void initializeResilience({sendOutbox:noTransport});
 
 export function getScreenViewModel(name){const s=screens[name];if(!s)throw new Error(`Unknown screen: ${name}`);return s.getViewModel();}
