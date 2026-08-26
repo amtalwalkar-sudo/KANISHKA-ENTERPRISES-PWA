@@ -30,5 +30,9 @@ function boot(){
   window.addEventListener('kfe:network',publish);window.addEventListener('kfe:runtime',publish);
   window.dispatchEvent(new CustomEvent('kfe:view-models-ready',{detail:window.KFE_VIEW_MODELS}));
 }
+// Publish as soon as the module evaluates. This makes the application contract
+// available independently of DOMContentLoaded timing, while boot() still installs
+// the UI event boundary once the document is ready.
+publish();
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 export{publish};
