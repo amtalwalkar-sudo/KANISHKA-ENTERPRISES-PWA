@@ -12,24 +12,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Install project dependencies
         run: npm install
-
       - name: Install Playwright test dependency
         run: npm install --no-save playwright@1.55.0
-
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-
       - name: Build production PWA
         run: npm run build
-
       - name: Start production PWA server
         run: |
           npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/kfe-server.log 2>&1 &
@@ -39,99 +33,69 @@ jobs:
           done
           cat /tmp/kfe-server.log
           exit 1
-
       - name: Run 12-step architecture validation
         run: npm run validate:architecture
-
       - name: Run real browser business-runtime proof
         run: |
           cat > kfe-runtime-test.mjs <<'EOF'
           import { chromium } from 'playwright';
-
-          const browser = await chromium.launch({headless:true});
-          const context = await browser.newContext();
-          const page = await context.newPage();
-          const errors = [];
-          page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
-          page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
-          page.on('requestfailed', r => errors.push(`requestfailed: ${r.url()} :: ${r.failure()?.errorText||'unknown'}`));
-          const fail = message => { throw new Error(message); };
-
-          try {
-            await page.goto('http://127.0.0.1:4173/', {waitUntil:'domcontentloaded', timeout:15000});
+          const browser=await chromium.launch({headless:true});
+          const context=await browser.newContext();
+          const page=await context.newPage();
+          const errors=[];
+          page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));
+          page.on('console',m=>{if(m.type()==='error')errors.push(`console: ${m.text()}`)});
+          page.on('requestfailed',r=>errors.push(`requestfailed: ${r.url()} :: ${r.failure()?.errorText||'unknown'}`));
+          const fail=message=>{throw new Error(message)};
+          try{
+            await page.goto('http://127.0.0.1:4173/',{waitUntil:'domcontentloaded',timeout:15000});
             await page.waitForTimeout(1000);
-            const diagnostics = await page.evaluate(() => ({
+            const diagnostics=await page.evaluate(()=>({
               bootError:window.KFE_BOOT_ERROR||null,
               models:!!window.KFE_VIEW_MODELS,
               dashboard:!!window.KFE_DASHBOARD_SNAPSHOT,
               runtime:!!window.KFE_CORE_LOOP_VIEW_MODEL,
               actions:Object.keys(window.KFE_ACTIONS||{}),
-              vue:!!window.KFE_VUE_RUNTIME
+              vueMount:!!document.querySelector('#vue-runtime[data-v-app]')
             }));
-            if(diagnostics.bootError) fail(`UI shell bootstrap failed: ${JSON.stringify(diagnostics.bootError)}`);
-            if(!diagnostics.models || !diagnostics.dashboard || !diagnostics.runtime){
-              fail(`Runtime contract was not published. Diagnostics=${JSON.stringify(diagnostics)} Errors=${errors.join(' | ')}`);
-            }
-
-            const boot = await page.evaluate(() => ({
+            if(diagnostics.bootError)fail(`UI shell bootstrap failed: ${JSON.stringify(diagnostics.bootError)}`);
+            if(!diagnostics.models||!diagnostics.dashboard||!diagnostics.runtime)fail(`Runtime contract was not published. Diagnostics=${JSON.stringify(diagnostics)} Errors=${errors.join(' | ')}`);
+            const boot=await page.evaluate(()=>({
               models:Object.keys(window.KFE_VIEW_MODELS||{}),
               dashboard:window.KFE_DASHBOARD_SNAPSHOT,
               runtime:window.KFE_CORE_LOOP_VIEW_MODEL,
-              vue:!!window.KFE_VUE_RUNTIME,
+              vueMount:!!document.querySelector('#vue-runtime[data-v-app]'),
               actions:Object.keys(window.KFE_ACTIONS||{}),
               activeTab:document.querySelector('.tab-panel.active')?.id||null,
               tabButtons:document.querySelectorAll('#tabbar button').length
             }));
-
-            for(const name of ['work','fuel','expenses','revenue','maintenance','loan','renewals']){
-              if(!boot.models.includes(name)) fail(`Missing screen view-model: ${name}`);
-            }
-            if(boot.activeTab!=='tab-work') fail(`Unexpected initial tab: ${boot.activeTab}`);
-            if(boot.tabButtons<5) fail(`Unexpected tab count: ${boot.tabButtons}`);
-            if(!boot.vue) fail('Vue runtime composition boundary is not mounted');
-            if(!boot.actions.includes('startWork') || !boot.actions.includes('endWork')) fail('Stable UI action boundary is incomplete');
-
+            for(const name of ['work','fuel','expenses','revenue','maintenance','loan','renewals'])if(!boot.models.includes(name))fail(`Missing screen view-model: ${name}`);
+            if(boot.activeTab!=='tab-work')fail(`Unexpected initial tab: ${boot.activeTab}`);
+            if(boot.tabButtons<5)fail(`Unexpected tab count: ${boot.tabButtons}`);
+            if(!boot.vueMount)fail('Vue runtime composition boundary is not mounted');
+            if(!boot.actions.includes('startWork')||!boot.actions.includes('endWork'))fail('Stable UI action boundary is incomplete');
             for(const tab of ['fuel','expenses','dashboard','backup','work']){
-              await page.locator(`#nav-${tab}`).click();
-              await page.waitForTimeout(50);
+              await page.locator(`#nav-${tab}`).click();await page.waitForTimeout(50);
               const active=await page.locator('.tab-panel.active').getAttribute('id');
-              if(active!==`tab-${tab}`) fail(`Tab navigation failed for ${tab}: ${active}`);
+              if(active!==`tab-${tab}`)fail(`Tab navigation failed for ${tab}: ${active}`);
             }
-
-            await page.evaluate(async()=>{ await window.KFE_REPOSITORY?.clear(); });
-            await page.evaluate(() => window.KFE_ACTIONS.startWork({startOdo:10000,now:1700000000000}));
+            await page.evaluate(async()=>{await window.KFE_REPOSITORY?.clear()});
+            await page.evaluate(()=>window.KFE_ACTIONS.startWork({startOdo:10000,now:1700000000000}));
             await page.waitForTimeout(150);
-
-            const afterStart=await page.evaluate(async()=>({
-              state:window.KFE_REPOSITORY ? await window.KFE_REPOSITORY.load() : null,
-              work:window.KFE_VIEW_MODELS?.work,
-              dashboard:window.KFE_DASHBOARD_SNAPSHOT
-            }));
-            if(afterStart.state?.work?.startOdo!==10000 || afterStart.state?.work?.status!=='Open'){
-              fail(`Repository-backed start-work mutation failed: ${JSON.stringify(afterStart.state)}`);
-            }
-            if(afterStart.work?.startOdo!==10000) fail(`Work view-model did not reflect start: ${JSON.stringify(afterStart.work)}`);
-
-            await page.evaluate(() => window.KFE_ACTIONS.endWork({endOdo:10050,now:1700003600000}));
+            const afterStart=await page.evaluate(async()=>({state:window.KFE_REPOSITORY?await window.KFE_REPOSITORY.load():null,work:window.KFE_VIEW_MODELS?.work,dashboard:window.KFE_DASHBOARD_SNAPSHOT}));
+            if(afterStart.state?.work?.startOdo!==10000||afterStart.state?.work?.status!=='Open')fail(`Repository-backed start-work mutation failed: ${JSON.stringify(afterStart.state)}`);
+            if(afterStart.work?.startOdo!==10000)fail(`Work view-model did not reflect start: ${JSON.stringify(afterStart.work)}`);
+            await page.evaluate(()=>window.KFE_ACTIONS.endWork({endOdo:10050,now:1700003600000}));
             await page.waitForTimeout(150);
-            const afterEnd=await page.evaluate(async()=>({
-              state:window.KFE_REPOSITORY ? await window.KFE_REPOSITORY.load() : null,
-              work:window.KFE_VIEW_MODELS?.work
-            }));
-            if(afterEnd.state?.work?.endOdo!==10050 || afterEnd.state?.work?.status!=='Closed'){
-              fail(`Repository-backed end-work mutation failed: ${JSON.stringify(afterEnd.state)}`);
-            }
-            if(afterEnd.work?.km!==50) fail(`Work view-model mileage calculation failed: ${JSON.stringify(afterEnd.work)}`);
-            if(errors.length) fail(errors.join('\n'));
-
+            const afterEnd=await page.evaluate(async()=>({state:window.KFE_REPOSITORY?await window.KFE_REPOSITORY.load():null,work:window.KFE_VIEW_MODELS?.work}));
+            if(afterEnd.state?.work?.endOdo!==10050||afterEnd.state?.work?.status!=='Closed')fail(`Repository-backed end-work mutation failed: ${JSON.stringify(afterEnd.state)}`);
+            if(afterEnd.work?.km!==50)fail(`Work view-model mileage calculation failed: ${JSON.stringify(afterEnd.work)}`);
+            if(errors.length)fail(errors.join('\n'));
             console.log(JSON.stringify({ok:true,boot,afterStart,afterEnd},null,2));
-          } finally {
-            await browser.close();
-          }
+          }finally{await browser.close()}
           EOF
           node ./kfe-runtime-test.mjs
           rm -f ./kfe-runtime-test.mjs
-
       - name: Upload server log on failure
         if: failure()
         uses: actions/upload-artifact@v4
