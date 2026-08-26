@@ -6,27 +6,51 @@ on:
   workflow_dispatch:
 
 jobs:
+  architecture-boundaries:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify repository and local-first boundaries
+        run: node js/testing/architecture-boundaries.mjs
+      - name: Guard UI shell imports
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -En "from ['\"]\./(domain|screens|dashboard)/|from ['\"]\.\./(domain|screens|dashboard)/" js/ui-shell.js; then
+            echo "ui-shell.js must not import business modules directly."
+            exit 1
+          fi
+      - name: Guard Service Worker modular boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f js/pwa/sw-strategies.js
+          grep -q "importScripts('./js/pwa/sw-strategies.js')" service-worker.js
+          grep -q "event.request.mode==='navigate'" service-worker.js
+          echo "Architecture guards passed."
+
   resilience-reliability-offline:
+    needs: architecture-boundaries
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Install Playwright Chromium
         run: npx --yes playwright@1.55.0 install --with-deps chromium
-
       - name: Start local PWA server
         run: python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/kfe-server.log 2>&1 &
-
       - name: Run resilience, reliability and offline-first tests
         run: npx --yes -p playwright@1.55.0 node js/testing/app-resilience-reliability-offline.mjs
-
       - name: Upload server log on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -34,29 +58,3 @@ jobs:
           name: kfe-pwa-server-log
           path: /tmp/kfe-server.log
           if-no-files-found: ignore
-
-  architecture-guard:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Guard UI shell against business-domain imports
-        shell: bash
-        run: |
-          set -euo pipefail
-          if grep -En "(domain|screens|dashboard)/.*\.js|KFE_DASHBOARD_SNAPSHOT|KFE_VIEW_MODELS" js/ui-shell.js; then
-            echo "ui-shell.js must remain presentation-only and must not import/read business modules directly."
-            exit 1
-          fi
-
-      - name: Guard test architecture boundaries
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f js/testing/app-resilience-reliability-offline.mjs
-          test -f service-worker.js
-          grep -q "event.request.mode==='navigate'" service-worker.js
-          grep -q "caches.match(event.request)" service-worker.js
-          grep -q "context.setOffline(true)" js/testing/app-resilience-reliability-offline.mjs
-          echo "Architecture guards passed."
