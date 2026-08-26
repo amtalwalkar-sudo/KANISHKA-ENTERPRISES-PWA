@@ -1,4 +1,4 @@
-import {getScreenViewModel,getDashboardSnapshot,getCoreLoopViewModel,coreLoop,network,repository} from './app.js';
+import {getScreenViewModel,getDashboardSnapshot,getCoreLoopViewModel,coreLoop,network,repository,actions} from './app.js';
 
 const screenNames=['work','fuel','expenses','revenue','maintenance','loan','renewals'];
 function publish(){
@@ -8,6 +8,7 @@ function publish(){
   window.KFE_CORE_LOOP=coreLoop;
   window.KFE_REPOSITORY=repository;
   window.KFE_NETWORK=network;
+  window.KFE_ACTIONS=actions;
   window.KFE_CORE_LOOP_VIEW_MODEL=Object.freeze(getCoreLoopViewModel());
   return models;
 }
@@ -30,9 +31,14 @@ function boot(){
   window.addEventListener('kfe:network',publish);window.addEventListener('kfe:runtime',publish);
   window.dispatchEvent(new CustomEvent('kfe:view-models-ready',{detail:window.KFE_VIEW_MODELS}));
 }
-// Publish as soon as the module evaluates. This makes the application contract
-// available independently of DOMContentLoaded timing, while boot() still installs
-// the UI event boundary once the document is ready.
-publish();
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+function safeBoot(){
+  try{publish();}
+  catch(error){
+    window.KFE_BOOT_ERROR={name:error?.name||'Error',message:error?.message||String(error),stack:error?.stack||null};
+    throw error;
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+}
+// Publish immediately so the runtime contract is available independently of DOM readiness.
+safeBoot();
 export{publish};
