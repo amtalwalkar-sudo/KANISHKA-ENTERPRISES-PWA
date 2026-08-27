@@ -1,0 +1,13 @@
+// KFE hardened local database boundary. No business formulas.
+const DB_NAME='kfe';
+export const DB_VERSION=3;
+export const STORES=Object.freeze({state:{keyPath:'id'},rides:{keyPath:'id'},logs:{keyPath:'id'},settings:{keyPath:'id'},outbox:{keyPath:'id'},config:{keyPath:'id'},audit:{keyPath:'id'},idempotency:{keyPath:'id'}});
+export const STORE_NAMES=Object.freeze(Object.keys(STORES));
+export function openKfeDb(){return new Promise((resolve,reject)=>{if(typeof indexedDB==='undefined')return reject(new Error('IndexedDB unavailable'));const request=indexedDB.open(DB_NAME,DB_VERSION);request.onupgradeneeded=()=>{const db=request.result;for(const [name,definition] of Object.entries(STORES))if(!db.objectStoreNames.contains(name))db.createObjectStore(name,definition);};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB open failed'));});}
+export function runAtomicTransaction(db,storeNames,operation){if(!db||!Array.isArray(storeNames)||!storeNames.length||typeof operation!=='function')throw new TypeError('Invalid atomic transaction arguments');return new Promise((resolve,reject)=>{let settled=false,result;const tx=db.transaction(storeNames,'readwrite');tx.oncomplete=()=>{if(!settled){settled=true;resolve(result);}};tx.onerror=()=>{if(!settled){settled=true;reject(tx.error||new Error('Transaction failed'));}};tx.onabort=()=>{if(!settled){settled=true;reject(tx.error||new Error('Transaction aborted'));}};try{const stores=Object.freeze(Object.fromEntries(storeNames.map(n=>[n,tx.objectStore(n)])));result=operation(stores,tx);}catch(error){try{tx.abort();}catch{}if(!settled){settled=true;reject(error);}}});}
+export const requestResult=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB request failed'));});
+export async function read(storeName,id){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readonly').objectStore(storeName).get(id));}
+export async function write(storeName,value){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readwrite').objectStore(storeName).put(value));}
+export async function remove(storeName,id){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readwrite').objectStore(storeName).delete(id));}
+export async function all(storeName){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readonly').objectStore(storeName).getAll());}
+export async function requestPersistentStorage(){try{return navigator.storage?.persist?await navigator.storage.persist():false;}catch{return false;}}
