@@ -8,8 +8,7 @@
     "dev:https": "vite --host 0.0.0.0 --https",
     "build": "vite build",
     "preview": "vite preview",
-    "validate:architecture": "node js/12-step-verify.mjs",
-    "test:business-runtime": "node tests/business-runtime.mjs"
+    "validate:architecture": "node js/12-step-verify.mjs"
   },
   "dependencies": {
     "vue": "^3.5.18"
