@@ -1,0 +1,4 @@
+import {result,DATA,paise} from './shared.js';
+export const DASHBOARD_CALCULATION_VERSION=1;
+export function profitability(input){const {revenue,fuel,maintenanceProvision,fixedOverhead,loanPrincipal,loanInterest,otherBusinessCosts,takeHomeTargetPaise}=input;const values=[revenue,fuel,maintenanceProvision,fixedOverhead,loanPrincipal,loanInterest,otherBusinessCosts];if(values.some(v=>v==null))return result(null,DATA.INSUFFICIENT_DATA,[]);for(const v of values)paise(v);paise(takeHomeTargetPaise);const costs=values.reduce((a,v)=>a+v,0);return result({revenuePaise:revenue,costsPaise:costs,netProfitPaise:revenue-costs,takeHomeTargetPaise,aboveTakeHomeTargetPaise:revenue-costs-takeHomeTargetPaise},DATA.ACTUAL,[]);}
+export function tomorrowTarget(input){const vals=Object.values(input);if(vals.some(v=>v==null))return result(null,DATA.INSUFFICIENT_DATA,[]);return result(vals.reduce((a,v)=>a+paise(v),0),DATA.PROJECTED,[]);}
