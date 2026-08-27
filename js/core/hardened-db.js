@@ -10,4 +10,5 @@ export async function read(storeName,id){const db=await openKfeDb();return reque
 export async function write(storeName,value){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readwrite').objectStore(storeName).put(value));}
 export async function remove(storeName,id){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readwrite').objectStore(storeName).delete(id));}
 export async function all(storeName){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readonly').objectStore(storeName).getAll());}
+export async function bufferCrash(error,context={}){const id=globalThis.crypto?.randomUUID?.()||`crash-${Date.now()}-${Math.random().toString(36).slice(2)}`;return write('logs',{id,createdAt:new Date().toISOString(),message:String(error?.message||error||'Unknown error'),stack:error?.stack||null,context});}
 export async function requestPersistentStorage(){try{return navigator.storage?.persist?await navigator.storage.persist():false;}catch{return false;}}
