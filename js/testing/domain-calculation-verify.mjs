@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {roundRational,multiplyPaiseByRatio} from '../core/arithmetic.js';
 import {rollingFuelCostPerKm,projectedFuelCostForKm} from '../domain/fuel.js';
-import {rolling7DayKm,expectedTomorrowKm,odometerAnomalyWarning,recoverDanglingShifts} from '../domain/work.js';
+import {rolling7DayKm,expectedTomorrowKm,odometerAnomalyWarning,recoverDanglingShifts,validateWorkOdometer} from '../domain/work.js';
 import {fixedExpensePerBusinessKm} from '../domain/expenses.js';
 import {maintenanceProgress,provisionMaintenance} from '../domain/maintenance.js';
 import {applyPrepayment,amortize} from '../domain/loans.js';
@@ -20,7 +20,7 @@ assert.equal(projectedFuelCostForKm(fuel,1000,3).value,400000);
 const work=[{id:'w1',scope:'BUSINESS',start_odometer:0,end_odometer:700,end_at:'2026-08-20T10:00:00.000Z',business_date:'2026-08-20',is_deleted:false,is_voided:false}];
 assert.equal(rolling7DayKm(work,'2026-08-20T10:00:00.000Z').value,100);
 assert.equal(expectedTomorrowKm(work,'2026-08-20T10:00:00.000Z').dataConfidenceState,'PROJECTED');
-assert.throws(()=>{const {validateWorkOdometer}=require('../domain/work.js');validateWorkOdometer(9,10);});
+assert.throws(()=>validateWorkOdometer(9,10));
 
 const fixed=fixedExpensePerBusinessKm([{id:'f',monthly_amount_paise:100000,effective_from:'2026-01-01T00:00:00.000Z',effective_to:null}],1000,'2026-08-01T00:00:00.000Z');
 assert.equal(fixed.value.rate.numerator,100000);
