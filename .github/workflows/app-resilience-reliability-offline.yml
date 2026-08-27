@@ -23,11 +23,12 @@ jobs:
         run: |
           npm run validate:architecture
           npm run validate:foundation
-      - name: Syntax-check runtime modules
+          npm run validate:domain
+      - name: Syntax-check runtime and domain modules
         shell: bash
         run: |
           set -euo pipefail
-          for f in js/app.js js/core/*.js js/services/*.js; do node --check "$f"; done
+          for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done
       - name: Guard Vue shell from business logic
         shell: bash
         run: |
