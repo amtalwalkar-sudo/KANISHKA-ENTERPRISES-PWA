@@ -1,17 +1,12 @@
 // KFE 2.0 clean-room financial arithmetic.
 // Money is represented as integer paise. Financial rounding is centralized here.
 
-export const PAISA_SCALE = 100n;
-export const RATE_SCALE = 1000000000n;
-
 export function assertPaise(value) {
   if (!Number.isSafeInteger(value)) throw new TypeError('Currency must be a safe integer number of paise');
   return value;
 }
 
-export function paise(value) {
-  return assertPaise(value);
-}
+export function paise(value) { return assertPaise(value); }
 
 function asBigIntInteger(value, name) {
   if (typeof value === 'bigint') return value;
@@ -54,26 +49,31 @@ export function paisePerKmRate(amountPaise, km) {
 
 export function averageRates(rates) {
   if (!rates.length) return null;
-  let numerator = 0n;
-  let denominator = 0n;
-  for (const rate of rates) {
-    numerator = numerator * rate.denominator + rate.numerator * denominator;
-    denominator *= rate.denominator;
-    denominator += rate.denominator * (denominator === 0n ? 1n : 0n);
-  }
-  // Rebuild the sum with a common denominator to avoid the intentionally
-  // compact accumulation above becoming order-dependent.
-  numerator = rates[0].numerator;
-  denominator = rates[0].denominator;
+  let numerator = rates[0].numerator;
+  let denominator = rates[0].denominator;
   for (let i = 1; i < rates.length; i++) {
     numerator = numerator * rates[i].denominator + rates[i].numerator * denominator;
     denominator *= rates[i].denominator;
   }
-  const count = BigInt(rates.length);
-  return { numerator, denominator: denominator * count };
+  return { numerator, denominator: denominator * BigInt(rates.length) };
 }
 
 export function multiplyRateByKm(rate, km) {
   if (!Number.isSafeInteger(km) || km < 0) throw new RangeError('KM must be a non-negative safe integer');
   return roundRational(rate.numerator * BigInt(km), rate.denominator);
+}
+
+// Converts a finite decimal percentage to an exact rational representation.
+export function decimalToFraction(value, name='decimal') {
+  if(!Number.isFinite(value)) throw new TypeError(`${name} must be finite`);
+  const text=String(value);
+  if(/[eE]/.test(text)) throw new TypeError(`${name} must use ordinary decimal notation`);
+  const negative=text.startsWith('-');
+  const unsigned=negative?text.slice(1):text;
+  const [whole,fraction='']=unsigned.split('.');
+  if(!/^\d+$/.test(whole)||!/^\d*$/.test(fraction))throw new TypeError(`${name} must be a decimal number`);
+  const denominator=10n**BigInt(fraction.length);
+  let numerator=BigInt(whole||'0')*denominator+BigInt(fraction||'0');
+  if(negative)numerator=-numerator;
+  return {numerator,denominator};
 }
