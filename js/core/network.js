@@ -1,4 +1,4 @@
-import {flushOutbox} from './hardened-db.js';
+import {flushOutbox} from './outbox.js';
 
 export function createNetworkManager({sendOutbox=async()=>{},onStatus=()=>{}}={}){
   let retrying=false;
