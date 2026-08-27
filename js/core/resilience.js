@@ -1,4 +1,5 @@
-import {requestPersistentStorage,queueOutbox,flushOutbox,bufferCrash} from './idb.js';
+import {requestPersistentStorage,bufferCrash} from './hardened-db.js';
+import {queueOutbox,flushOutbox} from './outbox.js';
 
 const CHANNEL='kfe-sync';
 let channel=null;
@@ -22,7 +23,6 @@ export async function enqueueNetworkMutation(payload){await queueOutbox(payload)
 export function broadcast(type,payload){channel?.postMessage({type,payload,at:Date.now()});}
 export function closeResilience(){cleanupFns.forEach(fn=>fn());cleanupFns=[];channel?.close();channel=null;}
 
-// Long-shift resource lifecycle: every watcher/timer/subscription must be registered here.
 export function createResourceScope(){const cleanups=new Set();return{add(fn){cleanups.add(fn);return()=>cleanups.delete(fn);},clear(){for(const fn of cleanups){try{fn();}catch{}}cleanups.clear();}};}
 
 export function startGeolocation(onPosition,options={}){if(!navigator.geolocation)return()=>{};const id=navigator.geolocation.watchPosition(onPosition,()=>{},options);return()=>navigator.geolocation.clearWatch(id);}
