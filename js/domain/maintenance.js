@@ -10,19 +10,20 @@ function triggerType(item){
 export function maintenanceProgress(item,{odometer,at}){
   const type=triggerType(item);
   if(type==='KM'){
-    if(!Number.isSafeInteger(item.baseline_odometer)||!Number.isSafeInteger(odometer)||!Number.isSafeInteger(item.expected_km_life)||item.expected_km_life<=0)return {triggerType:type,ratio:null,remainingKm:null};
+    if(!Number.isSafeInteger(item.baseline_odometer)||!Number.isSafeInteger(odometer)||!Number.isSafeInteger(item.expected_km_life)||item.expected_km_life<=0)return {triggerType:type,ratio:null,remainingKm:null,progressNumerator:null,progressDenominator:null};
     const consumed=Math.max(0,odometer-item.baseline_odometer);
-    return {triggerType:type,ratio:Math.min(1,consumed/item.expected_km_life),remainingKm:Math.max(0,item.expected_km_life-consumed)};
+    return {triggerType:type,ratio:Math.min(1,consumed/item.expected_km_life),remainingKm:Math.max(0,item.expected_km_life-consumed),progressNumerator:consumed,progressDenominator:item.expected_km_life};
   }
-  if(!item.baseline_date||!Number.isSafeInteger(item.expected_time_life_days)||item.expected_time_life_days<=0)return {triggerType:type,ratio:null,remainingDays:null};
-  const consumed=daysBetween(item.baseline_date,at);
-  return {triggerType:type,ratio:Math.min(1,consumed/item.expected_time_life_days),remainingDays:Math.max(0,item.expected_time_life_days-consumed)};
+  if(!item.baseline_date||!Number.isSafeInteger(item.expected_time_life_days)||item.expected_time_life_days<=0)return {triggerType:type,ratio:null,remainingDays:null,progressNumerator:null,progressDenominator:null};
+  const elapsedMs=Math.max(0,Date.parse(new Date(at).toISOString())-Date.parse(new Date(item.baseline_date).toISOString()));
+  const lifeMs=item.expected_time_life_days*86400000;
+  return {triggerType:type,ratio:Math.min(1,elapsedMs/lifeMs),remainingDays:Math.max(0,item.expected_time_life_days-elapsedMs/86400000),progressNumerator:elapsedMs,progressDenominator:lifeMs};
 }
 
 export function provisionMaintenance(item,context){
   const p=maintenanceProgress(item,context);
   if(p.ratio==null)return result(null,DATA.INSUFFICIENT_DATA,[item.id],context.at||null);
-  return result(multiplyPaiseByRatio(paise(item.expected_cost_paise),Math.round(p.ratio*1000000000),1000000000n),DATA.PROVISION,[item.id],context.at||null);
+  return result(multiplyPaiseByRatio(paise(item.expected_cost_paise),p.progressNumerator,p.progressDenominator),DATA.PROVISION,[item.id],context.at||null);
 }
 
 export function maintenanceBurnRates(item){
