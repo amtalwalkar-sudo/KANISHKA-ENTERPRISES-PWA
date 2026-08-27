@@ -20,7 +20,9 @@ jobs:
       - name: Build Vue + Vite PWA
         run: npm run build
       - name: Verify repository and foundation contracts
-        run: node js/12-step-verify.mjs
+        run: |
+          npm run validate:architecture
+          npm run validate:foundation
       - name: Syntax-check runtime modules
         shell: bash
         run: |
