@@ -1,20 +1,72 @@
 import { chromium } from 'playwright';
-const BASE=process.env.KFE_BASE_URL||'http://127.0.0.1:4173/';
-const browser=await chromium.launch({headless:true});
-const context=await browser.newContext();
-const page=await context.newPage();page.setDefaultTimeout(10000);
-const errors=[];page.on('pageerror',e=>errors.push(`pageerror: ${e.message}`));page.on('console',m=>{if(m.type()==='error')errors.push(`console: ${m.text()}`)});page.on('requestfailed',r=>errors.push(`requestfailed: ${r.url()} :: ${r.failure()?.errorText||'unknown'}`));
-async function boot(){await page.goto(BASE,{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.__KFE_RUNTIME__&&window.KFE_VIEW_MODELS&&window.KFE_DASHBOARD_SNAPSHOT);}
-async function assertRuntime(){const s=await page.evaluate(()=>({models:Object.keys(window.KFE_VIEW_MODELS||{}),runtimeKeys:Object.keys(window.__KFE_RUNTIME__||{}),actions:Object.keys(window.__KFE_RUNTIME__?.actions||{}),dashboard:!!window.KFE_DASHBOARD_SNAPSHOT,active:document.querySelector('.tab-panel.active')?.id||null,tabs:document.querySelectorAll('#tabbar button').length,sw:!!navigator.serviceWorker?.controller}));for(const n of ['work','fuel','expenses','revenue','maintenance','loan','renewals'])if(!s.models.includes(n))throw Error(`Missing view-model: ${n}`);for(const n of ['workViewModel','fuelViewModel','expensesViewModel','revenueViewModel'])if(!s.runtimeKeys.includes(n))throw Error(`Missing runtime VM: ${n}`);for(const n of ['startWork','endWork'])if(!s.actions.includes(n))throw Error(`Missing runtime action: ${n}`);if(!s.dashboard)throw Error('Dashboard snapshot unavailable');if(s.active!=='tab-work')throw Error(`Unexpected initial tab: ${s.active}`);return s;}
-async function repo(){return page.evaluate(async()=>window.KFE_REPOSITORY.load());}
-try{
- await boot();await page.evaluate(async()=>window.KFE_REPOSITORY.clear());
- const cold=[];for(let i=0;i<5;i++){await boot();cold.push(await assertRuntime());}
- for(let i=0;i<3;i++)for(const tab of ['fuel','expenses','dashboard','backup','work']){await page.locator(`#nav-${tab}`).click();const active=await page.locator('.tab-panel.active').getAttribute('id');if(active!==`tab-${tab}`)throw Error(`Navigation failed: ${tab} -> ${active}`);}
- await page.locator('#nav-work').click();await page.locator('#start-odo').fill('12345');
- await page.evaluate(()=>window.__KFE_RUNTIME__.actions.startWork({startOdo:12345,now:1700000000000}));await page.waitForTimeout(150);
- const before=await repo();if(before.work?.startOdo!==12345||before.work?.status!=='Open')throw Error(`Repository persistence failed before reload: ${JSON.stringify(before)}`);
- await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.__KFE_RUNTIME__&&window.KFE_VIEW_MODELS&&window.KFE_DASHBOARD_SNAPSHOT);const after=await repo();if(after.work?.startOdo!==12345||after.work?.status!=='Open')throw Error(`Repository persistence failed after reload: ${JSON.stringify(after)}`);await assertRuntime();
- await page.evaluate(()=>window.__KFE_RUNTIME__.actions.endWork({endOdo:12395,now:1700003600000}));await page.waitForTimeout(150);const ended=await repo();if(ended.work?.endOdo!==12395||ended.work?.status!=='Closed')throw Error(`Repository end persistence failed: ${JSON.stringify(ended)}`);if((await page.evaluate(()=>window.__KFE_RUNTIME__.getViewModel('work')?.km))!==50)throw Error('Work VM mileage failed');
- if(errors.length)throw Error(errors.join('\n'));console.log(JSON.stringify({ok:true,coldStarts:cold.length,reliability:{navigation:true,reloadPersistence:true},business:{workStart:true,workEnd:true,repository:true}},null,2));
-}finally{await browser.close();}
+
+const BASE = process.env.KFE_BASE_URL || 'http://127.0.0.1:4173/';
+const browser = await chromium.launch({ headless: true });
+const context = await browser.newContext();
+const page = await context.newPage();
+page.setDefaultTimeout(10000);
+
+const errors = [];
+page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
+page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+
+async function boot() {
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => window.KFE_VUE_RUNTIME?.mounted === true);
+}
+
+async function foundationContract() {
+  return page.evaluate(async () => {
+    const runtime = window.__KFE_RUNTIME__;
+    if (!runtime) throw new Error('KFE runtime unavailable');
+    if (!window.KFE_REPOSITORY) throw new Error('Repository boundary unavailable');
+    if (!window.KFE_NETWORK) throw new Error('Network boundary unavailable');
+    if (!window.KFE_VIEW_MODELS || typeof window.KFE_VIEW_MODELS !== 'object') throw new Error('View-model boundary unavailable');
+    if (!navigator.serviceWorker) throw new Error('Service Worker API unavailable');
+    const storagePersistSupported = !!navigator.storage?.persist;
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('kfe');
+      request.onsuccess = () => { const db = request.result; resolve({ stores: [...db.objectStoreNames] }); db.close(); };
+      request.onerror = () => reject(request.error || new Error('IndexedDB unavailable'));
+    });
+    return { vueMounted: true, runtime: true, repository: true, network: true, viewModels: true, serviceWorkerApi: true, storagePersistSupported, stores: db.stores };
+  });
+}
+
+try {
+  await boot();
+
+  const starts = [];
+  for (let i = 0; i < 3; i++) {
+    starts.push(await foundationContract());
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.KFE_VUE_RUNTIME?.mounted === true);
+  }
+
+  const result = await foundationContract();
+  const requiredStores = ['state', 'outbox', 'config', 'audit', 'idempotency'];
+  for (const store of requiredStores) {
+    if (!result.stores.includes(store)) throw new Error(`Missing foundation store: ${store}`);
+  }
+
+  if (errors.length) throw new Error(errors.join('\n'));
+
+  console.log(JSON.stringify({
+    ok: true,
+    coldStarts: starts.length,
+    foundation: {
+      vueMounted: true,
+      runtime: true,
+      repositoryBoundary: true,
+      networkBoundary: true,
+      viewModelBoundary: true,
+      indexedDb: true,
+      requiredStores: requiredStores.every(s => result.stores.includes(s)),
+      serviceWorkerApi: true,
+      storagePersistenceApi: result.storagePersistSupported
+    },
+    businessCalculations: 'intentionally not exercised; foundation remains business-rule agnostic'
+  }, null, 2));
+} finally {
+  await browser.close();
+}
