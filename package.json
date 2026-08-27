@@ -9,7 +9,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "validate:architecture": "node js/12-step-verify.mjs",
-    "validate:foundation": "node js/foundation-hardening-verify.mjs"
+    "validate:foundation": "node js/foundation-hardening-verify.mjs",
+    "validate:domain": "node js/testing/domain-calculation-verify.mjs"
   },
   "dependencies": {
     "vue": "^3.5.18"
