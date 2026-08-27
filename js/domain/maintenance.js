@@ -1,11 +1,16 @@
 import {active,result,DATA,paise,daysBetween,multiplyPaiseByRatio} from './shared.js';
 export const MAINTENANCE_CALCULATION_VERSION=2;
 
-function triggerType(item){
+export function validateMaintenanceItem(item){
   const type=String(item.trigger_type||'').toUpperCase();
   if(type!=='KM'&&type!=='TIME')throw new TypeError('Maintenance item must declare trigger_type KM or TIME');
-  return type;
+  if(type==='KM'&&(item.expected_time_life_days!=null))throw new TypeError('KM maintenance item cannot have a time lifecycle');
+  if(type==='TIME'&&(item.expected_km_life!=null))throw new TypeError('TIME maintenance item cannot have a KM lifecycle');
+  paise(item.expected_cost_paise);
+  return true;
 }
+
+function triggerType(item){validateMaintenanceItem(item);return String(item.trigger_type).toUpperCase();}
 
 export function maintenanceProgress(item,{odometer,at}){
   const type=triggerType(item);
