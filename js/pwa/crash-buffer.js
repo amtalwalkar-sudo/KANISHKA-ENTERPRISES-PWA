@@ -1,4 +1,4 @@
-import {bufferCrash,all,remove} from '../core/idb.js';
+import {bufferCrash,all,remove} from '../core/hardened-db.js';
 
 export async function bufferEvent(event){const error=new Error(event?.message||event?.type||'Unknown error');error.stack=event?.stack||null;return bufferCrash(error,{type:event?.type||'event',url:event?.url||null,context:event?.context||{}});}
 export async function bufferException(error,context={}){return bufferCrash(error,context);}
