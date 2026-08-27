@@ -19,18 +19,18 @@ jobs:
         run: npm install
       - name: Build Vue + Vite PWA
         run: npm run build
-      - name: Verify repository and local-first boundaries
-        run: node js/testing/architecture-boundaries.mjs
+      - name: Verify repository and foundation contracts
+        run: node js/12-step-verify.mjs
       - name: Syntax-check runtime modules
         shell: bash
         run: |
           set -euo pipefail
-          for f in js/app.js js/ui-shell.js js/core/*.js js/services/*.js; do node --check "$f"; done
-      - name: Guard UI shell imports
+          for f in js/app.js js/core/*.js js/services/*.js; do node --check "$f"; done
+      - name: Guard Vue shell from business logic
         shell: bash
         run: |
           set -euo pipefail
-          if grep -En "from ['\"]\./(domain|screens|dashboard)/|from ['\"]\.\./(domain|screens|dashboard)/" js/ui-shell.js; then exit 1; fi
+          if grep -En "from ['\"]\./(domain|screens|dashboard)/|from ['\"]\.\./(domain|screens|dashboard)/" src/*.vue src/*.js 2>/dev/null; then exit 1; fi
       - name: Guard Service Worker modular boundary
         shell: bash
         run: |
