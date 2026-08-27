@@ -3,7 +3,7 @@ import {roundRational,multiplyPaiseByRatio} from '../core/arithmetic.js';
 import {rollingFuelCostPerKm,projectedFuelCostForKm} from '../domain/fuel.js';
 import {rolling7DayKm,expectedTomorrowKm,odometerAnomalyWarning,recoverDanglingShifts,validateWorkOdometer} from '../domain/work.js';
 import {fixedExpensePerBusinessKm} from '../domain/expenses.js';
-import {maintenanceProgress,provisionMaintenance} from '../domain/maintenance.js';
+import {maintenanceProgress,provisionMaintenance,validateMaintenanceItem} from '../domain/maintenance.js';
 import {applyPrepayment,amortize} from '../domain/loans.js';
 
 assert.equal(roundRational(5,2),3);
@@ -26,12 +26,14 @@ const fixed=fixedExpensePerBusinessKm([{id:'f',monthly_amount_paise:100000,effec
 assert.equal(fixed.value.rate.numerator,100000);
 assert.equal(fixed.value.rate.denominator,1000);
 
-const kmItem={id:'km',trigger_type:'KM',expected_cost_paise:400000,expected_km_life:40000,baseline_odometer:0};
+const kmItem={id:'km',trigger_type:'KM',expected_cost_paise:400000,expected_km_life:40000,expected_time_life_days:null,baseline_odometer:0};
+assert.equal(validateMaintenanceItem(kmItem),true);
 assert.equal(maintenanceProgress(kmItem,{odometer:20000,at:'2026-08-01T00:00:00.000Z'}).ratio,.5);
 assert.equal(provisionMaintenance(kmItem,{odometer:20000,at:'2026-08-01T00:00:00.000Z'}).value,200000);
-const timeItem={id:'time',trigger_type:'TIME',expected_cost_paise:400000,expected_time_life_days:100,baseline_date:'2026-01-01T00:00:00.000Z'};
-assert.throws(()=>maintenanceProgress({...kmItem,expected_time_life_days:100},{odometer:20000,at:'2026-08-01T00:00:00.000Z'}));
+const timeItem={id:'time',trigger_type:'TIME',expected_cost_paise:400000,expected_time_life_days:100,expected_km_life:null,baseline_date:'2026-01-01T00:00:00.000Z'};
 assert.equal(maintenanceProgress(timeItem,{at:'2026-01-11T00:00:00.000Z'}).remainingDays,90);
+assert.throws(()=>validateMaintenanceItem({...kmItem,expected_time_life_days:100}));
+assert.throws(()=>validateMaintenanceItem({...timeItem,expected_km_life:100}));
 
 assert.equal(applyPrepayment(100000,150000).value.remainingPrincipalPaise,0);
 assert.equal(applyPrepayment(100000,150000).value.rejectedExcessPaise,50000);
