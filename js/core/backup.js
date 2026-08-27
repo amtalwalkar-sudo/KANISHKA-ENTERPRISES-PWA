@@ -1,5 +1,5 @@
 // Versioned KFE snapshot contract. Derived state is never authoritative.
-import {STORE_NAMES} from './idb.js';
+import {STORE_NAMES} from './hardened-db.js';
 import {runAtomicTransaction} from './transaction.js';
 export const KFE_BACKUP_VERSION='kfe_backup_v2';
 function isUtc(value){if(typeof value!=='string')return false;const d=new Date(value);return Number.isFinite(d.getTime())&&value===d.toISOString();}
