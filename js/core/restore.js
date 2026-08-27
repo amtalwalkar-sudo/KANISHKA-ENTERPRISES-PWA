@@ -1,5 +1,5 @@
 // Atomic restore orchestration. No business formulas.
-import {STORE_NAMES,openKfeDb} from './idb.js';
+import {STORE_NAMES,openKfeDb} from './hardened-db.js';
 import {restoreSnapshot,validateSnapshot} from './backup.js';
 import {assertAuthoritativeRecord} from './record.js';
 import {validateReferences} from './referential-integrity.js';
