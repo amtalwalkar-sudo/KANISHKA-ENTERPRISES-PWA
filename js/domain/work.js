@@ -39,5 +39,6 @@ export function rolling7DayKm(workSessions,asOf=new Date().toISOString()){
 
 export function expectedTomorrowKm(workSessions,asOf=new Date().toISOString()){
   const r=rolling7DayKm(workSessions,asOf);
-  return result(r.value,r.dataConfidenceState,r.inputRefs,asOf);
+  if(r.value==null)return result(null,DATA.INSUFFICIENT_DATA,r.inputRefs,asOf);
+  return result(r.value,DATA.PROJECTED,r.inputRefs,asOf);
 }
