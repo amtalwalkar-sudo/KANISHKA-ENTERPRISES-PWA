@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {createDashboardApplicationBoundary,DASHBOARD_MODULE_ID,DASHBOARD_SOURCES} from '../application/dashboard.js';
+const screens=Object.fromEntries(DASHBOARD_SOURCES.map(name=>[name,{getViewModel:()=>({source:name})}]));
+const boundary=createDashboardApplicationBoundary({screens});
+assert.equal(boundary.contract.module.id,DASHBOARD_MODULE_ID);
+assert.deepEqual(boundary.get(),Object.fromEntries(DASHBOARD_SOURCES.map(name=>[name,{source:name}])));
+assert.deepEqual(DASHBOARD_SOURCES,['work','fuel','expenses','revenue','maintenance','loan','renewals']);
+assert.throws(()=>createDashboardApplicationBoundary(),/screens are required/);
+assert.throws(()=>createDashboardApplicationBoundary({screens:{...screens,loan:{}}}),/Dashboard source is unavailable: loan/);
+console.log('PHASE_5_DASHBOARD_APPLICATION_BOUNDARY=PASS');
