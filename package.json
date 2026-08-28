@@ -24,7 +24,8 @@
     "validate:foundation-audit": "node js/testing/foundation-audit.mjs",
     "validate:phase-5": "node js/testing/phase-5-module-expansion.mjs",
     "validate:phase-5-replication": "node js/testing/phase-5-replication-contract.mjs",
-    "validate:phase-5-module-contracts": "node js/testing/phase-5-module-application-contracts.mjs"
+    "validate:phase-5-module-contracts": "node js/testing/phase-5-module-application-contracts.mjs",
+    "validate:phase-5-vehicle": "node js/testing/phase-5-vehicle-application-boundary.mjs"
   },
   "dependencies": {"vue": "^3.5.18"},
   "devDependencies": {"@vitejs/plugin-vue": "^6.0.1","vite": "^7.1.3","vite-plugin-pwa": "^1.0.2"}
