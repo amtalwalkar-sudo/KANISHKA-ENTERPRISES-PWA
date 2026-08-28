@@ -8,8 +8,11 @@ for(const module of APPLICATION_MODULES){
   assert.ok(contract,`missing contract for ${module.id}`);
   assert.equal(contract.module.id,module.id);
   assert.equal(contract.version,1);
-  assert.deepEqual(contract.commands,[]);
-  assert.deepEqual(contract.queries,[]);
+  assert.ok(Array.isArray(contract.commands));
+  assert.ok(Array.isArray(contract.queries));
+  if(['profitability','dashboard'].includes(module.id)) assert.deepEqual(contract.commands,[]);
+  else assert.deepEqual(contract.commands,['CREATE','UPDATE']);
+  assert.deepEqual(contract.queries,['GET','LIST']);
 }
 assert.equal(applicationContractByModuleId('not-a-module'),null);
 console.log('PHASE_5_MODULE_APPLICATION_CONTRACTS=PASS');
