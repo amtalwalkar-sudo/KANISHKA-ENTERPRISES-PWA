@@ -17,7 +17,11 @@ assert.equal(maintenanceProgress(item,{odometer:20000,at:'2026-08-01T00:00:00.00
 assert.equal(provisionMaintenance(item,{odometer:20000,at:'2026-08-01T00:00:00.000Z'}).value,200000);
 assert.equal(applyPrepayment(100000,150000).value.remainingPrincipalPaise,0);
 assert.equal(amortize({principal_paise:1000000,annual_rate_percent:12,term_months:12,emi_paise:100000}).dataConfidenceState,'BASELINE');
-assert.equal(profitability({revenue:1000000,fuel:100000,maintenanceProvision:50000,fixedOverhead:100000,loanPrincipal:100000,loanInterest:20000,otherBusinessCosts:30000,takeHomeTargetPaise:200000}).value.netProfitPaise,600000);
+const profitableDay={revenue:1000000,fuel:100000,maintenanceProvision:50000,fixedOverhead:100000,loanPrincipal:100000,loanInterest:20000,otherBusinessCosts:30000,takeHomeTargetPaise:200000};
+assert.equal(profitability(profitableDay).value.netProfitPaise,600000);
+const lossDay={...profitableDay,revenue:100000};
+assert.equal(profitability(lossDay).value.netProfitPaise,-300000);
+assert.equal(profitability(lossDay).value.aboveTakeHomeTargetPaise,-500000);
 assert.equal(evaluateAlerts({loanDueDays:2}).value[0].kind,'LOAN_EMI_DUE');
 assert.equal(odometerAnomalyWarning(0,1600).warning,true);
 assert.equal(recoverDanglingShifts([{id:'d',status:'OPEN',start_at:'2026-08-01T00:00:00.000Z',is_deleted:false}],'2026-08-02T17:00:00.000Z').length,1);
