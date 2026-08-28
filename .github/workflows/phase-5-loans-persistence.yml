@@ -1,0 +1,32 @@
+name: Phase 5 Loans persistence validation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: phase-5-loans-persistence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  loans-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Build application
+        run: npm run build
+      - name: Install Chromium
+        run: timeout 180s npx playwright install --with-deps chromium
+      - name: Validate Loans application boundary
+        run: npm run validate:phase-5-loans-application
+      - name: Validate Loans persistence round-trip (real IndexedDB)
+        run: npm run validate:phase-5-loans-real-persistence
