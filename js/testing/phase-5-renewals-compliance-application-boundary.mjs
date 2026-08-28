@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {createRenewalsComplianceApplicationBoundary,RENEWALS_COMPLIANCE_MODULE_ID} from '../application/renewals-compliance-module.js';
+const calls=[];
+const boundary=createRenewalsComplianceApplicationBoundary({dispatch:command=>{calls.push(['dispatch',command]);return command;},query:request=>{calls.push(['query',request]);return request;}});
+assert.equal(boundary.contract.module.id,RENEWALS_COMPLIANCE_MODULE_ID);
+assert.deepEqual(boundary.create({}),{module:RENEWALS_COMPLIANCE_MODULE_ID,type:'CREATE',input:{}});
+assert.deepEqual(boundary.update({id:'renewal-1'}),{module:RENEWALS_COMPLIANCE_MODULE_ID,type:'UPDATE',input:{id:'renewal-1'}});
+assert.deepEqual(boundary.get('renewal-1'),{module:RENEWALS_COMPLIANCE_MODULE_ID,type:'GET',id:'renewal-1'});
+assert.deepEqual(boundary.list(),{module:RENEWALS_COMPLIANCE_MODULE_ID,type:'LIST'});
+assert.equal(calls.length,4);
+assert.throws(()=>createRenewalsComplianceApplicationBoundary(),/dispatch and query are required/);
+console.log('PHASE_5_RENEWALS_COMPLIANCE_APPLICATION_BOUNDARY=PASS');
