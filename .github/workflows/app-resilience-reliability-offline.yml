@@ -51,6 +51,8 @@ jobs:
         run: npm run validate:phase-m
       - name: Verify Phase N presentation/read-model boundary
         run: npm run validate:phase-n
+      - name: Verify Phase 4 Work Session vertical slice contract
+        run: npm run validate:phase-4
       - name: Syntax-check runtime and domain modules
         shell: bash
         run: |
@@ -89,6 +91,8 @@ jobs:
         run: npm run build
       - name: Start built PWA server
         run: python3 -m http.server 4173 --directory dist --bind 127.0.0.1 >/tmp/kfe-server.log 2>&1 &
+      - name: Run Phase 4 real persistence browser test
+        run: node js/testing/phase-4-work-session-browser.mjs
       - name: Run resilience, reliability and offline-first tests
         run: node js/testing/app-resilience-reliability-offline.mjs
       - name: Upload server log on failure
