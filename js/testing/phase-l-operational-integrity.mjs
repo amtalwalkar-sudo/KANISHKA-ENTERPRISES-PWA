@@ -27,9 +27,13 @@ class Db {
   close(){}
 }
 
+// IndexedDB open() returns the same database rather than a fresh in-memory
+// database for every request. Keep the fake persistent across repository calls
+// so the test exercises actual create/read/update/delete lifecycle semantics.
+const fakeDb=new Db();
 globalThis.indexedDB={open(){
   const r=new Request();
-  r.result=new Db();
+  r.result=fakeDb;
   queueMicrotask(()=>r.onsuccess?.());
   return r;
 }};
