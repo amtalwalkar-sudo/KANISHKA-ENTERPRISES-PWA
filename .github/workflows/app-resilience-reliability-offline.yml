@@ -49,6 +49,8 @@ jobs:
         run: npm run validate:phase-l
       - name: Verify Phase M application orchestration
         run: npm run validate:phase-m
+      - name: Verify Phase N presentation/read-model boundary
+        run: npm run validate:phase-n
       - name: Syntax-check runtime and domain modules
         shell: bash
         run: |
