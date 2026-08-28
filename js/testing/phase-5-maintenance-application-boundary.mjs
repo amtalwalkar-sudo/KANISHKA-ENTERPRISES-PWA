@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {createMaintenanceApplicationBoundary,MAINTENANCE_MODULE_ID} from '../application/maintenance-module.js';
+const calls=[];
+const boundary=createMaintenanceApplicationBoundary({dispatch:command=>{calls.push(['dispatch',command]);return command;},query:request=>{calls.push(['query',request]);return request;}});
+assert.equal(boundary.contract.module.id,MAINTENANCE_MODULE_ID);
+assert.deepEqual(boundary.create({}),{module:MAINTENANCE_MODULE_ID,type:'CREATE',input:{}});
+assert.deepEqual(boundary.update({id:'maintenance-1'}),{module:MAINTENANCE_MODULE_ID,type:'UPDATE',input:{id:'maintenance-1'}});
+assert.deepEqual(boundary.get('maintenance-1'),{module:MAINTENANCE_MODULE_ID,type:'GET',id:'maintenance-1'});
+assert.deepEqual(boundary.list(),{module:MAINTENANCE_MODULE_ID,type:'LIST'});
+assert.equal(calls.length,4);
+assert.throws(()=>createMaintenanceApplicationBoundary(),/dispatch and query are required/);
+console.log('PHASE_5_MAINTENANCE_APPLICATION_BOUNDARY=PASS');
