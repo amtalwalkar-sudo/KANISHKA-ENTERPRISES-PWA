@@ -39,6 +39,8 @@ jobs:
           NODE
       - name: Verify repository and domain contracts
         run: npm run validate:domain
+      - name: Verify Phase I operational lifecycle
+        run: npm run validate:phase-i
       - name: Syntax-check runtime and domain modules
         shell: bash
         run: |
