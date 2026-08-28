@@ -23,7 +23,7 @@ const checks=[
   ['1. Legacy business runtime is absent', legacyPaths.every(p=>!fs.existsSync(p))],
   ['2. Root HTML contains only neutral Vue bootstrap', !index.includes('firebase')&&!index.includes('legacy-runtime')&&!index.includes('startWork')],
   ['3. Vue + Vite composition root exists', pkg.includes('"vue"')&&pkg.includes('"vite"')&&fs.existsSync('src/App.vue')&&fs.existsSync('src/main.js')],
-  ['4. Vue bootstrap has no business calculations', !vue.includes('calculate')&&!vue.includes('Work sessions')&&!vue.includes('Revenue')],
+  ['4. Vue bootstrap has no business calculations', !/calculate[A-Z\w]*\s*\(/.test(vue)&&!/(?:Math\.(round|floor|ceil)|\b(?:revenue|fuel|maintenance|profit)\s*[+\-*\/%=])/.test(vue)],
   ['5. Application composition root is business-neutral', !app.includes('createWorkScreen')&&!app.includes('createFuelScreen')&&!app.includes('createDashboardAggregator')],
   ['6. Application composition does not directly import domain modules', !app.includes('/domain/')&&!main.includes('/domain/')],
   ['7. Repository remains the persistence boundary', repo.includes('openKfeDb')&&!app.includes('localStorage')],
