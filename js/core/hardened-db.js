@@ -1,8 +1,8 @@
-// KFE canonical IndexedDB schema. Version 4 adds authoritative domain stores; no legacy business formulas.
+// KFE canonical IndexedDB schema. Version 5 adds authoritative Renewals / Compliance persistence; no legacy business formulas.
 import {runAtomicTransaction} from './transaction.js';
 export const DB_NAME='kfe';
-export const DB_VERSION=4;
-export const STORES=Object.freeze({state:{keyPath:'id'},rides:{keyPath:'id'},logs:{keyPath:'id'},settings:{keyPath:'id'},outbox:{keyPath:'id'},config:{keyPath:'id'},audit:{keyPath:'id'},idempotency:{keyPath:'id'},vehicles:{keyPath:'id'},work_sessions:{keyPath:'id'},fuel_records:{keyPath:'id'},expense_records:{keyPath:'id'},maintenance_items:{keyPath:'id'},maintenance_records:{keyPath:'id'},revenue_records:{keyPath:'id'},loans:{keyPath:'id'},loan_payments:{keyPath:'id'},calculation_results:{keyPath:'id'},alerts:{keyPath:'id'}});
+export const DB_VERSION=5;
+export const STORES=Object.freeze({state:{keyPath:'id'},rides:{keyPath:'id'},logs:{keyPath:'id'},settings:{keyPath:'id'},outbox:{keyPath:'id'},config:{keyPath:'id'},audit:{keyPath:'id'},idempotency:{keyPath:'id'},vehicles:{keyPath:'id'},work_sessions:{keyPath:'id'},fuel_records:{keyPath:'id'},expense_records:{keyPath:'id'},maintenance_items:{keyPath:'id'},maintenance_records:{keyPath:'id'},revenue_records:{keyPath:'id'},loans:{keyPath:'id'},loan_payments:{keyPath:'id'},renewals_compliance:{keyPath:'id'},calculation_results:{keyPath:'id'},alerts:{keyPath:'id'}});
 export const STORE_NAMES=Object.freeze(Object.keys(STORES));
 export {runAtomicTransaction};
 export function openKfeDb(){return new Promise((resolve,reject)=>{if(typeof indexedDB==='undefined')return reject(new Error('IndexedDB unavailable'));const request=indexedDB.open(DB_NAME,DB_VERSION);request.onupgradeneeded=()=>{const db=request.result;for(const [name,definition] of Object.entries(STORES))if(!db.objectStoreNames.contains(name))db.createObjectStore(name,definition);};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB open failed'));});}
