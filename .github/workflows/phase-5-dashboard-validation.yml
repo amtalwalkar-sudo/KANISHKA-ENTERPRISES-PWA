@@ -1,0 +1,29 @@
+name: Phase 5 Dashboard validation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: phase-5-dashboard-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dashboard-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Build application
+        run: npm run build
+      - name: Validate Dashboard application boundary
+        run: npm run validate:phase-5-dashboard-application
