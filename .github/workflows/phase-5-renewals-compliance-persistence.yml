@@ -1,0 +1,32 @@
+name: Phase 5 Renewals Compliance persistence validation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: phase-5-renewals-compliance-persistence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  renewals-compliance-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Build application
+        run: npm run build
+      - name: Install Chromium
+        run: timeout 180s npx playwright install --with-deps chromium
+      - name: Validate Renewals Compliance application boundary
+        run: npm run validate:phase-5-renewals-compliance-application
+      - name: Validate Renewals Compliance persistence round-trip (real IndexedDB)
+        run: npm run validate:phase-5-renewals-compliance-real-persistence
