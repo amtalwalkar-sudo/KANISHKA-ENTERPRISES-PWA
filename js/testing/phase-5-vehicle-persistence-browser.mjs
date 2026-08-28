@@ -2,7 +2,7 @@ import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 
 const port=4173;
-const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe']});
+const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true});
 let output='';
 server.stdout.on('data',chunk=>{output+=chunk.toString();});
 server.stderr.on('data',chunk=>{output+=chunk.toString();});
@@ -15,10 +15,10 @@ async function waitForServer(url,timeoutMs=30000){
   }
   throw new Error(`Vite preview did not start. Output:\n${output}`);
 }
-
 async function withTimeout(promise,label,timeoutMs=30000){
   return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${label} timed out after ${timeoutMs}ms`)),timeoutMs))]);
 }
+function stopServer(){if(server.pid){try{process.kill(-server.pid,'SIGTERM');}catch{}}}
 
 try{
   await waitForServer(`http://127.0.0.1:${port}/`);
@@ -58,4 +58,4 @@ try{
       console.log(JSON.stringify(result));
     }finally{await context.close();}
   }finally{await browser.close();}
-}finally{server.kill('SIGTERM');}
+}finally{stopServer();}
