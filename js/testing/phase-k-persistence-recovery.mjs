@@ -9,7 +9,7 @@ class FakeObjectStore {
   constructor(name,map,tx){this.name=name;this.map=map;this.tx=tx;}
   put(value){const r=new FakeRequest();this.tx.track();queueMicrotask(()=>{try{if(this.tx.aborted)throw this.tx.error||new Error('transaction aborted');const key=value?.id;if(key==null)throw new Error('id required');this.map.set(key,structuredClone(value));r.result=key;r.onsuccess?.();this.tx.pendingDone();}catch(e){r.error=e;this.tx.abort(e);r.onerror?.();}});return r;}
   get(key){const r=new FakeRequest();this.tx.track();queueMicrotask(()=>{if(this.tx.aborted){r.error=this.tx.error;r.onerror?.();return;}r.result=this.map.has(key)?structuredClone(this.map.get(key)):undefined;r.onsuccess?.();this.tx.pendingDone();});return r;}
-  getAll(){const r=new FakeRequest();this.tx.track();queueMicrotask(()=>{if(this.tx.aborted){r.error=this.tx.error;r.onerror?.();return;}r.result=[...this.map.values()].map(structuredClone);r.onsuccess?.();this.tx.pendingDone();});return r;}
+  getAll(){const r=new FakeRequest();this.tx.track();queueMicrotask(()=>{if(this.tx.aborted){r.error=this.tx.error;r.onerror?.();return;}r.result=[...this.map.values()].map(v=>structuredClone(v));r.onsuccess?.();this.tx.pendingDone();});return r;}
   delete(key){const r=new FakeRequest();this.tx.track();queueMicrotask(()=>{if(this.tx.aborted){r.error=this.tx.error;r.onerror?.();return;}this.map.delete(key);r.result=undefined;r.onsuccess?.();this.tx.pendingDone();});return r;}
   clear(){const r=new FakeRequest();this.tx.track();queueMicrotask(()=>{if(this.tx.aborted){r.error=this.tx.error;r.onerror?.();return;}this.map.clear();r.result=undefined;r.onsuccess?.();this.tx.pendingDone();});return r;}
 }
