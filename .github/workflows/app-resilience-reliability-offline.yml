@@ -45,6 +45,8 @@ jobs:
         run: npm run validate:phase-j
       - name: Verify Phase K persistence and recovery
         run: npm run validate:phase-k
+      - name: Verify Phase L operational integrity
+        run: npm run validate:phase-l
       - name: Syntax-check runtime and domain modules
         shell: bash
         run: |
