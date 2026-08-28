@@ -14,7 +14,8 @@
     "validate:phase-i": "node js/testing/phase-i-operational-lifecycle.mjs",
     "validate:phase-j": "node js/testing/phase-j-financial-lifecycle.mjs",
     "validate:phase-k": "node js/testing/phase-k-persistence-recovery.mjs",
-    "validate:phase-l": "node js/testing/phase-l-operational-integrity.mjs"
+    "validate:phase-l": "node js/testing/phase-l-operational-integrity.mjs",
+    "validate:phase-m": "node js/testing/phase-m-application-orchestration.mjs"
   },
   "dependencies": {
     "vue": "^3.5.18"
