@@ -2,9 +2,16 @@ import {active,result,DATA} from './shared.js';
 export const WORK_CALCULATION_VERSION=1;
 export const DEFAULT_ODOMETER_WARNING_KM=1500;
 export function validateWorkOdometer(reading,previous=null){if(!Number.isFinite(reading)||reading<0)throw new RangeError('Invalid odometer');if(previous!=null&&reading<previous)throw new RangeError('Odometer cannot decrease');return true;}
-export function businessDateFromShiftStart(startAt){if(typeof startAt!=='string')return null;const match=/^(\d{4}-\d{2}-\d{2})/.exec(startAt);return match?match[1]:null;}
+export function businessDateFromShiftStart(startAt){if(typeof startAt!=='string')return null;const match= /^(\d{4}-\d{2}-\d{2})/.exec(startAt);return match?match[1]:null;}
 export function odometerAnomalyWarning(start,end,elapsedDays=1,thresholdKm=DEFAULT_ODOMETER_WARNING_KM){validateWorkOdometer(end,start);const daily=(end-start)/Math.max(elapsedDays,1/24);return {warning:daily>thresholdKm,dailyKm:daily,thresholdKm};}
-export function calculateWorkSession(session){const start=Number(session.start_odometer),end=Number(session.end_odometer);if(!Number.isFinite(start)||!Number.isFinite(end))return result(null,DATA.UNKNOWN,[session.id]);validateWorkOdometer(end,start);return result({workKm:end-start,startOdometer:start,endOdometer:end,breakMinutes:Number(session.break_minutes||0),personal:session.scope==='PERSONAL',businessDate:session.scope==='PERSONAL'?null:(session.business_date||businessDateFromShiftStart(session.start_at))},DATA.ACTUAL,[session.id]);}
+export function calculateWorkSession(session){
+  if(!session||session.scope==='PERSONAL')throw new RangeError('Personal trips are separate from business shifts');
+  const start=Number(session.start_odometer),end=Number(session.end_odometer);
+  if(!Number.isFinite(start)||!Number.isFinite(end))return result(null,DATA.UNKNOWN,[session.id]);
+  validateWorkOdometer(end,start);
+  const businessDate=session.business_date||businessDateFromShiftStart(session.start_at);
+  return result({workKm:end-start,startOdometer:start,endOdometer:end,breakMinutes:Number(session.break_minutes||0),personal:false,businessDate},DATA.ACTUAL,[session.id]);
+}
 export function recoverDanglingShifts(workSessions,now=new Date().toISOString(),maxAgeHours=16){const cutoff=Date.parse(now)-maxAgeHours*3600000;return active(workSessions).filter(s=>s.status==='OPEN'&&Date.parse(s.start_at)<cutoff).map(s=>({id:s.id,requiresResolution:true,startedAt:s.start_at}));}
 export function rolling7DayKm(workSessions,asOf=new Date().toISOString()){
   const end=Date.parse(asOf),start=end-6*86400000;
