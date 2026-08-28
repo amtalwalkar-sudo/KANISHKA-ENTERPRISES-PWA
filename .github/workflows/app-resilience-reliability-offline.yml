@@ -23,7 +23,22 @@ jobs:
         run: |
           npm run validate:architecture
           npm run validate:foundation
-          npm run validate:domain
+      - name: Verify domain runtime identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "WORKTREE=$(git rev-parse HEAD)"
+          echo "dashboard.js SHA256=$(sha256sum js/domain/dashboard.js | cut -d' ' -f1)"
+          echo "domain-calculation-verify.mjs SHA256=$(sha256sum js/testing/domain-calculation-verify.mjs | cut -d' ' -f1)"
+          node --input-type=module <<'NODE'
+          import { profitability } from './js/domain/dashboard.js';
+          const input={revenue:1000000,fuel:100000,maintenanceProvision:50000,fixedOverhead:100000,loanPrincipal:100000,loanInterest:20000,otherBusinessCosts:30000,takeHomeTargetPaise:200000};
+          const output=profitability(input);
+          console.log('DIRECT_PROFITABILITY_RESULT='+JSON.stringify(output));
+          if(output.value?.netProfitPaise!==600000) process.exit(1);
+          NODE
+      - name: Verify repository and domain contracts
+        run: npm run validate:domain
       - name: Syntax-check runtime and domain modules
         shell: bash
         run: |
