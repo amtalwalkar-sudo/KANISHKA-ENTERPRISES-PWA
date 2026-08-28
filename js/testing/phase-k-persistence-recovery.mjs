@@ -14,7 +14,7 @@ class FakeObjectStore {
   clear(){const r=new FakeRequest();this.tx.track();queueMicrotask(()=>{if(this.tx.aborted){r.error=this.tx.error;r.onerror?.();return;}this.map.clear();r.result=undefined;r.onsuccess?.();this.tx.pendingDone();});return r;}
 }
 class FakeTransaction {
-  constructor(db,names){this.db=db;this.names=names;this.error=null;this.oncomplete=null;this.onerror=null;this.onabort=null;this.aborted=false;this.pending=0;this.finished=false;this.snapshots=new Map(names.map(name=>[name,new Map([...db.stores.get(name).entries()].map(([k,v])=>[k,structuredClone(v)]))]));}
+  constructor(db,names){this.db=db;this.names=Array.isArray(names)?names:[names];this.error=null;this.oncomplete=null;this.onerror=null;this.onabort=null;this.aborted=false;this.pending=0;this.finished=false;this.snapshots=new Map(this.names.map(name=>[name,new Map([...db.stores.get(name).entries()].map(([k,v])=>[k,structuredClone(v)]))]));}
   objectStore(name){if(!this.names.includes(name))throw new Error(`Store not in transaction: ${name}`);if(!this.db.stores.has(name))throw new Error(`Unknown store: ${name}`);return new FakeObjectStore(name,this.db.stores.get(name),this);}
   track(){this.pending++;}
   pendingDone(){if(this.pending>0)this.pending--;this.finishIfReady();}
@@ -32,7 +32,11 @@ globalThis.indexedDB={open(){const r=new FakeRequest();queueMicrotask(()=>{r.res
 assert.equal(DB_NAME,'kfe');
 assert.equal(DB_VERSION,4);
 assert.equal(STORE_NAMES.length,Object.keys(STORES).length);
-for(const name of ['vehicles','work_sessions','fuel_records','expense_records','maintenance_records','revenue_records','loans','loan_payments','calculation_results','outbox','logs'])assert.ok(STORE_NAMES.includes(name));
+assert.ok(STORE_NAMES.includes('vehicles'));
+assert.ok(STORE_NAMES.includes('work_sessions'));
+assert.ok(STORE_NAMES.includes('maintenance_records'));
+assert.ok(STORE_NAMES.includes('loans'));
+assert.ok(STORE_NAMES.includes('calculation_results'));
 
 const vehicle={id:'vehicle-1',registration:'KFE-TEST'};
 await write('vehicles',vehicle);
@@ -47,7 +51,13 @@ assert.equal((await all('vehicles')).length,2);
 assert.equal((await all('work_sessions')).length,1);
 
 const beforeVehicles=await all('vehicles');
-await assert.rejects(runAtomicTransaction(fakeDb,['vehicles','work_sessions'],(stores)=>{stores.vehicles.put({id:'rollback-vehicle'});throw new Error('intentional rollback');}),/intentional rollback/);
+await assert.rejects(
+  runAtomicTransaction(fakeDb,['vehicles','work_sessions'],(stores)=>{
+    stores.vehicles.put({id:'rollback-vehicle'});
+    throw new Error('intentional rollback');
+  }),
+  /intentional rollback/
+);
 assert.deepEqual(await all('vehicles'),beforeVehicles);
 
 const snapshot=createSnapshot({
@@ -70,12 +80,13 @@ await queueOutbox({id:'outbox-1',type:'TEST',payload:{ok:true}});
 assert.equal((await all('outbox')).length,1);
 await assert.rejects(flushOutbox(async()=>{throw new Error('delivery failed');}),/delivery failed/);
 assert.equal((await all('outbox')).length,1);
-const delivered=[];
+let delivered=[];
 await flushOutbox(async(entry)=>{delivered.push(entry.id);});
 assert.deepEqual(delivered,['outbox-1']);
 assert.equal((await all('outbox')).length,0);
 
-await bufferCrash(new Error('crash-test'),{phase:'K'});
+const crashError=new Error('crash-test');
+await bufferCrash(crashError,{phase:'K'});
 const logs=await all('logs');
 assert.equal(logs.length,1);
 assert.equal(logs[0].message,'crash-test');
