@@ -1,0 +1,33 @@
+name: Phase 5 Revenue persistence validation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: phase-5-revenue-persistence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  revenue-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build application
+        run: npm run build
+      - name: Install Chromium
+        run: timeout 180s npx playwright install --with-deps chromium
+      - name: Validate Revenue application boundary
+        run: npm run validate:phase-5-revenue-application
+      - name: Validate Revenue persistence round-trip (real IndexedDB)
+        run: npm run validate:phase-5-revenue-real-persistence
