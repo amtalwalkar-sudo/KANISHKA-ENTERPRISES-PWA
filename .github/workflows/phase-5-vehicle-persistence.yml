@@ -1,0 +1,21 @@
+name: Phase 5 Vehicle persistence validation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  vehicle-persistence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Validate Vehicle persistence round-trip
+        run: node js/testing/phase-5-vehicle-persistence.mjs
