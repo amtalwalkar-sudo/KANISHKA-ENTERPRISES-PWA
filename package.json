@@ -20,7 +20,8 @@
     "validate:phase-1": "node js/testing/phase-1-structural-pwa-shell.mjs",
     "validate:phase-2": "node js/testing/phase-2-shell-interaction.mjs",
     "validate:phase-3": "node js/testing/phase-3-ui-erp-contract.mjs",
-    "validate:phase-4": "node js/testing/phase-4-work-session-vertical-slice.mjs"
+    "validate:phase-4": "node js/testing/phase-4-work-session-vertical-slice.mjs",
+    "validate:foundation-audit": "node js/testing/foundation-audit.mjs"
   },
   "dependencies": {"vue": "^3.5.18"},
   "devDependencies": {"@vitejs/plugin-vue": "^6.0.1","vite": "^7.1.3","vite-plugin-pwa": "^1.0.2"}
