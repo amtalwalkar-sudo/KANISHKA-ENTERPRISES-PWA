@@ -17,7 +17,8 @@
     "validate:phase-l": "node js/testing/phase-l-operational-integrity.mjs",
     "validate:phase-m": "node js/testing/phase-m-application-orchestration.mjs",
     "validate:phase-n": "node js/testing/phase-n-presentation-read-model.mjs",
-    "validate:phase-1": "node js/testing/phase-1-structural-pwa-shell.mjs"
+    "validate:phase-1": "node js/testing/phase-1-structural-pwa-shell.mjs",
+    "validate:phase-2": "node js/testing/phase-2-shell-interaction.mjs"
   },
   "dependencies": {"vue": "^3.5.18"},
   "devDependencies": {"@vitejs/plugin-vue": "^6.0.1","vite": "^7.1.3","vite-plugin-pwa": "^1.0.2"}
