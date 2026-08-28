@@ -1,0 +1,33 @@
+name: Phase 5 Expenses persistence validation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: phase-5-expenses-persistence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  expenses-persistence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build application
+        run: npm run build
+      - name: Install Chromium
+        run: timeout 180s npx playwright install --with-deps chromium
+      - name: Validate Expenses application boundary
+        run: npm run validate:phase-5-expenses-application
+      - name: Validate Expenses persistence round-trip (real IndexedDB)
+        run: npm run validate:phase-5-expenses-real-persistence
