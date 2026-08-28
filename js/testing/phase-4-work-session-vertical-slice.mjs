@@ -20,7 +20,7 @@ const repo={
  updateRecord(existing,changes){return Object.freeze({...existing,...changes,updated_at:new Date().toISOString(),synced:false});},
  entity(store){return {get:async id=>stores.get(store).get(id)||null,list:async()=>[...stores.get(store).values()]};},
  async atomic(names,operation){const views=Object.fromEntries(names.map(name=>[name,{put:value=>stores.get(name).set(value.id,structuredClone(value))}]));return operation(views);},
- async getIdempotency(id){return idempotency.get(id);},
+ async getIdempotency(id){const result=idempotency.get(id);return result===undefined?undefined:{result};},
  async saveIdempotency(entry){idempotency.set(entry.id,entry.result);return entry;}
 };
 const app=createKfeApplication(repo);
