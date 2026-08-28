@@ -53,6 +53,8 @@ jobs:
         run: npm run validate:phase-n
       - name: Verify Phase 4 Work Session vertical slice contract
         run: npm run validate:phase-4
+      - name: Verify Phase 5 module expansion contract
+        run: npm run validate:phase-5
       - name: Syntax-check runtime and domain modules
         shell: bash
         run: |
