@@ -1,5 +1,6 @@
 export * from './shared.js';
 export * from './work.js';
+export * from './trips.js';
 export * from './fuel.js';
 export * from './expenses.js';
 export * from './maintenance.js';
