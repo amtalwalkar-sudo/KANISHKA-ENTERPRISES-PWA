@@ -43,6 +43,8 @@ jobs:
         run: npm run validate:phase-i
       - name: Verify Phase J financial lifecycle
         run: npm run validate:phase-j
+      - name: Verify Phase K persistence and recovery
+        run: npm run validate:phase-k
       - name: Syntax-check runtime and domain modules
         shell: bash
         run: |
