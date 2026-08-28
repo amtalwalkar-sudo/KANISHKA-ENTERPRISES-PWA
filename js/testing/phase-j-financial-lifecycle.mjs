@@ -41,10 +41,11 @@ assert.ok(schedule.value.reduce((s,r)=>s+r.interest_paise,0)>0);
 assert.equal(applyPrepayment(100000,150000).value.remainingPrincipalPaise,0);
 assert.equal(loanCashCost(100000,20000).value,120000);
 
-const profit=profitability({revenue:1000000,fuel:100000,maintenanceProvision:50000,fixedOverhead:100000,loanPrincipal:100000,loanInterest:20000,otherBusinessCosts:30000,takeHomeTargetPaise:200000});
+const profitableDay={revenue:1000000,fuel:100000,maintenanceProvision:50000,fixedOverhead:100000,loanPrincipal:100000,loanInterest:20000,otherBusinessCosts:30000,takeHomeTargetPaise:200000};
+const profit=profitability(profitableDay);
 assert.equal(profit.value.netProfitPaise,600000);
 assert.equal(profit.value.aboveTakeHomeTargetPaise,400000);
-const loss=profitability({...profit.value,revenue:100000});
+const loss=profitability({...profitableDay,revenue:100000});
 assert.equal(loss.value.netProfitPaise,-300000);
 assert.equal(loss.value.aboveTakeHomeTargetPaise,-500000);
 
