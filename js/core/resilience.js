@@ -1,5 +1,5 @@
 import {requestPersistentStorage,bufferCrash} from './hardened-db.js';
-import {flushOutbox} from './outbox.js';
+import {queueOutbox,flushOutbox} from './outbox.js';
 
 const CHANNEL='kfe-sync';
 let channel=null;
@@ -19,7 +19,7 @@ export async function initializeResilience({sendOutbox=async()=>{}}={}){
   void flushOutbox(sendOutboxFn);
 }
 
-export async function enqueueNetworkMutation(payload){await import('./hardened-db.js').then(({add})=>add('outbox',payload));if(navigator.onLine)void flushOutbox(sendOutboxFn);}
+export async function enqueueNetworkMutation(payload){await queueOutbox(payload);if(navigator.onLine)void flushOutbox(sendOutboxFn);}
 export function broadcast(type,payload){channel?.postMessage({type,payload,at:Date.now()});}
 export function closeResilience(){cleanupFns.forEach(fn=>fn());cleanupFns=[];channel?.close();channel=null;}
 
