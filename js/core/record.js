@@ -13,7 +13,8 @@ export function createRecord(data={},meta={}){
 }
 export function updateRecord(existing,changes={}){
   assertAuthoritativeRecord(existing);
-  return createRecord({...existing,...changes},{id:existing.id,user_id:existing.user_id,created_at:existing.created_at,updated_at:utcNow(),synced:false,is_deleted:existing.is_deleted});
+  const nextDeleted=Object.prototype.hasOwnProperty.call(changes,'is_deleted')?changes.is_deleted:existing.is_deleted;
+  return createRecord({...existing,...changes},{id:existing.id,user_id:existing.user_id,created_at:existing.created_at,updated_at:utcNow(),synced:false,is_deleted:nextDeleted});
 }
 export function softDeleteRecord(existing){return updateRecord(existing,{is_deleted:true});}
 export function assertAuthoritativeRecord(record){
