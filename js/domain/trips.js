@@ -19,14 +19,13 @@ export function validateTripLifecycle(trip,shift=null){
   if(trip.scope==='BUSINESS'){
     if(start<shiftStart||end>shiftEnd)throw new RangeError('Business trip must remain within its business shift');
   }else{
+    if(shift.status!=='CLOSED')throw new RangeError('Personal trip requires a closed business shift');
     if(start<shiftEnd)throw new RangeError('Personal trip can start only after the business shift is closed');
   }
   return true;
 }
 
 export function calculateTrip(trip,shift){
-  try{
-    validateTripLifecycle(trip,shift);
-    return result({tripKm:Number(trip.end_odometer)-Number(trip.start_odometer),scope:trip.scope,startOdometer:Number(trip.start_odometer),endOdometer:Number(trip.end_odometer),startAt:trip.start_at,endAt:trip.end_at,businessDate:trip.scope==='BUSINESS'?(shift.business_date||shift.start_at?.slice(0,10)):null},DATA.ACTUAL,[trip.id,shift.id]);
-  }catch(error){throw error;}
+  validateTripLifecycle(trip,shift);
+  return result({tripKm:Number(trip.end_odometer)-Number(trip.start_odometer),scope:trip.scope,startOdometer:Number(trip.start_odometer),endOdometer:Number(trip.end_odometer),startAt:trip.start_at,endAt:trip.end_at,businessDate:trip.scope==='BUSINESS'?(shift.business_date||shift.start_at?.slice(0,10)):null},DATA.ACTUAL,[trip.id,shift.id]);
 }
