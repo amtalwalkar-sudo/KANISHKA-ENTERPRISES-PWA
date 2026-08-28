@@ -1,6 +1,7 @@
 <script setup>
 import {onMounted,onUnmounted,ref} from 'vue';
 import './styles/shell.css';
+import WorkSessionView from './components/WorkSessionView.vue';
 import {createUiRouter} from '../js/ui/router.js';
 import {createUiState,UI_STATES} from '../js/ui/state.js';
 import {detectUiCapabilities} from '../js/ui/capabilities.js';
@@ -36,7 +37,8 @@ window.KFE_VUE_RUNTIME={online,activeModule,uiState,capabilities};
     </header>
     <main class="kfe-viewport" aria-label="Main application viewport">
       <section class="kfe-workspace" aria-live="polite">
-        <div class="kfe-placeholder"><h1>{{ activeModule }}</h1><p>Structural PWA shell is active. Module views will be connected through the application boundary in later phases.</p></div>
+        <WorkSessionView v-if="activeModule==='Work'" />
+        <div v-else class="kfe-placeholder"><h1>{{ activeModule }}</h1><p>Structural PWA shell is active. Module views will be connected through the application boundary in later phases.</p></div>
       </section>
     </main>
     <nav class="kfe-bottom-nav" aria-label="Primary module navigation">

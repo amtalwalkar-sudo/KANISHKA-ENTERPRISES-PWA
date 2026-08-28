@@ -1,5 +1,6 @@
 <script setup>
 import {onMounted,ref} from 'vue';
+import './work-session.css';
 import {application,viewModels} from '../../js/app.js';
 import {createUiCommand} from '../../js/application/ui-contract.js';
 
