@@ -13,7 +13,8 @@
     "validate:domain": "node js/testing/domain-calculation-verify.mjs",
     "validate:phase-i": "node js/testing/phase-i-operational-lifecycle.mjs",
     "validate:phase-j": "node js/testing/phase-j-financial-lifecycle.mjs",
-    "validate:phase-k": "node js/testing/phase-k-persistence-recovery.mjs"
+    "validate:phase-k": "node js/testing/phase-k-persistence-recovery.mjs",
+    "validate:phase-l": "node js/testing/phase-l-operational-integrity.mjs"
   },
   "dependencies": {
     "vue": "^3.5.18"
