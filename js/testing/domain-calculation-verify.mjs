@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {rollingFuelCostPerKm,projectedFuelCostForKm} from '../domain/fuel.js';
-import {rolling7DayKm,odometerAnomalyWarning,recoverDanglingShifts} from '../domain/work.js';
+import {rolling7DayKm,odometerAnomalyWarning,recoverDanglingShifts,calculateWorkSession,businessDateFromShiftStart} from '../domain/work.js';
 import {fixedExpensePerBusinessKm} from '../domain/expenses.js';
 import {maintenanceProgress,provisionMaintenance} from '../domain/maintenance.js';
 import {applyPrepayment,amortize} from '../domain/loans.js';
@@ -10,6 +10,9 @@ const ids=['a','b','c','d','e','f'].map(id=>({id,is_deleted:false,is_voided:fals
 const fuel=ids.map((x,i)=>({...x,odometer:i*1000,litres:40,amount_paise:400000,is_full_tank:true}));
 assert.equal(rollingFuelCostPerKm(fuel,3).dataConfidenceState,'ACTUAL');
 assert.equal(projectedFuelCostForKm(fuel,1000,3).dataConfidenceState,'PROJECTED');
+assert.equal(businessDateFromShiftStart('2026-08-28T23:00:00+05:30'),'2026-08-28');
+const overnightShift={id:'overnight',scope:'BUSINESS',start_at:'2026-08-28T23:00:00+05:30',end_at:'2026-08-29T02:00:00+05:30',start_odometer:1000,end_odometer:1120,break_minutes:0};
+assert.equal(calculateWorkSession(overnightShift).value.businessDate,'2026-08-28');
 assert.equal(rolling7DayKm([{id:'w1',start_odometer:0,end_odometer:700,end_at:'2026-08-20T10:00:00.000Z',business_date:'2026-08-20'}],'2026-08-20T10:00:00.000Z').value,100);
 assert.equal(fixedExpensePerBusinessKm([{id:'f',monthly_amount_paise:100000,effective_from:'2026-01-01T00:00:00.000Z',effective_to:null}],1000,'2026-08-01T00:00:00.000Z').value,100);
 const item={id:'m',expected_cost_paise:400000,expected_km_life:40000,expected_time_life_days:null,baseline_odometer:0,baseline_date:null};
