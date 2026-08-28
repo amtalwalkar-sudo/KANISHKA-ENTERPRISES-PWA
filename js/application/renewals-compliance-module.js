@@ -1,0 +1,4 @@
+import {applicationContractByModuleId} from './module-contracts.js';
+export const RENEWALS_COMPLIANCE_MODULE_ID='renewals-compliance';
+export function renewalsComplianceApplicationContract(){const contract=applicationContractByModuleId(RENEWALS_COMPLIANCE_MODULE_ID);if(!contract)throw new Error('Renewals Compliance application contract is unavailable');return contract;}
+export function createRenewalsComplianceApplicationBoundary({dispatch,query}={}){if(typeof dispatch!=='function'||typeof query!=='function')throw new Error('dispatch and query are required');return Object.freeze({contract:renewalsComplianceApplicationContract(),create:input=>dispatch({module:RENEWALS_COMPLIANCE_MODULE_ID,type:'CREATE',input}),update:input=>dispatch({module:RENEWALS_COMPLIANCE_MODULE_ID,type:'UPDATE',input}),get:id=>query({module:RENEWALS_COMPLIANCE_MODULE_ID,type:'GET',id}),list:()=>query({module:RENEWALS_COMPLIANCE_MODULE_ID,type:'LIST'})});}
