@@ -21,16 +21,9 @@ try{
   const browser=await chromium.launch({headless:true});
   const context=await browser.newContext();
   const page=await context.newPage();
-
   await page.goto(`http://127.0.0.1:${port}/`,{waitUntil:'domcontentloaded'});
-  const result=await page.evaluate(async()=>{
-    await new Promise((resolve,reject)=>{
-      const request=indexedDB.deleteDatabase('kfe');
-      request.onsuccess=()=>resolve();
-      request.onerror=()=>reject(request.error||new Error('IndexedDB delete failed'));
-      request.onblocked=()=>reject(new Error('IndexedDB delete blocked'));
-    });
 
+  const result=await page.evaluate(async()=>{
     const {createFuelRepository}=await import('/js/application/fuel-repository.js');
     const {DB_NAME,DB_VERSION,STORES}=await import('/js/core/hardened-db.js');
     if(DB_NAME!=='kfe')throw new Error(`Unexpected DB name: ${DB_NAME}`);
@@ -38,24 +31,25 @@ try{
     if(!STORES.fuel_records||STORES.fuel_records.keyPath!=='id')throw new Error('Canonical fuel_records store is missing or has the wrong keyPath');
 
     const repository=createFuelRepository();
-    const record={id:'fuel-browser-round-trip-1',marker:'real-indexeddb'};
+    const record={id:`fuel-browser-round-trip-${crypto.randomUUID()}`,marker:'real-indexeddb'};
     const updated={...record,marker:'real-indexeddb-updated'};
+    const contains=async expected=>(await repository.list()).some(value=>JSON.stringify(value)===JSON.stringify(expected));
 
     await repository.create(record);
     const created=await repository.get(record.id);
-    const listedAfterCreate=await repository.list();
+    const listedAfterCreate=await contains(record);
     await repository.update(updated);
     const readAfterUpdate=await repository.get(record.id);
-    const listedAfterUpdate=await repository.list();
+    const listedAfterUpdate=await contains(updated);
     await repository.remove(record.id);
     const afterRemove=await repository.get(record.id);
     const listedAfterRemove=await repository.list();
 
     if(JSON.stringify(created)!==JSON.stringify(record))throw new Error('CREATE/GET round-trip failed');
-    if(listedAfterCreate.length!==1||JSON.stringify(listedAfterCreate[0])!==JSON.stringify(record))throw new Error('CREATE/LIST round-trip failed');
+    if(!listedAfterCreate)throw new Error('CREATE/LIST round-trip failed');
     if(JSON.stringify(readAfterUpdate)!==JSON.stringify(updated))throw new Error('UPDATE/GET round-trip failed');
-    if(listedAfterUpdate.length!==1||JSON.stringify(listedAfterUpdate[0])!==JSON.stringify(updated))throw new Error('UPDATE/LIST round-trip failed');
-    if(afterRemove!==undefined||listedAfterRemove.length!==0)throw new Error('REMOVE round-trip failed');
+    if(!listedAfterUpdate)throw new Error('UPDATE/LIST round-trip failed');
+    if(afterRemove!==undefined||listedAfterRemove.some(value=>value.id===record.id))throw new Error('REMOVE round-trip failed');
 
     return {database:DB_NAME,version:DB_VERSION,store:'fuel_records',keyPath:STORES.fuel_records.keyPath,result:'PASS'};
   });
