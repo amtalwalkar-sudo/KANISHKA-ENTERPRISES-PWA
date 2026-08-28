@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {createUiRouter,DEFAULT_ROUTE} from '../ui/router.js';
+import {createUiState,UI_STATES} from '../ui/state.js';
+import {detectUiCapabilities} from '../ui/capabilities.js';
+import {axisLockedDelta,createInteractionGuard} from '../ui/interaction.js';
+
+const app=await readFile(new URL('../../src/App.vue',import.meta.url),'utf8');
+const css=await readFile(new URL('../../src/styles/shell.css',import.meta.url),'utf8');
+assert.ok(app.includes('createUiRouter'),'UI router boundary wired');
+assert.ok(app.includes('createUiState'),'UI state infrastructure wired');
+assert.ok(app.includes('detectUiCapabilities'),'capability detection wired');
+assert.ok(app.includes('createInteractionGuard'),'interaction guard wired');
+assert.ok(css.includes('touch-action:pan-y'),'vertical scroll interaction boundary present');
+assert.ok(css.includes('prefers-reduced-motion:reduce'),'reduced motion remains present');
+
+const router=createUiRouter({initialPath:'Dashboard'});
+assert.equal(router.route,DEFAULT_ROUTE);
+const state=createUiState();
+state.set(UI_STATES.LOADING);assert.equal(state.state,UI_STATES.LOADING);
+const capabilities=detectUiCapabilities({navigator:{onLine:false},MediaDevices:{}});
+assert.equal(capabilities.online,false);
+assert.equal(axisLockedDelta(30,5),'HORIZONTAL');
+assert.equal(axisLockedDelta(5,30),'VERTICAL');
+const guard=createInteractionGuard();
+const first=guard.run(async()=>42);
+const second=guard.run(async()=>99);
+assert.equal((await second).accepted,false);
+assert.equal((await first).value,42);
+console.log('PHASE_2_SHELL_INTERACTION=PASS');
