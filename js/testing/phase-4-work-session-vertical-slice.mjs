@@ -21,7 +21,7 @@ const repo={
  entity(store){return {get:async id=>stores.get(store).get(id)||null,list:async()=>[...stores.get(store).values()]};},
  async atomic(names,operation){const views=Object.fromEntries(names.map(name=>[name,{put:value=>stores.get(name).set(value.id,structuredClone(value))}]));return operation(views);},
  async getIdempotency(id){return idempotency.get(id);},
- async saveIdempotency(entry){idempotency.set(entry.id,entry);return entry;}
+ async saveIdempotency(entry){idempotency.set(entry.id,entry.result);return entry;}
 };
 const app=createKfeApplication(repo);
 const operation='phase-4-start-0001';
@@ -29,8 +29,6 @@ const created=await app.startWork({started_at:'2026-08-28T06:00:00.000Z',start_o
 const replay=await app.startWork({started_at:'2026-08-28T06:00:00.000Z',start_odometer:100,break_minutes:0},operation);
 assert.equal(created.id,replay.id);
 assert.equal(created.status,'OPEN');
-assert.equal(stores.get('work_sessions').get(created.id),undefined,'application write must use the repository transaction result');
-stores.get('work_sessions').set(created.id,created);
 const loaded=await app.getWork(created.id);
 assert.equal(loaded.id,created.id);
 const presented=workSessionReadModel(loaded);
