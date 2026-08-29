@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 
 const props = defineProps({ module: { type: String, required: true } });
-defineEmits(['open']);
+const emit = defineEmits(['open', 'back']);
 
 const MODULES = {
   Vehicle: { eyebrow: 'Vehicle', title: 'Vehicle', subtitle: 'Central business asset and lifecycle context.', sections: [{ title: 'Vehicle', items: ['Vehicle details', 'Lifecycle', 'Driver'] }, { title: 'History', items: ['Relevant timeline events'] }] },
@@ -24,6 +24,7 @@ const definition = computed(() => MODULES[props.module] ?? { eyebrow: 'KFE 2.0',
 <template>
   <section class="kfe-module-view" :data-module="module" aria-labelledby="module-title">
     <div class="kfe-module-heading">
+      <button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('back')">‹ More</button>
       <p class="kfe-eyebrow">{{ definition.eyebrow }}</p>
       <h1 id="module-title">{{ definition.title }}</h1>
       <p class="kfe-destination-subtitle">{{ definition.subtitle }}</p>
@@ -32,7 +33,7 @@ const definition = computed(() => MODULES[props.module] ?? { eyebrow: 'KFE 2.0',
       <section v-for="section in definition.sections" :key="section.title" class="kfe-module-section">
         <h2>{{ section.title }}</h2>
         <div class="kfe-module-list">
-          <button v-for="item in section.items" :key="item" type="button" @click="$emit('open', item)">
+          <button v-for="item in section.items" :key="item" type="button" @click="emit('open', item)">
             <span>{{ item }}</span><span aria-hidden="true">›</span>
           </button>
         </div>
