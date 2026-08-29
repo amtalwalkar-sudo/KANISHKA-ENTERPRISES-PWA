@@ -7,8 +7,8 @@ defineEmits(['open']);
 const MODULES = {
   Vehicle: { eyebrow: 'Vehicle', title: 'Vehicle', subtitle: 'Central business asset and lifecycle context.', sections: [{ title: 'Vehicle', items: ['Vehicle details', 'Lifecycle', 'Driver'] }, { title: 'History', items: ['Relevant timeline events'] }] },
   Driver: { eyebrow: 'Vehicle', title: 'Driver', subtitle: 'Driver attached to the current vehicle.', sections: [{ title: 'Driver', items: ['Driver details', 'Vehicle attachment'] }] },
-  Fuel: { eyebrow: 'Money', title: 'Fuel', subtitle: 'Record fuel with the established KFE fuel model.', sections: [{ title: 'Fuel', items: ['Add fuel', 'Fuel history'] }] },
-  Expenses: { eyebrow: 'Money', title: 'Expenses', subtitle: 'One unified expense model for business expenses.', sections: [{ title: 'Expenses', items: ['Add expense', 'Expense history'] }] },
+  Fuel: { eyebrow: 'Money', title: 'Fuel', subtitle: 'Record fuel using the established KFE fuel model.', sections: [{ title: 'Fuel', items: ['Add fuel', 'Fuel history'] }] },
+  Expenses: { eyebrow: 'Money', title: 'Expenses', subtitle: 'One unified expense model for business expenses.', sections: [{ title: 'Expenses', items: ['Add expense', 'Expense history'] }, { title: 'Quick entry', items: ['Toll', 'Parking'] }] },
   Revenue: { eyebrow: 'Money', title: 'Revenue', subtitle: 'Fast manual end-of-day revenue entry.', sections: [{ title: 'Revenue', items: ['Enter today’s revenue', 'Revenue history'] }] },
   Loans: { eyebrow: 'Money', title: 'Loans', subtitle: 'Current obligations, payments and financial history.', sections: [{ title: 'Loan', items: ['Loan status', 'Payment history', 'Amortization', 'Prepayment calculator'] }] },
   Maintenance: { eyebrow: 'Vehicle Operations', title: 'Maintenance', subtitle: 'Record vehicle work, cost and odometer context.', sections: [{ title: 'Maintenance', items: ['Add maintenance', 'Maintenance history', 'Category catalogue'] }] },
