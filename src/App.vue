@@ -19,6 +19,8 @@ import { createUiState, UI_STATES } from '../js/ui/state.js';
 import { detectUiCapabilities } from '../js/ui/capabilities.js';
 import { createInteractionGuard } from '../js/ui/interaction.js';
 import { createUiLifecycle } from '../js/ui/lifecycle.js';
+import { enforceDecimalInput } from '../js/ui/decimal-input.js';
+import { prefersReducedMotion, watchReducedMotion } from '../js/ui/accessibility.js';
 
 const PRIMARY_DESTINATIONS = ['Work', 'Status', 'Timeline', 'More'];
 const MORE_GROUPS = [
@@ -37,12 +39,14 @@ const uiState = ref(UI_STATES.IDLE);
 const capabilities = ref(detectUiCapabilities());
 const storageState = ref('Ready');
 const syncState = ref(online.value ? 'Online' : 'Offline');
+const reducedMotion = ref(prefersReducedMotion());
 const timelineHorizon = ref('Today');
 const timelineEvents = ref([]);
 const router = createUiRouter({ initialPath: activeModule.value, onChange: (path) => { activeModule.value = path; } });
 const state = createUiState();
 const interaction = createInteractionGuard();
 const lifecycle = createUiLifecycle({ onOnline: () => { online.value = true; syncState.value = 'Online'; }, onOffline: () => { online.value = false; syncState.value = 'Offline'; } });
+let stopReducedMotionWatch = () => {};
 const currentDestination = computed(() => PRIMARY_DESTINATIONS.includes(activeModule.value) ? activeModule.value : 'More');
 function refresh() { online.value = typeof navigator === 'undefined' ? true : navigator.onLine; syncState.value = online.value ? 'Online' : 'Offline'; capabilities.value = detectUiCapabilities(); }
 async function navigate(path) { const result = await interaction.run(async () => router.navigate(path)); if (!result.accepted) return; state.set(UI_STATES.READY); uiState.value = state.state; interaction.reset(); }
@@ -52,13 +56,23 @@ function openModuleAction(action) { void action; }
 function returnToMore() { navigate('More'); }
 function handleSaveRequest(payload) { openModuleAction(payload); }
 function handleCalculationRequest(payload) { openModuleAction(payload); }
-onMounted(() => { router.start(); lifecycle.start(); refresh(); state.set(UI_STATES.READY); uiState.value = state.state; });
-onUnmounted(() => { router.stop(); lifecycle.stop(); });
-window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
+function enforceDecimalInputs(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement)) return;
+  const isNumeric = target.type === 'number' || target.inputMode === 'decimal';
+  if (!isNumeric) return;
+  const scale = Number.parseInt(target.dataset.kfeDecimalScale || '2', 10);
+  const value = enforceDecimalInput(target, { scale: Number.isFinite(scale) ? scale : 2, allowNegative: target.dataset.kfeAllowNegative === 'true' });
+  if (target.value !== value) target.value = value;
+}
+function handleBack() { if (activeModule.value !== 'Work') router.back(); }
+onMounted(() => { router.start(); lifecycle.start(); stopReducedMotionWatch = watchReducedMotion((value) => { reducedMotion.value = value; }); refresh(); state.set(UI_STATES.READY); uiState.value = state.state; });
+onUnmounted(() => { router.stop(); lifecycle.stop(); stopReducedMotionWatch(); });
+window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities, reducedMotion, handleBack };
 </script>
 
 <template>
-  <div class="kfe-shell" data-framework="vue">
+  <div class="kfe-shell" data-framework="vue" @input.capture="enforceDecimalInputs">
     <header class="kfe-topbar" aria-label="KFE application header"><div class="kfe-brand"><strong>KFE 2.0</strong><span>Kanishka Fleet ERP</span></div><div class="kfe-status" aria-label="Application status"><span class="kfe-status-dot" aria-hidden="true"></span><span>{{ syncState }} · {{ storageState }}</span></div></header>
     <main class="kfe-viewport" aria-label="Main application viewport"><section class="kfe-workspace" aria-live="polite">
       <WorkSessionView v-if="activeModule === 'Work'" />
