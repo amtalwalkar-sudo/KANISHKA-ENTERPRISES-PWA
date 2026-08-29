@@ -54,7 +54,7 @@ let stopReducedMotionWatch = () => {};
 let stopSwipe = () => {};
 const currentDestination = computed(() => PRIMARY_DESTINATIONS.includes(activeModule.value) ? activeModule.value : 'More');
 function refresh() { online.value = typeof navigator === 'undefined' ? true : navigator.onLine; syncState.value = online.value ? 'Online' : 'Offline'; capabilities.value = detectUiCapabilities(); }
-async function loadStatus(){try{statusModel.value=await application.statusReadModel();}catch(error){statusModel.value={error:String(error?.message||error)};}}
+async function loadStatus(){try{statusModel.value=await application.getStatus();}catch(error){statusModel.value={error:String(error?.message||error)};}}
 async function navigate(path) { const result = await interaction.run(async () => router.navigate(path)); if (!result.accepted) return; state.set(UI_STATES.READY); uiState.value = state.state; interaction.reset(); if(path==='Status') await loadStatus(); }
 function openMoreItem(item) { navigate(item); }
 function selectTimelineHorizon(horizon) { timelineHorizon.value = horizon; }
