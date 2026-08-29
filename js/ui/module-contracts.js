@@ -2,15 +2,20 @@
  * Presentation only: no business calculations or persistence.
  */
 export const MODULE_CONTRACTS = Object.freeze({
-  compliance: {
-    title: 'Compliance',
-    flow: ['Renewal Type', 'Cost', 'Validity Start', 'Validity End', 'Save'],
-    history: true,
+  vehicle: {
+    title: 'Vehicle',
+    lifecycle: ['Acquisition Date', 'Retirement Date'],
+    history: 'Common Timeline',
   },
   driver: {
     title: 'Driver',
     flow: ['Driver attached to vehicle'],
     analytics: false,
+  },
+  compliance: {
+    title: 'Compliance',
+    flow: ['Renewal Type', 'Cost', 'Validity Start', 'Validity End', 'Save'],
+    history: true,
   },
   settings: {
     title: 'Settings',
