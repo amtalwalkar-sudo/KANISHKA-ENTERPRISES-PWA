@@ -11,6 +11,7 @@ const forms = read('src/components/KfeFormShell.vue');
 const vehicle = read('src/components/VehicleModuleView.vue');
 const maintenance = read('src/components/MaintenanceModuleView.vue');
 const compliance = read('src/components/ComplianceModuleView.vue');
+const modules = read('src/components/KfeModuleView.vue');
 
 assert.match(navigation, /Work.*Status.*Timeline.*More/s);
 assert.match(navigation, /Timeline.*Today.*Week.*Month.*Year/s);
@@ -41,5 +42,17 @@ assert.match(compliance, /save-request/);
 // Reject only an actual state identifier/option being introduced into the UI implementation.
 assert.doesNotMatch(compliance, /renewedButUnpaid|renewed-but-unpaid|renewed_unpaid|paymentStatus\s*[:=]\s*['\"]?renewed/i);
 
+// Loan presentation must expose the frozen financial hierarchy without implementing calculations in presentation.
+assert.match(modules, /Loan status/);
+assert.match(modules, /EMI/);
+assert.match(modules, /Outstanding balance/);
+assert.match(modules, /Vehicle association/);
+assert.match(modules, /Payment history/);
+assert.match(modules, /Amortization/);
+assert.match(modules, /Prepayment calculator/);
+assert.match(modules, /Zero prepayment charges/);
+assert.match(modules, /save-request/);
+assert.doesNotMatch(modules, /principalComponent\s*=|interestComponent\s*=|remainingBalance\s*=.*\/|calculateAmortization|calculatePrepayment/i);
+
 console.log('Phase 6 UI shell contract: PASS');
-console.log('Frozen navigation, timeline chronology, draft boundary, vehicle lifecycle, maintenance capture, compliance renewal flow, Tax Reserve exclusion, and application persistence boundaries verified.');
+console.log('Frozen navigation, timeline chronology, draft boundary, vehicle lifecycle, maintenance capture, compliance renewal flow, loan presentation, Tax Reserve exclusion, and application persistence boundaries verified.');
