@@ -13,7 +13,9 @@ const app = read('src/App.vue');
 
 assert.match(router, /popstate/);
 assert.match(router, /handleBack/);
-assert.match(router, /history\.back/);
+assert.match(router, /routeHistory/);
+assert.match(router, /sessionStorage/);
+assert.doesNotMatch(router, /history\.back\(\)/);
 assert.match(lifecycle, /visibilitychange/);
 assert.match(accessibility, /prefers-reduced-motion/);
 assert.match(forms, /SUBMIT_COOLDOWN_MS/);
@@ -43,4 +45,4 @@ const resolved = resolveConflict(reviewed, { strategy: 'remote' });
 assert.equal(resolved.state, CONFLICT_STATES.RESOLVED);
 
 console.log('Phase 7 reliability contract: PASS');
-console.log('Explicit back handling, decimal enforcement, reduced-motion capability, form submit locking, metadata-ready screen contract, and conflict state machine verified.');
+console.log('KFE-controlled back history, decimal enforcement, reduced-motion capability, form submit locking, metadata-ready screen contract, and conflict state machine verified.');
