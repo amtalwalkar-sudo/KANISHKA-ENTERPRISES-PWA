@@ -1,1 +1,0 @@
-Timeline Batch 3 is limited to repository data flowing through the application read-model boundary into the existing Timeline UI. Frozen shell/navigation are unchanged.
