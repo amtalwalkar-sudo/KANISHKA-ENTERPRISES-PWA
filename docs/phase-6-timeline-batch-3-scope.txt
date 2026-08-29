@@ -1,1 +1,0 @@
-Timeline Batch 3: repository data -> application timeline read model -> existing Timeline UI. Shell and navigation unchanged.
