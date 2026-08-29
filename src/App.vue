@@ -55,7 +55,8 @@ let stopSwipe = () => {};
 const currentDestination = computed(() => PRIMARY_DESTINATIONS.includes(activeModule.value) ? activeModule.value : 'More');
 function refresh() { online.value = typeof navigator === 'undefined' ? true : navigator.onLine; syncState.value = online.value ? 'Online' : 'Offline'; capabilities.value = detectUiCapabilities(); }
 async function loadStatus(){try{statusModel.value=await application.getStatus();}catch(error){statusModel.value={error:String(error?.message||error)};}}
-async function navigate(path) { const result = await interaction.run(async () => router.navigate(path)); if (!result.accepted) return; state.set(UI_STATES.READY); uiState.value = state.state; interaction.reset(); if(path==='Status') await loadStatus(); }
+async function loadTimeline(){try{const model=await application.getTimeline();timelineEvents.value=model.events||[];}catch(error){timelineEvents.value=[];}}
+async function navigate(path) { const result = await interaction.run(async () => router.navigate(path)); if (!result.accepted) return; state.set(UI_STATES.READY); uiState.value = state.state; interaction.reset(); if(path==='Status') await loadStatus(); if(path==='Timeline') await loadTimeline(); }
 function openMoreItem(item) { navigate(item); }
 function selectTimelineHorizon(horizon) { timelineHorizon.value = horizon; }
 function openModuleAction(action) { void action; }
@@ -86,6 +87,7 @@ onMounted(() => {
   if (viewport.value) stopSwipe = createHorizontalSwipeEngine({ element: viewport.value, onSwipe: handleSwipe });
   refresh();
   void loadStatus();
+  void loadTimeline();
   state.set(UI_STATES.READY);
   uiState.value = state.state;
 });
@@ -100,7 +102,7 @@ window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities, reducedM
       <WorkSessionView v-if="activeModule === 'Work'" />
       <StatusModuleView v-else-if="activeModule === 'Status'" :online="online" :status="statusModel" />
       <KfeDestinationView v-else-if="activeModule === 'Timeline'" title="Timeline" subtitle="Authoritative events projected chronologically across Today, Week, Month and Year."><div class="kfe-segmented" aria-label="Timeline horizon"><button v-for="horizon in TIMELINE_HORIZONS" :key="horizon" type="button" :class="{ 'is-active': timelineHorizon === horizon }" @click="selectTimelineHorizon(horizon)">{{ horizon }}</button></div><KfeTimelineView :horizon="timelineHorizon" :events="timelineEvents" /></KfeDestinationView>
-      <KfeDestinationView v-else-if="activeModule === 'More'" title="More" subtitle="ERP management modules, grouped by information hierarchy."><div class="kfe-more-groups"><section v-for="group in MORE_GROUPS" :key="group.title" class="kfe-module-group"><h2>{{ group.title }}</h2><div class="kfe-module-list"><button v-for="item in group.items" :key="item" type="button" @click="openMoreItem(item)"><span>{{ item }}</span><span aria-hidden="true">›</span></button></div></section></div></KfeDestinationView>
+      <KfeDestinationView v-else-if="activeModule === 'More'" title="More" subtitle="ERP management modules, grouped by information hierarchy."><div class="kfe-more-groups"><section v-for="group in MORE_GROUPS" :key="group.title" class="kfe-module-group"><h2>{{ group.title }}</h2><div class="kfe-module-list"><button v-for="item in group.items" :key="item" type="button" @click="openMoreItem(item)"><span>{{ item }}</span><span aria-hidden="true">›</span></button></div></div></KfeDestinationView>
       <VehicleModuleView v-else-if="activeModule === 'Vehicle'" @save-request="handleSaveRequest" @back="returnToMore" />
       <DriverModuleView v-else-if="activeModule === 'Driver'" @save-request="handleSaveRequest" @back="returnToMore" />
       <MaintenanceModuleView v-else-if="activeModule === 'Maintenance'" @save-request="handleSaveRequest" />
