@@ -64,7 +64,7 @@ window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
       <MaintenanceModuleView v-else-if="activeModule === 'Maintenance'" @save-request="handleSaveRequest" />
       <ComplianceModuleView v-else-if="activeModule === 'Compliance'" @save-request="handleSaveRequest" @back="returnToMore" />
       <KfeFinancialModuleView v-else-if="FINANCIAL_MODULES.includes(activeModule)" :module="activeModule" @open="openModuleAction" @back="returnToMore" />
-      <KfeModuleView v-else :module="activeModule" @open="openModuleAction" @back="returnToMore" />
+      <KfeModuleView v-else :module="activeModule" @open="openModuleAction" @back="returnToMore" @save-request="handleSaveRequest" />
     </section></main>
     <nav class="kfe-bottom-nav" aria-label="Primary navigation"><button v-for="destination in PRIMARY_DESTINATIONS" :key="destination" class="kfe-nav-item" type="button" :aria-current="currentDestination === destination ? 'page' : undefined" @click="navigate(destination)">{{ destination }}</button></nav>
   </div>
