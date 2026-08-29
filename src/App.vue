@@ -10,6 +10,7 @@ import KfeTimelineView from './components/KfeTimelineView.vue';
 import VehicleModuleView from './components/VehicleModuleView.vue';
 import MaintenanceModuleView from './components/MaintenanceModuleView.vue';
 import ComplianceModuleView from './components/ComplianceModuleView.vue';
+import LoanModuleView from './components/LoanModuleView.vue';
 import { createUiRouter } from '../js/ui/router.js';
 import { createUiState, UI_STATES } from '../js/ui/state.js';
 import { detectUiCapabilities } from '../js/ui/capabilities.js';
@@ -25,7 +26,7 @@ const MORE_GROUPS = [
   { title: 'System', items: ['Settings'] },
 ];
 const TIMELINE_HORIZONS = ['Today', 'Week', 'Month', 'Year'];
-const FINANCIAL_MODULES = ['Dashboard', 'Profitability', 'Loans'];
+const FINANCIAL_MODULES = ['Dashboard', 'Profitability'];
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine);
 const activeModule = ref('Work');
 const uiState = ref(UI_STATES.IDLE);
@@ -47,6 +48,7 @@ function selectTimelineHorizon(horizon) { timelineHorizon.value = horizon; }
 function openModuleAction(action) { void action; }
 function returnToMore() { navigate('More'); }
 function handleSaveRequest(payload) { openModuleAction(payload); }
+function handleCalculationRequest(payload) { openModuleAction(payload); }
 onMounted(() => { router.start(); lifecycle.start(); refresh(); state.set(UI_STATES.READY); uiState.value = state.state; });
 onUnmounted(() => { router.stop(); lifecycle.stop(); });
 window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
@@ -63,6 +65,7 @@ window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
       <VehicleModuleView v-else-if="activeModule === 'Vehicle'" @save-request="handleSaveRequest" />
       <MaintenanceModuleView v-else-if="activeModule === 'Maintenance'" @save-request="handleSaveRequest" />
       <ComplianceModuleView v-else-if="activeModule === 'Compliance'" @save-request="handleSaveRequest" @back="returnToMore" />
+      <LoanModuleView v-else-if="activeModule === 'Loans'" @save-request="handleSaveRequest" @calculation-request="handleCalculationRequest" @open="openModuleAction" @back="returnToMore" />
       <KfeFinancialModuleView v-else-if="FINANCIAL_MODULES.includes(activeModule)" :module="activeModule" @open="openModuleAction" @back="returnToMore" />
       <KfeModuleView v-else :module="activeModule" @open="openModuleAction" @back="returnToMore" @save-request="handleSaveRequest" />
     </section></main>
