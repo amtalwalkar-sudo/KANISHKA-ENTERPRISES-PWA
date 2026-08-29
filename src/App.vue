@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import './styles/shell.css';
 import WorkSessionView from './components/WorkSessionView.vue';
 import KfeDestinationView from './components/KfeDestinationView.vue';
+import KfeStatePanel from './components/KfeStatePanel.vue';
 import { createUiRouter } from '../js/ui/router.js';
 import { createUiState, UI_STATES } from '../js/ui/state.js';
 import { detectUiCapabilities } from '../js/ui/capabilities.js';
@@ -17,6 +18,7 @@ const MORE_GROUPS = [
   { title: 'Business', items: ['Dashboard', 'Profitability'] },
   { title: 'System', items: ['Settings'] },
 ];
+const TIMELINE_HORIZONS = ['Today', 'Week', 'Month', 'Year'];
 
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine);
 const activeModule = ref('Work');
@@ -24,14 +26,11 @@ const uiState = ref(UI_STATES.IDLE);
 const capabilities = ref(detectUiCapabilities());
 const storageState = ref('Ready');
 const syncState = ref(online.value ? 'Online' : 'Offline');
-const moreOpen = ref(false);
+const timelineHorizon = ref('Today');
 
 const router = createUiRouter({
   initialPath: activeModule.value,
-  onChange: (path) => {
-    activeModule.value = path;
-    moreOpen.value = path === 'More';
-  },
+  onChange: (path) => { activeModule.value = path; },
 });
 const state = createUiState();
 const interaction = createInteractionGuard();
@@ -41,6 +40,7 @@ const lifecycle = createUiLifecycle({
 });
 
 const currentDestination = computed(() => PRIMARY_DESTINATIONS.includes(activeModule.value) ? activeModule.value : 'More');
+const sharedState = computed(() => online.value ? 'normal' : 'offline');
 
 function refresh() {
   online.value = typeof navigator === 'undefined' ? true : navigator.onLine;
@@ -56,9 +56,8 @@ async function navigate(path) {
   interaction.reset();
 }
 
-function openMoreItem(item) {
-  navigate(item);
-}
+function openMoreItem(item) { navigate(item); }
+function selectTimelineHorizon(horizon) { timelineHorizon.value = horizon; }
 
 onMounted(() => {
   router.start();
@@ -93,38 +92,25 @@ window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
       <section class="kfe-workspace" aria-live="polite">
         <WorkSessionView v-if="activeModule === 'Work'" />
 
-        <KfeDestinationView
-          v-else-if="activeModule === 'Status'"
-          title="Status"
-          subtitle="Driver-centric current-day quick reference."
-        >
+        <KfeDestinationView v-else-if="activeModule === 'Status'" title="Status" subtitle="Driver-centric current-day quick reference.">
           <div class="kfe-placeholder-grid">
             <article class="kfe-placeholder-card"><span>Today's Target</span><strong>Authoritative result</strong></article>
             <article class="kfe-placeholder-card"><span>Online time</span><strong>Current-day state</strong></article>
             <article class="kfe-placeholder-card"><span>Trip meter</span><strong>Current-day state</strong></article>
             <article class="kfe-placeholder-card"><span>Cost / km</span><strong>Calculation output</strong></article>
           </div>
+          <KfeStatePanel v-if="sharedState === 'offline'" state="offline" title="Offline — operational" message="Valid local business operations remain available on this device." />
         </KfeDestinationView>
 
-        <KfeDestinationView
-          v-else-if="activeModule === 'Timeline'"
-          title="Timeline"
-          subtitle="Authoritative events projected chronologically across Today, Week, Month and Year."
-        >
+        <KfeDestinationView v-else-if="activeModule === 'Timeline'" title="Timeline" subtitle="Authoritative events projected chronologically across Today, Week, Month and Year.">
           <div class="kfe-segmented" aria-label="Timeline horizon">
-            <button type="button" class="is-active">Today</button>
-            <button type="button">Week</button>
-            <button type="button">Month</button>
-            <button type="button">Year</button>
+            <button v-for="horizon in TIMELINE_HORIZONS" :key="horizon" type="button" :class="{ 'is-active': timelineHorizon === horizon }" @click="selectTimelineHorizon(horizon)">{{ horizon }}</button>
           </div>
-          <div class="kfe-placeholder"><h2>Event history</h2><p>Timeline projection foundation is ready for authoritative event integration.</p></div>
+          <div class="kfe-placeholder"><h2>{{ timelineHorizon }} event history</h2><p>Projection view is connected to the shared timeline architecture. Business chronology remains authoritative.</p></div>
+          <KfeStatePanel state="empty" title="No events to show" message="Authoritative events will appear here when available." />
         </KfeDestinationView>
 
-        <KfeDestinationView
-          v-else-if="activeModule === 'More'"
-          title="More"
-          subtitle="ERP management modules, grouped by information hierarchy."
-        >
+        <KfeDestinationView v-else-if="activeModule === 'More'" title="More" subtitle="ERP management modules, grouped by information hierarchy.">
           <div class="kfe-more-groups">
             <section v-for="group in MORE_GROUPS" :key="group.title" class="kfe-module-group">
               <h2>{{ group.title }}</h2>
@@ -137,23 +123,14 @@ window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
           </div>
         </KfeDestinationView>
 
-        <KfeDestinationView
-          v-else
-          :title="activeModule"
-          subtitle="Module shell connected to the Phase 6 navigation architecture."
-        />
+        <KfeDestinationView v-else :title="activeModule" subtitle="Module shell connected to the Phase 6 navigation architecture.">
+          <KfeStatePanel state="normal" title="Module ready" message="This module is connected to the shared KFE shell. Authoritative business integration remains outside presentation code." />
+        </KfeDestinationView>
       </section>
     </main>
 
     <nav class="kfe-bottom-nav" aria-label="Primary navigation">
-      <button
-        v-for="destination in PRIMARY_DESTINATIONS"
-        :key="destination"
-        class="kfe-nav-item"
-        type="button"
-        :aria-current="currentDestination === destination ? 'page' : undefined"
-        @click="navigate(destination)"
-      >
+      <button v-for="destination in PRIMARY_DESTINATIONS" :key="destination" class="kfe-nav-item" type="button" :aria-current="currentDestination === destination ? 'page' : undefined" @click="navigate(destination)">
         {{ destination }}
       </button>
     </nav>
