@@ -3,12 +3,11 @@ import { ref } from 'vue';
 import KfeFormShell from './KfeFormShell.vue';
 import KfeStatePanel from './KfeStatePanel.vue';
 
-const emit = defineEmits(['save-request']);
+const emit = defineEmits(['save-request', 'back']);
 const editing = ref(false);
 const initial = { type: '', cost: '', start: '', end: '' };
 
 function save(value) {
-  // Presentation boundary only. Persistence and validation belong to the application/domain layer.
   emit('save-request', { module: 'Compliance', value });
 }
 </script>
@@ -16,7 +15,7 @@ function save(value) {
 <template>
   <section class="kfe-module-view" aria-labelledby="compliance-title">
     <div v-if="!editing" class="kfe-module-heading">
-      <button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('save-request', { type: 'back' })">‹ More</button>
+      <button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('back')">‹ More</button>
       <p class="kfe-eyebrow">Vehicle Operations</p>
       <h1 id="compliance-title">Compliance</h1>
       <p class="kfe-destination-subtitle">Renewals, validity and historical records.</p>
