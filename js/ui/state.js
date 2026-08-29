@@ -1,4 +1,14 @@
-export const UI_STATES=Object.freeze({IDLE:'IDLE',LOADING:'LOADING',READY:'READY',EMPTY:'EMPTY',ERROR:'ERROR',OFFLINE:'OFFLINE'});
+export const UI_STATES=Object.freeze({
+  IDLE:'IDLE',
+  LOADING:'LOADING',
+  READY:'READY',
+  EMPTY:'EMPTY',
+  ERROR:'ERROR',
+  OFFLINE:'OFFLINE',
+  VALIDATION:'VALIDATION',
+  SAVING:'SAVING',
+  SAVED:'SAVED'
+});
 
 export function createUiState(initial=UI_STATES.IDLE){
   let state=initial;

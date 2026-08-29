@@ -11,6 +11,7 @@ const startOdometer=ref('');
 const endOdometer=ref('');
 const breakMinutes=ref('0');
 const busy=ref(false);
+const revenue=ref('');
 
 async function load(){
   state.value='LOADING'; error.value=null;
@@ -46,23 +47,35 @@ async function complete(){
   finally{busy.value=false;}
 }
 
+async function recordRevenue(){
+  if(busy.value||!session.value||!revenue.value)return;
+  busy.value=true;error.value=null;
+  try{
+    const command=createUiCommand('RECORD_REVENUE',{work_session_id:session.value.id,amount:Number(revenue.value),recorded_at:new Date().toISOString()});
+    await application.recordRevenue(command.payload);
+    revenue.value='';
+  }catch(e){error.value=viewModels.error(e);state.value='ERROR';}
+  finally{busy.value=false;}
+}
+
 onMounted(load);
 </script>
 
 <template>
   <section class="kfe-work-session" aria-labelledby="work-session-title">
-    <header><h1 id="work-session-title">Work Session</h1><p>Persistent application slice</p></header>
+    <header><p class="kfe-eyebrow">Operational cockpit</p><h1 id="work-session-title">Work</h1><p>Today's work session</p></header>
     <p v-if="state==='LOADING'" role="status">Loading…</p>
     <p v-else-if="state==='EMPTY'">No work session recorded yet.</p>
     <p v-if="error" role="alert">{{ error.error }}</p>
     <div v-if="!session" class="kfe-form">
       <label>Start odometer <input v-model="startOdometer" inputmode="decimal" type="number" min="0" :disabled="busy"></label>
-      <label>Break minutes <input v-model="breakMinutes" inputmode="decimal" type="number" min="0" :disabled="busy"></label>
-      <button type="button" :disabled="busy||!startOdometer" @click="start">Start shift</button>
+      <label>Break minutes <input v-model="breakMinutes" inputmode="numeric" type="number" min="0" step="1" :disabled="busy"></label>
+      <button type="button" :disabled="busy||!startOdometer" @click="start">Start work</button>
     </div>
     <div v-else class="kfe-session-card">
       <dl><div><dt>Status</dt><dd>{{ session.status }}</dd></div><div><dt>Start</dt><dd>{{ session.start_at }}</dd></div><div><dt>Start odometer</dt><dd>{{ session.start_odometer }}</dd></div><div><dt>Break</dt><dd>{{ session.break_minutes ?? 0 }} min</dd></div><div v-if="session.end_at"><dt>End</dt><dd>{{ session.end_at }}</dd></div><div v-if="session.end_odometer!=null"><dt>End odometer</dt><dd>{{ session.end_odometer }}</dd></div></dl>
-      <div v-if="session.status==='OPEN'" class="kfe-form"><label>End odometer <input v-model="endOdometer" inputmode="decimal" type="number" min="0" :disabled="busy"></label><button type="button" :disabled="busy||!endOdometer" @click="complete">Complete shift</button></div>
+      <div v-if="session.status==='OPEN'" class="kfe-form"><label>End odometer <input v-model="endOdometer" inputmode="numeric" type="number" min="0" step="1" :disabled="busy"></label><button type="button" :disabled="busy||!endOdometer" @click="complete">End work</button></div>
+      <div class="kfe-form"><label>Today's revenue <input v-model="revenue" inputmode="decimal" type="number" min="0" step="0.01" :disabled="busy"></label><button type="button" :disabled="busy||!revenue" @click="recordRevenue">Save revenue</button></div>
     </div>
   </section>
 </template>
