@@ -14,6 +14,8 @@ const emit = defineEmits(['save', 'discard', 'change']);
 const value = ref({ ...props.initialValue });
 const hasDraft = ref(false);
 let timer = null;
+let submitTimer = null;
+const SUBMIT_COOLDOWN_MS = 750;
 
 const storageKey = computed(() => `kfe:draft:${props.draftKey}`);
 
@@ -42,8 +44,9 @@ function clearDraft() {
 }
 
 function onSubmit() {
-  if (props.saving || !props.valid) return;
+  if (props.saving || !props.valid || submitTimer) return;
   emit('save', { ...value.value });
+  submitTimer = setTimeout(() => { submitTimer = null; }, SUBMIT_COOLDOWN_MS);
 }
 
 function discard() {
@@ -59,7 +62,10 @@ watch(value, (next) => {
 }, { deep: true });
 
 onMounted(loadDraft);
-onBeforeUnmount(() => clearTimeout(timer));
+onBeforeUnmount(() => {
+  clearTimeout(timer);
+  clearTimeout(submitTimer);
+});
 </script>
 
 <template>
