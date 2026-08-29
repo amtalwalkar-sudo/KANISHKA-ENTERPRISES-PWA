@@ -5,7 +5,7 @@ import KfeFormShell from './KfeFormShell.vue';
 import KfeFormField from './KfeFormField.vue';
 
 const props = defineProps({ module: { type: String, required: true } });
-const emit = defineEmits(['open', 'back']);
+const emit = defineEmits(['open', 'back', 'save-request']);
 const activeAction = ref('');
 
 const MODULES = {
@@ -34,7 +34,7 @@ const formSpec = computed(() => {
   const action = activeAction.value;
   if (props.module === 'Revenue' && action === 'Enter today’s revenue') return { title: 'Enter today’s revenue', subtitle: 'Manual end-of-day revenue entry.', fields: [{ id: 'amount', label: 'Revenue amount', type: 'number', required: true, placeholder: '0.00' }, { id: 'date', label: 'Date', type: 'date', required: true }] };
   if (props.module === 'Fuel' && action === 'Add fuel') return { title: 'Add fuel', subtitle: 'Capture the authoritative fuel record.', fields: [{ id: 'date', label: 'Date', type: 'date', required: true }, { id: 'odometer', label: 'Odometer', type: 'number', required: true }, { id: 'amount', label: 'Amount', type: 'number', required: true, placeholder: '0.00' }] };
-  if (props.module === 'Expenses') return { title: action === 'Add expense' ? 'Add expense' : `Add ${action.toLowerCase()}`, subtitle: 'Use the unified expense model.', fields: [{ id: 'date', label: 'Date', type: 'date', required: true }, { id: 'amount', label: 'Amount', type: 'number', required: true, placeholder: '0.00' }, { id: 'description', label: 'Description', optional: true, placeholder: 'Optional details' }] };
+  if (props.module === 'Expenses') return { title: action === 'Add expense' ? 'Add expense' : `Add ${action.toLowerCase()}`, subtitle: 'Use the unified expense model.', fields: [{ id: 'category', label: 'Category', required: true, placeholder: 'Select category' }, { id: 'date', label: 'Date', type: 'date', required: true }, { id: 'amount', label: 'Amount', type: 'number', required: true, placeholder: '0.00' }, { id: 'description', label: 'Description', optional: true, placeholder: 'Optional details' }, { id: 'reference', label: 'Receipt / reference', optional: true, placeholder: 'Optional reference' }] };
   if (props.module === 'Compliance' && action === 'Add renewal') return { title: 'Add renewal', subtitle: 'Record a completed renewal.', fields: [{ id: 'type', label: 'Renewal type', required: true, placeholder: 'Select or enter type' }, { id: 'cost', label: 'Cost', type: 'number', required: true, placeholder: '0.00' }, { id: 'start', label: 'Validity start', type: 'date', required: true }, { id: 'end', label: 'Validity end', type: 'date', required: true }] };
   if (props.module === 'Loans' && action === 'Prepayment calculator') return { title: 'Prepayment calculator', subtitle: 'Zero prepayment charges. Financial calculation remains authoritative outside presentation.', fields: [{ id: 'amount', label: 'Prepayment amount', type: 'number', required: true, placeholder: '0.00' }, { id: 'date', label: 'Effective date', type: 'date', required: true }] };
   return null;
@@ -49,7 +49,7 @@ function openAction(item) {
 }
 
 function closeAction() { activeAction.value = ''; }
-function onSave(value) { emit('open', { type: 'save-request', module: props.module, action: activeAction.value, value }); }
+function onSave(value) { emit('save-request', { module: props.module, action: activeAction.value, value }); }
 </script>
 
 <template>
