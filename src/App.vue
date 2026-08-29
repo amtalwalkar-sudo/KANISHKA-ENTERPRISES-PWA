@@ -13,6 +13,7 @@ import MaintenanceModuleView from './components/MaintenanceModuleView.vue';
 import ComplianceModuleView from './components/ComplianceModuleView.vue';
 import LoanModuleView from './components/LoanModuleView.vue';
 import StatusModuleView from './components/StatusModuleView.vue';
+import MoneyModuleView from './components/MoneyModuleView.vue';
 import { createUiRouter } from '../js/ui/router.js';
 import { createUiState, UI_STATES } from '../js/ui/state.js';
 import { detectUiCapabilities } from '../js/ui/capabilities.js';
@@ -29,6 +30,7 @@ const MORE_GROUPS = [
 ];
 const TIMELINE_HORIZONS = ['Today', 'Week', 'Month', 'Year'];
 const FINANCIAL_MODULES = ['Dashboard', 'Profitability'];
+const MONEY_MODULES = ['Fuel', 'Expenses', 'Revenue'];
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine);
 const activeModule = ref('Work');
 const uiState = ref(UI_STATES.IDLE);
@@ -68,6 +70,7 @@ window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
       <MaintenanceModuleView v-else-if="activeModule === 'Maintenance'" @save-request="handleSaveRequest" />
       <ComplianceModuleView v-else-if="activeModule === 'Compliance'" @save-request="handleSaveRequest" @back="returnToMore" />
       <LoanModuleView v-else-if="activeModule === 'Loans'" @save-request="handleSaveRequest" @calculation-request="handleCalculationRequest" @open="openModuleAction" @back="returnToMore" />
+      <MoneyModuleView v-else-if="MONEY_MODULES.includes(activeModule)" :module="activeModule" @save-request="handleSaveRequest" @open="openModuleAction" @back="returnToMore" />
       <KfeFinancialModuleView v-else-if="FINANCIAL_MODULES.includes(activeModule)" :module="activeModule" @open="openModuleAction" @back="returnToMore" />
       <KfeModuleView v-else :module="activeModule" @open="openModuleAction" @back="returnToMore" @save-request="handleSaveRequest" />
     </section></main>
