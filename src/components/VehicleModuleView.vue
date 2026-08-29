@@ -2,15 +2,14 @@
 import { computed, ref } from 'vue';
 import KfeFormShell from './KfeFormShell.vue';
 
+const emit = defineEmits(['save-request']);
 const editing = ref(false);
-const saved = ref(false);
 const vehicle = ref({ acquisitionDate: '', retirementDate: '' });
 const active = computed(() => !vehicle.value.retirementDate);
 
 function save(payload) {
-  vehicle.value = { ...vehicle.value, ...payload };
-  saved.value = true;
-  editing.value = false;
+  // Presentation boundary only. The parent/application layer owns persistence and authoritative state.
+  emit('save-request', { module: 'Vehicle', value: payload });
 }
 </script>
 
@@ -28,7 +27,6 @@ function save(payload) {
         <div class="kfe-form-field"><label class="kfe-form-label" for="vehicle-retirement"><span>Retirement date</span><span class="kfe-optional">Optional</span></label><input id="vehicle-retirement" v-model="value.retirementDate" class="kfe-form-input" type="date" /></div>
       </template>
     </KfeFormShell>
-    <p v-if="saved" class="kfe-success-note" role="status">Vehicle lifecycle saved.</p>
     <section class="kfe-module-section"><h2>Driver</h2><button class="kfe-list-action" type="button">Current driver <span aria-hidden="true">›</span></button></section>
     <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button">Relevant timeline events <span aria-hidden="true">›</span></button></section>
   </section>
