@@ -9,6 +9,7 @@ import KfeFinancialModuleView from './components/KfeFinancialModuleView.vue';
 import KfeTimelineView from './components/KfeTimelineView.vue';
 import VehicleModuleView from './components/VehicleModuleView.vue';
 import MaintenanceModuleView from './components/MaintenanceModuleView.vue';
+import ComplianceModuleView from './components/ComplianceModuleView.vue';
 import { createUiRouter } from '../js/ui/router.js';
 import { createUiState, UI_STATES } from '../js/ui/state.js';
 import { detectUiCapabilities } from '../js/ui/capabilities.js';
@@ -45,6 +46,7 @@ function openMoreItem(item) { navigate(item); }
 function selectTimelineHorizon(horizon) { timelineHorizon.value = horizon; }
 function openModuleAction(action) { void action; }
 function returnToMore() { navigate('More'); }
+function handleSaveRequest(payload) { openModuleAction(payload); }
 onMounted(() => { router.start(); lifecycle.start(); refresh(); state.set(UI_STATES.READY); uiState.value = state.state; });
 onUnmounted(() => { router.stop(); lifecycle.stop(); });
 window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
@@ -58,8 +60,9 @@ window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
       <KfeDestinationView v-else-if="activeModule === 'Status'" title="Status" subtitle="Driver-centric current-day quick reference."><div class="kfe-placeholder-grid"><article class="kfe-placeholder-card"><span>Today's Target</span><strong>Authoritative result</strong></article><article class="kfe-placeholder-card"><span>Online time</span><strong>Current-day state</strong></article><article class="kfe-placeholder-card"><span>Trip meter</span><strong>Current-day state</strong></article><article class="kfe-placeholder-card"><span>Cost / km</span><strong>Calculation output</strong></article></div><KfeStatePanel v-if="sharedState === 'offline'" state="offline" title="Offline — operational" message="Valid local business operations remain available on this device." /></KfeDestinationView>
       <KfeDestinationView v-else-if="activeModule === 'Timeline'" title="Timeline" subtitle="Authoritative events projected chronologically across Today, Week, Month and Year."><div class="kfe-segmented" aria-label="Timeline horizon"><button v-for="horizon in TIMELINE_HORIZONS" :key="horizon" type="button" :class="{ 'is-active': timelineHorizon === horizon }" @click="selectTimelineHorizon(horizon)">{{ horizon }}</button></div><KfeTimelineView :horizon="timelineHorizon" :events="timelineEvents" /></KfeDestinationView>
       <KfeDestinationView v-else-if="activeModule === 'More'" title="More" subtitle="ERP management modules, grouped by information hierarchy."><div class="kfe-more-groups"><section v-for="group in MORE_GROUPS" :key="group.title" class="kfe-module-group"><h2>{{ group.title }}</h2><div class="kfe-module-list"><button v-for="item in group.items" :key="item" type="button" @click="openMoreItem(item)"><span>{{ item }}</span><span aria-hidden="true">›</span></button></div></section></div></KfeDestinationView>
-      <VehicleModuleView v-else-if="activeModule === 'Vehicle'" />
-      <MaintenanceModuleView v-else-if="activeModule === 'Maintenance'" />
+      <VehicleModuleView v-else-if="activeModule === 'Vehicle'" @save-request="handleSaveRequest" />
+      <MaintenanceModuleView v-else-if="activeModule === 'Maintenance'" @save-request="handleSaveRequest" />
+      <ComplianceModuleView v-else-if="activeModule === 'Compliance'" @save-request="handleSaveRequest" @back="returnToMore" />
       <KfeFinancialModuleView v-else-if="FINANCIAL_MODULES.includes(activeModule)" :module="activeModule" @open="openModuleAction" @back="returnToMore" />
       <KfeModuleView v-else :module="activeModule" @open="openModuleAction" @back="returnToMore" />
     </section></main>
