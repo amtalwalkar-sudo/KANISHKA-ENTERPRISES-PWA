@@ -40,6 +40,7 @@ async function navigate(path) { const result = await interaction.run(async () =>
 function openMoreItem(item) { navigate(item); }
 function selectTimelineHorizon(horizon) { timelineHorizon.value = horizon; }
 function openModuleAction(action) { void action; }
+function returnToMore() { navigate('More'); }
 onMounted(() => { router.start(); lifecycle.start(); refresh(); state.set(UI_STATES.READY); uiState.value = state.state; });
 onUnmounted(() => { router.stop(); lifecycle.stop(); });
 window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
@@ -55,7 +56,7 @@ window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
       <KfeDestinationView v-else-if="activeModule === 'More'" title="More" subtitle="ERP management modules, grouped by information hierarchy."><div class="kfe-more-groups"><section v-for="group in MORE_GROUPS" :key="group.title" class="kfe-module-group"><h2>{{ group.title }}</h2><div class="kfe-module-list"><button v-for="item in group.items" :key="item" type="button" @click="openMoreItem(item)"><span>{{ item }}</span><span aria-hidden="true">›</span></button></div></section></div></KfeDestinationView>
       <VehicleModuleView v-else-if="activeModule === 'Vehicle'" />
       <MaintenanceModuleView v-else-if="activeModule === 'Maintenance'" />
-      <KfeModuleView v-else :module="activeModule" @open="openModuleAction" />
+      <KfeModuleView v-else :module="activeModule" @open="openModuleAction" @back="returnToMore" />
     </section></main>
     <nav class="kfe-bottom-nav" aria-label="Primary navigation"><button v-for="destination in PRIMARY_DESTINATIONS" :key="destination" class="kfe-nav-item" type="button" :aria-current="currentDestination === destination ? 'page' : undefined" @click="navigate(destination)">{{ destination }}</button></nav>
   </div>
