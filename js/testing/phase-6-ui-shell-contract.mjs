@@ -11,7 +11,11 @@ const forms = read('src/components/KfeFormShell.vue');
 const vehicle = read('src/components/VehicleModuleView.vue');
 const maintenance = read('src/components/MaintenanceModuleView.vue');
 const compliance = read('src/components/ComplianceModuleView.vue');
+const loan = read('src/components/LoanModuleView.vue');
 const modules = read('src/components/KfeModuleView.vue');
+const loanBoundary = read('js/application/loan-module.js');
+const loanDomain = read('js/domain/loans.js');
+const loanRepository = read('js/application/loan-repository.js');
 
 assert.match(navigation, /Work.*Status.*Timeline.*More/s);
 assert.match(navigation, /Timeline.*Today.*Week.*Month.*Year/s);
@@ -36,23 +40,28 @@ assert.match(compliance, /Renewal type/);
 assert.match(compliance, /Validity start/);
 assert.match(compliance, /Validity end/);
 assert.match(compliance, /save-request/);
-
-// The frozen rule is that this business state must NOT exist.
-// Compliance may explain that exclusion to the driver, so do not reject the phrase itself.
-// Reject only an actual state identifier/option being introduced into the UI implementation.
 assert.doesNotMatch(compliance, /renewedButUnpaid|renewed-but-unpaid|renewed_unpaid|paymentStatus\s*[:=]\s*['\"]?renewed/i);
 
-// Loan presentation must expose the frozen financial hierarchy without implementing calculations in presentation.
-assert.match(modules, /Loan status/);
-assert.match(modules, /EMI/);
-assert.match(modules, /Outstanding balance/);
-assert.match(modules, /Vehicle association/);
-assert.match(modules, /Payment history/);
-assert.match(modules, /Amortization/);
-assert.match(modules, /Prepayment calculator/);
-assert.match(modules, /Zero prepayment charges/);
-assert.match(modules, /save-request/);
-assert.doesNotMatch(modules, /principalComponent\s*=|interestComponent\s*=|remainingBalance\s*=.*\/|calculateAmortization|calculatePrepayment/i);
+// Loans have a dedicated presentation surface. It exposes authoritative outputs and inputs,
+// while calculation and persistence remain outside presentation.
+assert.match(app, /LoanModuleView/);
+assert.match(app, /activeModule === 'Loans'/);
+assert.match(loan, /Loan status/);
+assert.match(loan, /EMI/);
+assert.match(loan, /Outstanding balance/);
+assert.match(loan, /Vehicle association/);
+assert.match(loan, /Payment history/);
+assert.match(loan, /Amortization schedule/);
+assert.match(loan, /Prepayment calculator/);
+assert.match(loan, /Zero/);
+assert.match(loan, /calculation-request/);
+assert.doesNotMatch(loan, /function\s+(amortize|calculateAmortization|calculatePrepayment)\b/);
+assert.doesNotMatch(loan, /principalComponent\s*=|interestComponent\s*=|remainingBalance\s*=.*\/|Math\.(round|min|max).*balance/i);
+assert.match(loanBoundary, /createLoanApplicationBoundary/);
+assert.match(loanRepository, /LOAN_PAYMENT_STORE/);
+assert.match(loanDomain, /amortize/);
+assert.match(loanDomain, /applyPrepayment/);
+assert.doesNotMatch(modules, /Tax Reserve|tax reserve/i);
 
 console.log('Phase 6 UI shell contract: PASS');
-console.log('Frozen navigation, timeline chronology, draft boundary, vehicle lifecycle, maintenance capture, compliance renewal flow, loan presentation, Tax Reserve exclusion, and application persistence boundaries verified.');
+console.log('Frozen navigation, timeline chronology, draft boundary, vehicle lifecycle, maintenance capture, compliance renewal flow, dedicated loan presentation boundary, Tax Reserve exclusion, and application/domain separation verified.');
