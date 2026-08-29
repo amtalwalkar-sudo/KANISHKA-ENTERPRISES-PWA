@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import KfeStatePanel from './KfeStatePanel.vue';
 
 const props = defineProps({ module: { type: String, required: true } });
 const emit = defineEmits(['open', 'back']);
@@ -29,6 +30,7 @@ const definition = computed(() => MODULES[props.module] ?? { eyebrow: 'KFE 2.0',
       <h1 id="module-title">{{ definition.title }}</h1>
       <p class="kfe-destination-subtitle">{{ definition.subtitle }}</p>
     </div>
+    <KfeStatePanel state="normal" title="Ready" message="Module shell is ready for authoritative application-layer wiring." />
     <div class="kfe-module-sections">
       <section v-for="section in definition.sections" :key="section.title" class="kfe-module-section">
         <h2>{{ section.title }}</h2>
