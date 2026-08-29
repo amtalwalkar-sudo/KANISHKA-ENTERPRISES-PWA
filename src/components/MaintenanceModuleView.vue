@@ -2,19 +2,15 @@
 import { ref } from 'vue';
 import KfeFormShell from './KfeFormShell.vue';
 
+const emit = defineEmits(['save-request']);
 const showForm = ref(false);
 const saving = ref(false);
-const saved = ref(false);
 const categories = ['Service', 'Tyres', 'Brakes', 'Battery', 'Repair', 'Other'];
 const initial = { date: new Date().toISOString().slice(0, 10), category: '', description: '', amount: '', odometer: '', reference: '' };
 
-async function save(payload) {
-  saving.value = true;
-  await Promise.resolve();
-  saving.value = false;
-  saved.value = true;
-  showForm.value = false;
-  void payload;
+function save(payload) {
+  // Presentation boundary only. The parent/application layer owns persistence and success state.
+  emit('save-request', { module: 'Maintenance', value: payload });
 }
 </script>
 
@@ -23,7 +19,6 @@ async function save(payload) {
     <div class="kfe-module-heading"><p class="kfe-eyebrow">Vehicle Operations</p><h1 id="maintenance-title">Maintenance</h1><p class="kfe-destination-subtitle">Record vehicle work, cost and odometer context.</p></div>
     <div v-if="!showForm">
       <article class="kfe-action-card"><div><span class="kfe-card-label">Maintenance</span><strong>Record vehicle work</strong><p>Capture the authoritative maintenance record. Cost allocation is handled by the business layer.</p></div><button class="kfe-primary-action" type="button" @click="showForm = true">Add maintenance</button></article>
-      <p v-if="saved" class="kfe-success-note" role="status">Maintenance record saved.</p>
       <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button">Maintenance history <span aria-hidden="true">›</span></button></section>
       <section class="kfe-module-section"><h2>Catalogue</h2><button class="kfe-list-action" type="button">Maintenance categories <span aria-hidden="true">›</span></button></section>
     </div>
