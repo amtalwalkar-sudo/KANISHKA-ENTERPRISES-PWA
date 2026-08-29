@@ -1,4 +1,4 @@
-const DEFAULT_ROUTE='Dashboard';
+const DEFAULT_ROUTE='Work';
 
 function normalize(path){
   const value=String(path||'').replace(/^\/+|\/+$/g,'');
