@@ -35,7 +35,11 @@ assert.match(compliance, /Renewal type/);
 assert.match(compliance, /Validity start/);
 assert.match(compliance, /Validity end/);
 assert.match(compliance, /save-request/);
-assert.doesNotMatch(compliance, /renewed but unpaid/i);
+
+// The frozen rule is that this business state must NOT exist.
+// Compliance may explain that exclusion to the driver, so do not reject the phrase itself.
+// Reject only an actual state identifier/option being introduced into the UI implementation.
+assert.doesNotMatch(compliance, /renewedButUnpaid|renewed-but-unpaid|renewed_unpaid|paymentStatus\s*[:=]\s*['\"]?renewed/i);
 
 console.log('Phase 6 UI shell contract: PASS');
 console.log('Frozen navigation, timeline chronology, draft boundary, vehicle lifecycle, maintenance capture, compliance renewal flow, Tax Reserve exclusion, and application persistence boundaries verified.');
