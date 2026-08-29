@@ -2,20 +2,22 @@
 import { computed, ref } from 'vue';
 import KfeFormShell from './KfeFormShell.vue';
 
-const emit = defineEmits(['save-request']);
+const emit = defineEmits(['save-request', 'back']);
 const editing = ref(false);
 const vehicle = ref({ acquisitionDate: '', retirementDate: '' });
 const active = computed(() => !vehicle.value.retirementDate);
 
 function save(payload) {
-  // Presentation boundary only. The parent/application layer owns persistence and authoritative state.
   emit('save-request', { module: 'Vehicle', value: payload });
 }
 </script>
 
 <template>
   <section class="kfe-module-view" aria-labelledby="vehicle-title">
-    <div class="kfe-module-heading"><p class="kfe-eyebrow">Vehicle</p><h1 id="vehicle-title">Vehicle</h1><p class="kfe-destination-subtitle">Central business asset and lifecycle context.</p></div>
+    <div class="kfe-module-heading">
+      <button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('back')">‹ More</button>
+      <p class="kfe-eyebrow">Vehicle</p><h1 id="vehicle-title">Vehicle</h1><p class="kfe-destination-subtitle">Central business asset and lifecycle context.</p>
+    </div>
     <article v-if="!editing" class="kfe-detail-card">
       <div class="kfe-detail-card__top"><div><span class="kfe-card-label">Current vehicle</span><strong>Primary vehicle</strong></div><span class="kfe-state-badge">{{ active ? 'Active' : 'Retired' }}</span></div>
       <dl class="kfe-detail-list"><div><dt>Acquisition date</dt><dd>{{ vehicle.acquisitionDate || 'Not recorded' }}</dd></div><div><dt>Retirement date</dt><dd>{{ vehicle.retirementDate || '—' }}</dd></div></dl>
@@ -27,7 +29,7 @@ function save(payload) {
         <div class="kfe-form-field"><label class="kfe-form-label" for="vehicle-retirement"><span>Retirement date</span><span class="kfe-optional">Optional</span></label><input id="vehicle-retirement" v-model="value.retirementDate" class="kfe-form-input" type="date" /></div>
       </template>
     </KfeFormShell>
-    <section class="kfe-module-section"><h2>Driver</h2><button class="kfe-list-action" type="button">Current driver <span aria-hidden="true">›</span></button></section>
-    <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button">Relevant timeline events <span aria-hidden="true">›</span></button></section>
+    <section class="kfe-module-section"><h2>Driver</h2><button class="kfe-list-action" type="button" @click="emit('back')"><span>Manage current driver</span><span aria-hidden="true">›</span></button></section>
+    <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button"><span>Relevant timeline events</span><span aria-hidden="true">›</span></button></section>
   </section>
 </template>
