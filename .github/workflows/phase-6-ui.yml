@@ -22,5 +22,7 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
+      - name: Validate frozen UI shell contract
+        run: npm run validate:phase-6-ui-shell
       - name: Build application
         run: npm run build
