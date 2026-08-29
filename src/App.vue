@@ -4,6 +4,7 @@ import './styles/shell.css';
 import WorkSessionView from './components/WorkSessionView.vue';
 import KfeDestinationView from './components/KfeDestinationView.vue';
 import KfeStatePanel from './components/KfeStatePanel.vue';
+import KfeModuleView from './components/KfeModuleView.vue';
 import { createUiRouter } from '../js/ui/router.js';
 import { createUiState, UI_STATES } from '../js/ui/state.js';
 import { detectUiCapabilities } from '../js/ui/capabilities.js';
@@ -58,6 +59,7 @@ async function navigate(path) {
 
 function openMoreItem(item) { navigate(item); }
 function selectTimelineHorizon(horizon) { timelineHorizon.value = horizon; }
+function openModuleAction(action) { void action; }
 
 onMounted(() => {
   router.start();
@@ -78,14 +80,8 @@ window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
 <template>
   <div class="kfe-shell" data-framework="vue">
     <header class="kfe-topbar" aria-label="KFE application header">
-      <div class="kfe-brand">
-        <strong>KFE 2.0</strong>
-        <span>Kanishka Fleet ERP</span>
-      </div>
-      <div class="kfe-status" aria-label="Application status">
-        <span class="kfe-status-dot" aria-hidden="true"></span>
-        <span>{{ syncState }} · {{ storageState }}</span>
-      </div>
+      <div class="kfe-brand"><strong>KFE 2.0</strong><span>Kanishka Fleet ERP</span></div>
+      <div class="kfe-status" aria-label="Application status"><span class="kfe-status-dot" aria-hidden="true"></span><span>{{ syncState }} · {{ storageState }}</span></div>
     </header>
 
     <main class="kfe-viewport" aria-label="Main application viewport">
@@ -115,24 +111,18 @@ window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities };
             <section v-for="group in MORE_GROUPS" :key="group.title" class="kfe-module-group">
               <h2>{{ group.title }}</h2>
               <div class="kfe-module-list">
-                <button v-for="item in group.items" :key="item" type="button" @click="openMoreItem(item)">
-                  <span>{{ item }}</span><span aria-hidden="true">›</span>
-                </button>
+                <button v-for="item in group.items" :key="item" type="button" @click="openMoreItem(item)"><span>{{ item }}</span><span aria-hidden="true">›</span></button>
               </div>
             </section>
           </div>
         </KfeDestinationView>
 
-        <KfeDestinationView v-else :title="activeModule" subtitle="Module shell connected to the Phase 6 navigation architecture.">
-          <KfeStatePanel state="normal" title="Module ready" message="This module is connected to the shared KFE shell. Authoritative business integration remains outside presentation code." />
-        </KfeDestinationView>
+        <KfeModuleView v-else :module="activeModule" @open="openModuleAction" />
       </section>
     </main>
 
     <nav class="kfe-bottom-nav" aria-label="Primary navigation">
-      <button v-for="destination in PRIMARY_DESTINATIONS" :key="destination" class="kfe-nav-item" type="button" :aria-current="currentDestination === destination ? 'page' : undefined" @click="navigate(destination)">
-        {{ destination }}
-      </button>
+      <button v-for="destination in PRIMARY_DESTINATIONS" :key="destination" class="kfe-nav-item" type="button" :aria-current="currentDestination === destination ? 'page' : undefined" @click="navigate(destination)">{{ destination }}</button>
     </nav>
   </div>
 </template>
