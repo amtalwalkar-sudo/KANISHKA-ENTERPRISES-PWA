@@ -1,0 +1,1 @@
+Timeline Batch 3 application read-model wiring complete.
