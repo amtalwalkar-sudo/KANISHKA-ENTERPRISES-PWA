@@ -23,9 +23,13 @@ assert.match(forms, /localStorage/);
 assert.match(forms, /emit\('save'/);
 assert.match(vehicle, /Acquisition date/);
 assert.match(vehicle, /Retirement date/);
+assert.match(vehicle, /save-request/);
+assert.doesNotMatch(vehicle, /Promise\.resolve|saved\.value\s*=\s*true/);
 assert.match(maintenance, /Category/);
 assert.match(maintenance, /Odometer/);
 assert.match(maintenance, /Receipt \/ reference/);
+assert.match(maintenance, /save-request/);
+assert.doesNotMatch(maintenance, /Promise\.resolve|saved\.value\s*=\s*true/);
 
 console.log('Phase 6 UI shell contract: PASS');
-console.log('Frozen primary navigation, timeline chronology, draft boundary, vehicle lifecycle, maintenance capture, and Tax Reserve exclusion verified.');
+console.log('Frozen navigation, timeline chronology, draft boundary, vehicle lifecycle, maintenance capture, Tax Reserve exclusion, and application persistence boundaries verified.');
