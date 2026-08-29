@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import KfeFormShell from './KfeFormShell.vue';
 
-const emit = defineEmits(['save-request', 'back']);
+const emit = defineEmits(['save-request', 'back', 'open']);
 const editing = ref(false);
 const vehicle = ref({ acquisitionDate: '', retirementDate: '' });
 const active = computed(() => !vehicle.value.retirementDate);
@@ -29,7 +29,7 @@ function save(payload) {
         <div class="kfe-form-field"><label class="kfe-form-label" for="vehicle-retirement"><span>Retirement date</span><span class="kfe-optional">Optional</span></label><input id="vehicle-retirement" v-model="value.retirementDate" class="kfe-form-input" type="date" /></div>
       </template>
     </KfeFormShell>
-    <section class="kfe-module-section"><h2>Driver</h2><button class="kfe-list-action" type="button" @click="emit('back')"><span>Manage current driver</span><span aria-hidden="true">›</span></button></section>
-    <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button"><span>Relevant timeline events</span><span aria-hidden="true">›</span></button></section>
+    <section class="kfe-module-section"><h2>Driver</h2><button class="kfe-list-action" type="button" @click="emit('open', 'Driver')"><span>Manage current driver</span><span aria-hidden="true">›</span></button></section>
+    <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button" @click="emit('open', 'Vehicle timeline')"><span>Relevant timeline events</span><span aria-hidden="true">›</span></button></section>
   </section>
 </template>
