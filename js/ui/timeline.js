@@ -6,6 +6,7 @@ export const TIMELINE_EVENT_TYPES = Object.freeze([
   'Day Start', 'Shift Start', 'Ride Start', 'Pause', 'Resume', 'Ride End',
   'Shift End', 'Personal Trip Start', 'Personal Trip End', 'Fuel', 'Maintenance',
   'Toll', 'Parking', 'Other', 'Day End',
+  'Revenue', 'Compliance Renewal', 'Loan Payment',
 ]);
 
 export function normalizeTimelineEvent(event = {}) {
