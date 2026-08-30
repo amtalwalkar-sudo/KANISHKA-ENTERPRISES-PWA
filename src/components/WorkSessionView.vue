@@ -1,7 +1,7 @@
 <script setup>
 import {computed,onMounted,onUnmounted,ref} from 'vue';
 import './work-session.css';
-import {application,viewModels} from '../../js/app.js';
+import {application,viewModels,actions} from '../../js/app.js';
 import {createUiCommand} from '../../js/application/ui-contract.js';
 const state=ref('LOADING'),error=ref(null),notice=ref(''),busy=ref(false),now=ref(Date.now());
 const workSessions=ref([]),trips=ref([]),activeShift=ref(null),activeTrip=ref(null),lastFuel=ref(null),dayStarted=ref(false),dayEnded=ref(false);
@@ -21,10 +21,34 @@ function notify(message,action=null){notice.value=message;lastAction.value=actio
 function numeric(v){const n=Number(v);return Number.isFinite(n)?n:NaN;}
 async function load(){state.value='LOADING';error.value=null;try{workSessions.value=(await application.listWork()).filter(x=>!x.is_deleted);trips.value=(await application.listTrips()).filter(x=>!x.is_deleted);const open=workSessions.value.find(x=>x.status==='OPEN');activeShift.value=open?viewModels.workSession(open).session:null;dayStarted.value=workSessions.value.some(x=>x.business_date===dayDate.value);dayEnded.value=false;if(!dayStarted.value)dayOdometer.value=prefillOdometer.value;const fuels=(await application.listFuel()).filter(x=>!x.is_deleted);lastFuel.value=fuels.sort((a,b)=>String(b.updated_at||b.recorded_at).localeCompare(String(a.updated_at||a.recorded_at)))[0]||null;state.value='READY';}catch(e){error.value=viewModels.error(e);state.value='ERROR';}}
 async function startDay(){if(busy.value||dayStarted.value)return;const o=numeric(dayOdometer.value||prefillOdometer.value);if(!Number.isFinite(o)||o<0){error.value={error:'Enter a valid day-start odometer'};return;}busy.value=true;try{await application.startDay?.({business_date:dayDate.value,start_odometer:o});dayStarted.value=true;dayOdometer.value=String(o);shiftOdometer.value=String(o);notify('Day started safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
-async function startShift(){if(busy.value||activeShift.value||!dayStarted.value||dayEnded.value)return;const o=numeric(shiftOdometer.value||prefillOdometer.value||dayOdometer.value);if(!Number.isFinite(o)||o<0){error.value={error:'Enter a valid shift-start odometer'};return;}busy.value=true;try{const p={started_at:new Date().toISOString(),start_odometer:o,break_minutes:numeric(breakMinutes.value)||0,business_date:dayDate.value,scope:'BUSINESS',status:'OPEN'};const c=await application.startWork(createUiCommand('START_SHIFT',p).payload);activeShift.value=viewModels.workSession(c).session;workSessions.value=[c,...workSessions.value];shiftOdometer.value='';notify('Shift started safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
+async function startShift(){if(busy.value||activeShift.value||!dayStarted.value||dayEnded.value)return;const o=numeric(shiftOdometer.value||prefillOdometer.value||dayOdometer.value);if(!Number.isFinite(o)||o<0){error.value={error:'Enter a valid shift-start odometer'};return;}busy.value=true;try{const p={started_at:new Date().toISOString(),start_odometer:o,break_minutes:numeric(breakMinutes.value)||0,business_date:dayDate.value,scope:'BUSINESS',status:'OPEN'};const c=await actions.dispatch(createUiCommand('START_SHIFT',p));activeShift.value=viewModels.workSession(c).session;workSessions.value=[c,...workSessions.value];shiftOdometer.value='';notify('Shift started safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 function captureLocation(){if(!navigator.geolocation)return Promise.resolve(null);return new Promise(resolve=>navigator.geolocation.getCurrentPosition(p=>resolve({latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy:p.coords.accuracy}),()=>resolve(null),{enableHighAccuracy:false,maximumAge:60000,timeout:1200}));}
-async function startTrip(type='BUSINESS'){if(busy.value||activeTrip.value||!activeShift.value||dayEnded.value)return;const o=numeric(type==='PERSONAL'?personalOdometer.value:shiftOdometer.value||activeShift.value.start_odometer);if(!Number.isFinite(o)||o<0){error.value={error:'Enter a valid trip-start odometer'};return;}busy.value=true;try{const started=new Date().toISOString();const t=await application.recordTrip({trip_type:type,shift_id:activeShift.value.id,status:'OPEN',started_at:started,start_odometer:o,location_status:'PENDING',scope:type==='PERSONAL'?'PERSONAL':'BUSINESS'});activeTrip.value=t;personalTripsOpen.value=false;notify(type==='PERSONAL'?'Personal trip started':'Trip started');captureLocation().then(loc=>{if(loc&&activeTrip.value?.id===t.id)application.updateTrip(t.id,{start_location:loc,location_status:'CAPTURED'}).catch(()=>{});});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
-async function endTrip(){if(busy.value||!activeTrip.value)return;busy.value=true;try{const ended=new Date().toISOString();const u=await application.updateTrip(activeTrip.value.id,{status:'COMPLETED',ended_at:ended,duration_seconds:Math.max(0,Math.floor((Date.parse(ended)-Date.parse(activeTrip.value.started_at))/1000))});trips.value=[u,...trips.value.filter(t=>t.id!==u.id)];activeTrip.value=null;personalOdometer.value='';shiftEndOdometer.value='';notify('Trip saved safely',{kind:'TRIP',id:u.id});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
+async function startTrip(type='BUSINESS'){if(busy.value||activeTrip.value||!activeShift.value||dayEnded.value)return;const o=numeric(type==='PERSONAL'?personalOdometer.value:shiftOdometer.value||activeShift.value.start_odometer);if(!Number.isFinite(o)||o<0){error.value={error:'Enter a valid trip-start odometer'};return;}busy.value=true;try{const started=new Date().toISOString();const t=await actions.dispatch(createUiCommand(
+type==='PERSONAL'?'START_PERSONAL_TRIP':'START_TRIP',
+{
+trip_type:type,
+shift_id:activeShift.value.id,
+status:'OPEN',
+started_at:started,
+start_odometer:o,
+location_status:'PENDING',
+scope:type==='PERSONAL'?'PERSONAL':'BUSINESS'
+}
+));activeTrip.value=t;personalTripsOpen.value=false;notify(type==='PERSONAL'?'Personal trip started':'Trip started');captureLocation().then(loc=>{if(loc&&activeTrip.value?.id===t.id)application.updateTrip(t.id,{start_location:loc,location_status:'CAPTURED'}).catch(()=>{});});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
+async function endTrip(){if(busy.value||!activeTrip.value)return;busy.value=true;try{const ended=new Date().toISOString();const u=await actions.dispatch(createUiCommand(
+activeTrip.value.trip_type==='PERSONAL'?'END_PERSONAL_TRIP':'END_TRIP',
+{
+id:activeTrip.value.id,
+status:'COMPLETED',
+ended_at:ended,
+duration_seconds:Math.max(
+0,
+Math.floor(
+(Date.parse(ended)-Date.parse(activeTrip.value.started_at))/1000
+)
+)
+}
+));trips.value=[u,...trips.value.filter(t=>t.id!==u.id)];activeTrip.value=null;personalOdometer.value='';shiftEndOdometer.value='';notify('Trip saved safely',{kind:'TRIP',id:u.id});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 async function endShift(){if(busy.value||!activeShift.value||activeTrip.value)return;const end=numeric(shiftEndOdometer.value);if(!Number.isFinite(end)||end<numeric(activeShift.value.start_odometer)){error.value={error:'End odometer cannot be below shift start'};return;}busy.value=true;try{const u=await application.completeWork(activeShift.value.id,{ended_at:new Date().toISOString(),end_odometer:end});workSessions.value=workSessions.value.map(x=>x.id===u.id?u:x);activeShift.value=null;shiftEndOdometer.value='';shiftOdometer.value=String(end);notify('Shift ended safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 async function finishEndDay(){if(busy.value||activeShift.value||activeTrip.value)return;busy.value=true;try{await application.recordRevenue({work_session_id:null,amount_paise:Math.round((numeric(dayRevenue.value)||0)*100),toll_paise:Math.round((numeric(toll.value)||0)*100),parking_paise:Math.round((numeric(parking.value)||0)*100),fare_included:fareIncluded.value,recorded_at:new Date().toISOString(),business_date:dayDate.value,scope:'BUSINESS'});dayRevenue.value='';toll.value='';parking.value='';dayEnded.value=true;notify('Day ended safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 async function saveFuel(){if(busy.value)return;const o=numeric(fuelOdometer.value||prefillOdometer.value),p=numeric(fuelPrice.value),a=numeric(fuelAmount.value);if(!Number.isFinite(o)||o<0||!Number.isFinite(p)||p<=0||!Number.isFinite(a)||a<=0){error.value={error:'Enter valid CNG fuel values'};return;}busy.value=true;try{const s=await application.recordFuel({odometer:o,price_per_kg:p,amount_paise:Math.round(a*100),recorded_at:new Date().toISOString(),scope:'BUSINESS'});lastFuel.value=s;closeFuelSheet(true);notify('Fuel refill saved safely',{kind:'FUEL',id:s.id});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
