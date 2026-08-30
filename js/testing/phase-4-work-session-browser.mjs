@@ -14,7 +14,7 @@ try{
   await page.getByRole('button',{name:'Start day',exact:true}).click();
   await page.getByLabel('Break minutes').fill('15');
   await page.getByRole('button',{name:'Start shift',exact:true}).click();
-  await assert.doesNotReject(async()=>page.getByText('OPEN',{exact:true}).waitFor({state:'visible'}));
+  await assert.doesNotReject(async()=>page.getByText('SHIFT ACTIVE',{exact:true}).waitFor({state:'visible'}));
   await page.getByLabel('Shift end odometer').fill('180');
   await page.getByRole('button',{name:'End shift',exact:true}).click();
   await page.getByText('DAY ACTIVE',{exact:true}).waitFor({state:'visible'});
