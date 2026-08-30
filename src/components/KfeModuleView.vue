@@ -28,6 +28,7 @@ const ACTIONS = {
   Revenue: ['Enter today’s revenue'],
   Loans: ['Prepayment calculator'],
   Compliance: ['Add renewal'],
+  Settings: ['Application settings'],
 };
 
 const formSpec = computed(() => {
@@ -66,9 +67,23 @@ function onSave(value) { emit('save-request', { module: props.module, action: ac
       <p class="kfe-destination-subtitle">{{ definition.subtitle }}</p>
     </div>
 
-    <div v-if="activeAction && formSpec" class="kfe-action-heading">
+    <div v-if="activeAction" class="kfe-action-heading">
       <button class="kfe-secondary-action kfe-back-action" type="button" @click="closeAction">‹ {{ definition.title }}</button>
     </div>
+
+    <template v-if="module === 'Settings' && activeAction === 'Application settings'">
+      <p class="kfe-eyebrow">System</p>
+      <h1 id="application-settings-title">Application settings</h1>
+      <p class="kfe-destination-subtitle">KFE application configuration and runtime information.</p>
+      <section class="kfe-module-section">
+        <h2>Application</h2>
+        <div class="kfe-module-list">
+          <div class="kfe-detail-card"><strong>KFE 2.0</strong><p>Application version and system foundation.</p></div>
+          <div class="kfe-detail-card"><strong>Local storage</strong><p>ERP data is stored locally on this device.</p></div>
+          <div class="kfe-detail-card"><strong>Business logic</strong><p>Authoritative rules remain in the application and domain layers.</p></div>
+        </div>
+      </section>
+    </template>
 
     <KfeStatePanel v-if="!activeAction" state="normal" title="Ready" message="Module shell is ready for authoritative application-layer wiring." />
 
