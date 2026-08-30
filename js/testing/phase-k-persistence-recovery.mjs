@@ -30,12 +30,13 @@ const fakeDb=new FakeDb();
 globalThis.indexedDB={open(){const r=new FakeRequest();queueMicrotask(()=>{r.result=fakeDb;r.onupgradeneeded?.();r.onsuccess?.();});return r;}};
 
 assert.equal(DB_NAME,'kfe');
-assert.equal(DB_VERSION,4);
+assert.equal(DB_VERSION,5);
 assert.equal(STORE_NAMES.length,Object.keys(STORES).length);
 assert.ok(STORE_NAMES.includes('vehicles'));
 assert.ok(STORE_NAMES.includes('work_sessions'));
 assert.ok(STORE_NAMES.includes('maintenance_records'));
 assert.ok(STORE_NAMES.includes('loans'));
+assert.ok(STORE_NAMES.includes('renewals_compliance'));
 assert.ok(STORE_NAMES.includes('calculation_results'));
 
 const vehicle={id:'vehicle-1',registration:'KFE-TEST'};
