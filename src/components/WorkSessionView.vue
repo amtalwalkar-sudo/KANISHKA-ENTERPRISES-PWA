@@ -6,15 +6,15 @@ import {createUiCommand} from '../../js/application/ui-contract.js';
 const state=ref('LOADING'),error=ref(null),notice=ref(''),busy=ref(false),now=ref(Date.now());
 const workSessions=ref([]),trips=ref([]),activeShift=ref(null),activeTrip=ref(null),lastFuel=ref(null),dayStarted=ref(false),dayEnded=ref(false);
 const dayOdometer=ref(''),shiftOdometer=ref(''),shiftEndOdometer=ref(''),breakMinutes=ref('0'),dayRevenue=ref(''),toll=ref(''),parking=ref(''),fareIncluded=ref(true);
-const fuelOpen=ref(false),fuelOdometer=ref(''),fuelPrice=ref(''),fuelAmount=ref(''),lastAction=ref(null),personalOdometer=ref(''),personalTripsOpen=ref(false);
+const endDayOpen=ref(false),fuelOpen=ref(false),fuelOdometer=ref(''),fuelPrice=ref(''),fuelAmount=ref(''),lastAction=ref(null),personalOdometer=ref(''),personalTripsOpen=ref(false);
 let timer,swipeStartY=0,swipeStartX=0,fuelSwipeStartY=0,fuelSwipeStartX=0;
 const dayDate=computed(()=>new Date().toISOString().slice(0,10));
 const dayEndOdometer=computed(()=>{const r=workSessions.value.filter(x=>x.business_date===dayDate.value&&!x.is_deleted&&x.end_odometer!=null);return r.length?Math.max(...r.map(x=>Number(x.end_odometer))):null;});
 const prefillOdometer=computed(()=>dayEndOdometer.value!=null?String(dayEndOdometer.value):dayOdometer.value);
 const fuelDirty=computed(()=>!!(fuelOdometer.value||fuelPrice.value||fuelAmount.value));
 const formatDuration=(seconds)=>[Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(n=>String(n).padStart(2,'0')).join(':');
-const tripDuration=computed(()=>{if(!activeTrip.value)return'00:00:00';const s=Math.max(0,Math.floor((now.value-Date.parse(activeTrip.value.started_at))/1000));return formatDuration(s);});
-const shiftDuration=computed(()=>{if(!activeShift.value)return'00:00:00';const s=Math.max(0,Math.floor((now.value-Date.parse(activeShift.value.started_at))/1000));return formatDuration(s);});
+
+const shiftDuration=computed(()=>{if(!activeShift.value)return'00:00:00';const s=Math.max(0,Math.floor((now.value-Date.parse(activeShift.value.started_at))/1000));return formatDuration(s);});const tripDuration=computed(()=>{if(!activeTrip.value)return'00:00:00';const s=Math.max(0,Math.floor((now.value-Date.parse(activeTrip.value.started_at))/1000));return formatDuration(s);});
 const stateLabel=computed(()=>activeTrip.value?(activeTrip.value.trip_type==='PERSONAL'?'PERSONAL TRIP ACTIVE':'TRIP ACTIVE'):activeShift.value?'SHIFT ACTIVE':dayEnded.value?'DAY COMPLETE':dayStarted.value?'DAY ACTIVE':'DAY READY');
 const todayTrips=computed(()=>trips.value.filter(t=>!t.is_deleted&&String(t.started_at||'').slice(0,10)===dayDate.value));
 function notify(message,action=null){notice.value=message;lastAction.value=action;if(navigator.vibrate)navigator.vibrate(16);clearTimeout(notify.t);notify.t=setTimeout(()=>{notice.value='';lastAction.value=null;},4000);}
@@ -43,16 +43,42 @@ onUnmounted(()=>{clearInterval(timer);clearTimeout(notify.t);window.removeEventL
 </script>
 <template>
 <section class="kfe-work-session" aria-labelledby="work-title">
-<header class="work-header"><div><p class="kfe-eyebrow">Operational cockpit</p><h1 id="work-title">Work</h1><p>Today · {{ stateLabel }}</p></div><button class="fuel-icon" type="button" aria-label="Open fuel" @click="fuelOpen=true">⛽</button></header>
+<header class="work-header">
+
+<div>
+<p class="kfe-eyebrow">Operational cockpit</p>
+<h1 id="work-title">Work</h1>
+<p>Today · {{ stateLabel }}</p>
+</div>
+<div v-if="activeShift" class="header-shift-timer">
+<span>SHIFT</span>
+<strong>{{ shiftDuration }}</strong>
+</div>
+<button class="fuel-icon" type="button" aria-label="Open fuel" @click="fuelOpen=true">⛽</button>
+</header>
 <div v-if="state==='LOADING'" role="status" class="work-card">Loading…</div><div v-if="error" role="alert" class="work-error">{{ error.error }}</div><div v-if="notice" role="status" class="work-notice">✓ {{ notice }} <button v-if="lastAction" type="button" @click="undoLast">Undo</button></div>
 <main class="work-main">
-<div v-if="personalTripsOpen" class="screen-panel personal-screen"><div class="subscreen-head"><button class="back-button" type="button" @click="personalTripsOpen=false">←</button><div><p class="kfe-eyebrow">Operational</p><h2>Personal Trips</h2></div></div><div class="trip-list"><div v-for="(trip,index) in todayTrips.filter(t=>t.trip_type==='PERSONAL')" :key="trip.id" class="trip-row"><div><strong>Personal trip {{ todayTrips.filter(t=>t.trip_type==='PERSONAL').length-index }}</strong><span>{{ trip.status==='OPEN'?'Active':'Completed' }}</span></div><strong>{{ trip.status==='OPEN' ? tripDuration : '—' }}</strong></div><div v-if="!todayTrips.some(t=>t.trip_type==='PERSONAL')" class="empty-state">No personal trips today</div></div></div>
+<div v-if="personalTripsOpen" class="screen-panel personal-screen"><div class="subscreen-head"><button class="back-button" type="button" @click="personalTripsOpen=false">←</button><div><p class="kfe-eyebrow">Operational</p><h2>Personal Trips</h2></div></div><div class="trip-list"><div v-for="(trip,index) in todayTrips.filter(t=>t.trip_type==='PERSONAL')" :key="trip.id" class="trip-row"><div><strong>Personal trip {{ todayTrips.filter(t=>t.trip_type==='PERSONAL').length-index }}</strong><span>{{ trip.status==='OPEN'?'Active':'Completed' }}</span></div></div><div v-if="!todayTrips.some(t=>t.trip_type==='PERSONAL')" class="empty-state">No personal trips today</div></div></div>
 <div v-else class="screen-panel">
 <div v-if="!dayStarted" class="work-card primary-state day-card"><div><p class="kfe-eyebrow">DAY</p><h2>Start today</h2></div><label>Start odometer<input v-model="dayOdometer" inputmode="numeric" type="number" min="0" :disabled="busy" /></label><button class="primary compact-action" :disabled="busy||!dayOdometer" @click="startDay">Start day</button></div>
 <div v-else-if="dayEnded" class="work-card primary-state day-card"><p class="kfe-eyebrow">DAY COMPLETE</p><h2>Day complete</h2><p class="muted">Today's operational work is closed.</p></div>
-<div v-else-if="activeTrip" class="trip-focus"><p class="kfe-eyebrow">{{ activeTrip.trip_type==='PERSONAL'?'PERSONAL TRIP':'TRIP' }}</p><strong class="trip-timer">{{ tripDuration }}</strong><div class="trip-meta">Start odometer <strong>{{ activeTrip.start_odometer }}</strong></div></div>
-<div v-else-if="activeShift" class="shift-focus"><div class="focus-card"><p class="kfe-eyebrow">CURRENT SHIFT</p><div class="focus-grid"><div><span>Start odometer</span><strong>{{ activeShift.start_odometer }}</strong></div><div><span>Shift time</span><strong>{{ shiftDuration }}</strong></div><div><span>Trips</span><strong>{{ trips.filter(t=>t.shift_id===activeShift.id).length }}</strong></div></div></div><div class="secondary-actions"><label>Shift end odometer<input v-model="shiftEndOdometer" inputmode="numeric" type="number" min="0" :disabled="busy" /></label><button class="secondary compact-action" :disabled="busy||!shiftEndOdometer" @click="endShift">End shift</button></div></div>
-<div v-else class="day-shift-grid"><div class="focus-card"><p class="kfe-eyebrow">DAY ACTIVE</p><div class="focus-grid"><div><span>Odometer</span><strong>{{ prefillOdometer||'—' }}</strong></div><div><span>Shifts</span><strong>{{ workSessions.filter(x=>x.business_date===dayDate&&!x.is_deleted).length }}</strong></div></div><button class="secondary compact-action" type="button" :disabled="busy||dayEnded" @click="finishEndDay">End day</button></div><div class="focus-card"><p class="kfe-eyebrow">SHIFT</p><p class="muted">No active shift</p><label>Start odometer<input v-model="shiftOdometer" :placeholder="prefillOdometer" inputmode="numeric" type="number" min="0" :disabled="busy" /></label><button class="primary compact-action" :disabled="busy||(!shiftOdometer&&!prefillOdometer)" @click="startShift">Start shift</button></div></div>
+<div v-else-if="activeTrip" class="trip-focus">
+  <p class="kfe-eyebrow">{{ activeTrip.trip_type==='PERSONAL'?'PERSONAL TRIP':'TRIP' }}</p>
+  <div class="trip-timer" aria-label="Trip duration">{{ tripDuration }}</div>
+  <div class="trip-meta">Start odometer <strong>{{ activeTrip.start_odometer }}</strong></div>
+</div>
+<div v-else-if="activeShift" class="shift-focus"><div class="focus-card"><p class="kfe-eyebrow">CURRENT SHIFT</p><div class="focus-grid"><div><span>Start odometer</span><strong>{{ activeShift.start_odometer }}</strong></div><div><span>Trips</span><strong>{{ trips.filter(t=>t.shift_id===activeShift.id).length }}</strong></div></div></div><div class="secondary-actions"><label>Shift end odometer<input v-model="shiftEndOdometer" inputmode="numeric" type="number" min="0" :disabled="busy" /></label><button class="secondary compact-action" :disabled="busy||!shiftEndOdometer" @click="endShift">End shift</button></div></div>
+<div v-else class="day-shift-grid"><div class="focus-card"><p class="kfe-eyebrow">DAY ACTIVE</p><div class="focus-grid"><div><span>Odometer</span><strong>{{ prefillOdometer||'—' }}</strong></div><div><span>Shifts</span><strong>{{ workSessions.filter(x=>x.business_date===dayDate&&!x.is_deleted).length }}</strong></div></div><button class="secondary compact-action" type="button" :disabled="busy||dayEnded" @click="endDayOpen=true">End day</button>
+<div v-if="endDayOpen" class="end-day-form">
+<label>Revenue<input v-model="dayRevenue" inputmode="decimal" type="number" min="0" step="0.01" :disabled="busy" /></label>
+<label>Toll<input v-model="toll" inputmode="decimal" type="number" min="0" step="0.01" :disabled="busy" /></label>
+<label>Parking<input v-model="parking" inputmode="decimal" type="number" min="0" step="0.01" :disabled="busy" /></label>
+<label class="checkbox-row"><input v-model="fareIncluded" type="checkbox" :disabled="busy" /> Fare included</label>
+<div class="end-day-actions">
+<button class="primary compact-action" type="button" :disabled="busy" @click="finishEndDay">Confirm end day</button>
+<button class="secondary compact-action" type="button" :disabled="busy" @click="endDayOpen=false">Cancel</button>
+</div>
+</div></div><div class="focus-card"><p class="kfe-eyebrow">SHIFT</p><p class="muted">No active shift</p><label>Start odometer<input v-model="shiftOdometer" :placeholder="prefillOdometer" inputmode="numeric" type="number" min="0" :disabled="busy" /></label><button class="primary compact-action" :disabled="busy||(!shiftOdometer&&!prefillOdometer)" @click="startShift">Start shift</button></div></div>
 <button class="personal-entry" type="button" @click="personalTripsOpen=true"><span>Personal Trips</span><span>{{ todayTrips.filter(t=>t.trip_type==='PERSONAL').length }} ›</span></button>
 </div></main>
 <div class="bottom-action"><div v-if="personalTripsOpen&&activeShift&&!dayEnded" class="trip-swipe start-swipe" role="button" tabindex="0" data-action="start-personal" @pointerdown="tripSwipeStart" @pointerup="tripSwipeEnd" @pointercancel="tripSwipeCancel">SWIPE TO START PERSONAL TRIP <span>→</span></div><div v-else-if="activeTrip" class="trip-swipe end-swipe" role="button" tabindex="0" data-action="end-trip" @pointerdown="tripSwipeStart" @pointerup="tripSwipeEnd" @pointercancel="tripSwipeCancel">SWIPE TO END TRIP <span>→</span></div><div v-else-if="activeShift&&!dayEnded" class="trip-swipe start-swipe" role="button" tabindex="0" data-action="start-business" @pointerdown="tripSwipeStart" @pointerup="tripSwipeEnd" @pointercancel="tripSwipeCancel">SWIPE TO START TRIP <span>→</span></div></div>

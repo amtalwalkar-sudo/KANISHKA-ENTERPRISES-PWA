@@ -6,3 +6,160 @@
 .kfe-work-session .bottom-action .trip-swipe{pointer-events:auto}
 @media(max-width:699px){.kfe-work-session .bottom-action{left:calc(var(--kfe-safe-left) + 16px);right:calc(var(--kfe-safe-right) + 16px)}}
 @media(min-width:700px){.kfe-work-session .bottom-action{left:50%;right:auto;width:min(calc(100% - 48px),928px);transform:translateX(-50%)}}
+
+/* KFE Work — clearer inactive SHIFT card */
+.kfe-work-session .day-shift-grid .focus-card:last-child {
+  background: #f1f5f9;
+  border: 1px solid #94a3b8;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.kfe-work-session .day-shift-grid .focus-card:last-child .kfe-eyebrow {
+  color: #111827;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.kfe-work-session .day-shift-grid .focus-card:last-child .muted {
+  color: #475569;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.kfe-work-session .day-shift-grid .focus-card:last-child label {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.kfe-work-session .day-shift-grid .focus-card:last-child input {
+  background: #ffffff;
+  color: #0f172a;
+  border: 2px solid #475569;
+  border-radius: 10px;
+  min-height: 48px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 10px 12px;
+  margin-top: 7px;
+}
+
+.kfe-work-session .day-shift-grid .focus-card:last-child input:focus {
+  outline: 3px solid #cbd5e1;
+  border-color: #334155;
+}
+
+.kfe-work-session .day-shift-grid .focus-card:last-child .compact-action {
+  margin-top: 16px;
+  min-height: 48px;
+  font-weight: 800;
+}
+
+/* KFE Work — reversed start/end trip contrast */
+.kfe-work-session .trip-swipe.start-swipe {
+  background: #334155;
+  color: #ffffff;
+  border: 2px solid #1e293b;
+  font-weight: 800;
+}
+
+.kfe-work-session .trip-swipe.end-swipe {
+  background: #f1f5f9;
+  color: #334155;
+  border: 2px solid #94a3b8;
+  font-weight: 700;
+}
+
+/* KFE Work — Start light, End strong */
+.kfe-work-session .trip-swipe.start-swipe {
+  background: #ffffff;
+  color: #334155;
+  border: 2px solid #94a3b8;
+  font-weight: 700;
+}
+
+.kfe-work-session .trip-swipe.end-swipe {
+  background: #334155;
+  color: #ffffff;
+  border: 2px solid #1e293b;
+  font-weight: 800;
+}
+
+/* KFE — active trip timer: centered HH:MM:SS */
+.kfe-work-session .trip-focus {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.kfe-work-session .trip-focus .trip-timer {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative;
+  width: 100%;
+  margin: 18px 0;
+  font-size: 2.2rem;
+  line-height: 1.1;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+/* KFE — lock SHIFT timer to the center of the Work header */
+.kfe-work-session .work-header {
+  position: relative;
+}
+
+.kfe-work-session .header-shift-timer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
+  min-width: 120px;
+  text-align: center;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.kfe-work-session .header-shift-timer span {
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+
+.kfe-work-session .header-shift-timer strong {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: .03em;
+}
+
+/* KFE — clear start/end trip contrast */
+.kfe-work-session .trip-swipe.start-swipe {
+  background: #ffffff;
+  color: #111827;
+  border: 2px solid #64748b;
+  box-shadow: 0 2px 8px rgba(0,0,0,.10);
+}
+
+.kfe-work-session .trip-swipe.end-swipe {
+  background: #334155;
+  color: #ffffff;
+  border: 2px solid #0f172a;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+
+.kfe-work-session .trip-swipe.start-swipe span,
+.kfe-work-session .trip-swipe.end-swipe span {
+  color: inherit;
+}
