@@ -8,8 +8,6 @@ try{
   await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});
   await page.getByRole('button',{name:'Work',exact:true}).click();
 
-  // The canonical Work flow is day -> shift -> trip. Break minutes belong to the shift,
-  // so the browser vertical slice must start the day before looking for that field.
   await page.getByLabel('Start odometer').fill('100');
   await page.getByRole('button',{name:'Start day',exact:true}).click();
   await page.getByLabel('Break minutes').fill('15');
