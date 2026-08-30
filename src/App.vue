@@ -22,12 +22,11 @@ import { createInteractionGuard } from '../js/ui/interaction.js';
 import { createUiLifecycle } from '../js/ui/lifecycle.js';
 import { enforceDecimalInput } from '../js/ui/decimal-input.js';
 import { prefersReducedMotion, watchReducedMotion } from '../js/ui/accessibility.js';
-import { createHorizontalSwipeEngine } from '../js/ui/swipe.js';
 const PRIMARY_DESTINATIONS=['Work','Status','Timeline','More'];
 const MORE_GROUPS=[{title:'Vehicle',items:['Vehicle','Driver']},{title:'Money',items:['Fuel','Expenses','Revenue','Loans']},{title:'Vehicle Operations',items:['Maintenance','Compliance']},{title:'Business',items:['Dashboard','Profitability']},{title:'System',items:['Settings']}];
 const TIMELINE_HORIZONS=['Today','Week','Month','Year'];const FINANCIAL_MODULES=['Dashboard','Profitability'];const MONEY_MODULES=['Fuel','Expenses','Revenue'];
-const online=ref(typeof navigator==='undefined'?true:navigator.onLine),activeModule=ref('Work'),uiState=ref(UI_STATES.IDLE),capabilities=ref(detectUiCapabilities()),storageState=ref('Ready'),syncState=ref(online.value?'Online':'Offline'),reducedMotion=ref(prefersReducedMotion()),timelineHorizon=ref('Today'),timelineEvents=ref([]),statusModel=ref(null),fuelRecords=ref([]),fuelHistoryOpen=ref(false),viewport=ref(null);
-const router=createUiRouter({initialPath:activeModule.value,onChange:path=>{activeModule.value=path;}});const state=createUiState();const interaction=createInteractionGuard();const lifecycle=createUiLifecycle({onOnline:()=>{online.value=true;syncState.value='Online';},onOffline:()=>{online.value=false;syncState.value='Offline';}});let stopReducedMotionWatch=()=>{},stopSwipe=()=>{};
+const online=ref(typeof navigator==='undefined'?true:navigator.onLine),activeModule=ref('Work'),uiState=ref(UI_STATES.IDLE),capabilities=ref(detectUiCapabilities()),storageState=ref('Ready'),syncState=ref(online.value?'Online':'Offline'),reducedMotion=ref(prefersReducedMotion()),timelineHorizon=ref('Today'),timelineEvents=ref([]),statusModel=ref(null),fuelRecords=ref([]),fuelHistoryOpen=ref(false);
+const router=createUiRouter({initialPath:activeModule.value,onChange:path=>{activeModule.value=path;}});const state=createUiState();const interaction=createInteractionGuard();const lifecycle=createUiLifecycle({onOnline:()=>{online.value=true;syncState.value='Online';},onOffline:()=>{online.value=false;syncState.value='Offline';}});let stopReducedMotionWatch=()=>{};
 const currentDestination=computed(()=>PRIMARY_DESTINATIONS.includes(activeModule.value)?activeModule.value:'More');
 function refresh(){online.value=typeof navigator==='undefined'?true:navigator.onLine;syncState.value=online.value?'Online':'Offline';capabilities.value=detectUiCapabilities();}
 async function loadStatus(){try{statusModel.value=await application.getStatus();}catch(error){statusModel.value={error:String(error?.message||error)};}}
@@ -43,14 +42,14 @@ async function handleFuelEdit(event){try{await application.updateFuel(event.id,e
 async function handleFuelUndo(id){try{await application.undoFuel(id);await loadFuel();}catch(error){statusModel.value={error:String(error?.message||error)};}}
 async function handleResetRequest(){try{await application.resetData();window.location.reload();}catch(error){statusModel.value={error:String(error?.message||error)};}}
 function enforceDecimalInputs(event){const target=event.target;if(!(target instanceof HTMLInputElement))return;const isNumeric=target.type==='number'||target.inputMode==='decimal';if(!isNumeric)return;const scale=Number.parseInt(target.dataset.kfeDecimalScale||'2',10);const value=enforceDecimalInput(target,{scale:Number.isFinite(scale)?scale:2,allowNegative:target.dataset.kfeAllowNegative==='true'});if(target.value!==value)target.value=value;}
-function handleBack(){router.handleBack();}function handleSwipe(direction){const index=PRIMARY_DESTINATIONS.indexOf(currentDestination.value);if(index<0)return;const delta=direction==='LEFT'?1:-1;void navigate(PRIMARY_DESTINATIONS[(index+delta+PRIMARY_DESTINATIONS.length)%PRIMARY_DESTINATIONS.length]);}
-onMounted(()=>{router.start();lifecycle.start();stopReducedMotionWatch=watchReducedMotion(value=>{reducedMotion.value=value;});if(viewport.value)stopSwipe=createHorizontalSwipeEngine({element:viewport.value,onSwipe:handleSwipe});refresh();void loadStatus();void loadTimeline();state.set(UI_STATES.READY);uiState.value=state.state;});
-onUnmounted(()=>{router.stop();lifecycle.stop();stopReducedMotionWatch();stopSwipe();});
+function handleBack(){router.handleBack();}
+onMounted(()=>{router.start();lifecycle.start();stopReducedMotionWatch=watchReducedMotion(value=>{reducedMotion.value=value;});refresh();void loadStatus();void loadTimeline();state.set(UI_STATES.READY);uiState.value=state.state;});
+onUnmounted(()=>{router.stop();lifecycle.stop();stopReducedMotionWatch();});
 window.KFE_VUE_RUNTIME={online,activeModule,uiState,capabilities,reducedMotion,handleBack};
 </script>
 <template>
 <div class="kfe-shell" data-framework="vue" @input.capture="enforceDecimalInputs"><header class="kfe-topbar" aria-label="KFE application header"><div class="kfe-brand"><strong>KFE 2.0</strong><span>Kanishka Fleet ERP</span></div><div class="kfe-status" aria-label="Application status"><span class="kfe-status-dot" aria-hidden="true"></span><span>{{syncState}} · {{storageState}}</span></div></header>
-<main ref="viewport" class="kfe-viewport" aria-label="Main application viewport"><section class="kfe-workspace" aria-live="polite">
+<main class="kfe-viewport" aria-label="Main application viewport"><section class="kfe-workspace" aria-live="polite">
 <WorkSessionView v-if="activeModule==='Work'"/><StatusModuleView v-else-if="activeModule==='Status'" :online="online" :status="statusModel"/>
 <KfeDestinationView v-else-if="activeModule==='Timeline'" title="Timeline" subtitle="Authoritative events projected chronologically across Today, Week, Month and Year."><div class="kfe-segmented" aria-label="Timeline horizon"><button v-for="horizon in TIMELINE_HORIZONS" :key="horizon" type="button" :class="{'is-active':timelineHorizon===horizon}" @click="selectTimelineHorizon(horizon)">{{horizon}}</button></div><KfeTimelineView :horizon="timelineHorizon" :events="timelineEvents"/></KfeDestinationView>
 <KfeDestinationView v-else-if="activeModule==='More'" title="More" subtitle="ERP management modules, grouped by information hierarchy."><div class="kfe-more-groups"><section v-for="group in MORE_GROUPS" :key="group.title" class="kfe-module-group"><h2>{{group.title}}</h2><div class="kfe-module-list"><button v-for="item in group.items" :key="item" type="button" @click="openMoreItem(item)"><span>{{item}}</span><span aria-hidden="true">›</span></button></div></section></div></KfeDestinationView>
