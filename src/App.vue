@@ -72,7 +72,7 @@ function enforceDecimalInputs(event) {
   const value = enforceDecimalInput(target, { scale: Number.isFinite(scale) ? scale : 2, allowNegative: target.dataset.kfeAllowNegative === 'true' });
   if (target.value !== value) target.value = value;
 }
-function handleBack() { if (activeModule.value !== 'Work') router.back(); }
+function handleBack() { router.handleBack(); }
 function handleSwipe(direction) {
   const index = PRIMARY_DESTINATIONS.indexOf(currentDestination.value);
   if (index < 0) return;

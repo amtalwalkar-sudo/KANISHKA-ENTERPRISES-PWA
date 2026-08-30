@@ -10,6 +10,9 @@ const lifecycle = read('js/ui/lifecycle.js');
 const accessibility = read('js/ui/accessibility.js');
 const forms = read('src/components/KfeFormShell.vue');
 const app = read('src/App.vue');
+const shell = read('src/styles/shell.css');
+const repository = read('js/core/repository.js');
+const db = read('js/core/hardened-db.js');
 
 assert.match(router, /popstate/);
 assert.match(router, /handleBack/);
@@ -22,6 +25,16 @@ assert.match(forms, /SUBMIT_COOLDOWN_MS/);
 assert.match(forms, /submitTimer/);
 assert.match(app, /enforceDecimalInputs/);
 assert.match(app, /reducedMotion/);
+assert.match(app, /function handleBack\(\) \{ router\.handleBack\(\); \}/);
+
+assert.match(shell, /button,:where\(\[role="button"\]\),:where\(a\)\{min-width:48px;min-height:48px\}/);
+assert.match(repository, /openKfeDb/);
+assert.match(repository, /write\('state'/);
+assert.match(db, /indexedDB/);
+assert.match(db, /onupgradeneeded/);
+assert.match(app, /syncState/);
+assert.match(lifecycle, /online/);
+assert.match(lifecycle, /offline/);
 
 assert.equal(sanitizeDecimalInput('₹ 1,234.567'), '1234.56');
 assert.equal(sanitizeDecimalInput('12,50'), '12.50');
@@ -45,4 +58,4 @@ const resolved = resolveConflict(reviewed, { strategy: 'remote' });
 assert.equal(resolved.state, CONFLICT_STATES.RESOLVED);
 
 console.log('Phase 7 reliability contract: PASS');
-console.log('KFE-controlled back history, decimal enforcement, reduced-motion capability, form submit locking, metadata-ready screen contract, and conflict state machine verified.');
+console.log('Final runtime hardening verified: centralized back routing, 48px touch targets, decimal enforcement, form locking, lifecycle/offline hooks, IndexedDB persistence boundary, metadata contract, and conflict state machine.');
