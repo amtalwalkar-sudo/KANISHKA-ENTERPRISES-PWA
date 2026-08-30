@@ -24,9 +24,10 @@ export function createKfeApplication(repository){
  async function undoFuel(id){const existing=await repository.entity('fuel_records').get(id);if(!existing)return null;return repository.entity('fuel_records').softDelete(existing);}
  async function listTrips(){return repository.entity('rides').list();}
  async function recordTrip(data,operationId=createOperationId()){return withIdempotency(repository,operationId,async()=>create('rides',data,{}));}
+ async function updateTrip(id,changes,operationId=createOperationId()){return withIdempotency(repository,operationId,async()=>{const existing=await repository.entity('rides').get(id);if(!existing)throw new Error('Trip not found');return repository.entity('rides').update(existing,changes);});}
  async function undoTrip(id){const existing=await repository.entity('rides').get(id);if(!existing)return null;return repository.entity('rides').softDelete(existing);}
  async function recordRevenue(data,operationId=createOperationId()){return withIdempotency(repository,operationId,async()=>create('revenue_records',data,{}));}
  async function getStatus(asOf=new Date().toISOString()){return statusReadModel({repository,asOf});}
  async function getTimeline(){return timelineReadModel({repository});}
- return Object.freeze({graph,startWork,getWork,listWork,completeWork,listFuel,recordFuel,undoFuel,listTrips,recordTrip,undoTrip,recordRevenue,getStatus,getTimeline,calculateWorkSession,expectedTomorrowKm,rollingFuelCostPerKm,projectedFuelCostForKm,businessExpenses,fixedExpensePerBusinessKm,provisionMaintenance,reconcileInvoice,maintenanceAlerts,businessRevenue,amortize,applyPrepayment,profitability,tomorrowTarget,evaluateAlerts});
+ return Object.freeze({graph,startWork,getWork,listWork,completeWork,listFuel,recordFuel,undoFuel,listTrips,recordTrip,updateTrip,undoTrip,recordRevenue,getStatus,getTimeline,calculateWorkSession,expectedTomorrowKm,rollingFuelCostPerKm,projectedFuelCostForKm,businessExpenses,fixedExpensePerBusinessKm,provisionMaintenance,reconcileInvoice,maintenanceAlerts,businessRevenue,amortize,applyPrepayment,profitability,tomorrowTarget,evaluateAlerts});
 }
