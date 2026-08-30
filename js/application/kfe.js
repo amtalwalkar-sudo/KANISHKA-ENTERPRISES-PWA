@@ -8,7 +8,7 @@ import {businessRevenue} from '../domain/revenue.js';
 import {amortize,applyPrepayment} from '../domain/loans.js';
 import {profitability,tomorrowTarget} from '../domain/dashboard.js';
 import {evaluateAlerts} from '../domain/alerts.js';
-import {statusReadModel} from './read-models.js';
+import {statusReadModel,timelineReadModel} from './read-models.js';
 import {createDependencyGraph} from '../core/dependency-graph.js';
 export function createKfeApplication(repository){
  const graph=createDependencyGraph();
@@ -19,6 +19,7 @@ export function createKfeApplication(repository){
  async function getWork(id){return repository.entity('work_sessions').get(id);}
  async function listWork(){return repository.entity('work_sessions').list();}
  async function completeWork(id,data,operationId=createOperationId()){return withIdempotency(repository,operationId,async()=>{const existing=await repository.entity('work_sessions').get(id);if(!existing)throw new Error('Work session not found');const updated=repository.updateRecord(existing,{...data,status:'COMPLETED'});repository.assertRecord(updated);await repository.atomic(['work_sessions','revenue_records'],stores=>{stores.work_sessions.put(updated);if(data.revenue_paise!=null)stores.revenue_records.put(createRecord({work_session_id:id,amount_paise:data.revenue_paise,scope:'BUSINESS'},{id:data.revenue_id||crypto.randomUUID(),user_id:existing.user_id}));return true;});return updated;});}
- async function getStatus(asOf=new Date().toISOString()){const model=await statusReadModel({repository,asOf});return model;}
- return Object.freeze({graph,startWork,getWork,listWork,completeWork,getStatus,calculateWorkSession,expectedTomorrowKm,rollingFuelCostPerKm,projectedFuelCostForKm,businessExpenses,fixedExpensePerBusinessKm,provisionMaintenance,reconcileInvoice,maintenanceAlerts,businessRevenue,amortize,applyPrepayment,profitability,tomorrowTarget,evaluateAlerts});
+ async function getStatus(asOf=new Date().toISOString()){return statusReadModel({repository,asOf});}
+ async function getTimeline(){return timelineReadModel({repository});}
+ return Object.freeze({graph,startWork,getWork,listWork,completeWork,getStatus,getTimeline,calculateWorkSession,expectedTomorrowKm,rollingFuelCostPerKm,projectedFuelCostForKm,businessExpenses,fixedExpensePerBusinessKm,provisionMaintenance,reconcileInvoice,maintenanceAlerts,businessRevenue,amortize,applyPrepayment,profitability,tomorrowTarget,evaluateAlerts});
 }
