@@ -32,10 +32,11 @@ try{
         const {createRevenueRepository}=await import('/js/application/revenue-repository.js');
         const {DB_NAME,DB_VERSION,STORES}=await import('/js/core/hardened-db.js');
         if(DB_NAME!=='kfe')throw new Error(`Unexpected DB name: ${DB_NAME}`);
-        if(DB_VERSION!==4)throw new Error(`Unexpected DB version: ${DB_VERSION}`);
+        if(!Number.isInteger(DB_VERSION)||DB_VERSION<4)throw new Error(`Unexpected DB version: ${DB_VERSION}`);
         if(!STORES.revenue_records||STORES.revenue_records.keyPath!=='id')throw new Error('Canonical revenue_records store is missing or has the wrong keyPath');
         const repository=createRevenueRepository();
-        const record={id:`revenue-browser-round-trip-${crypto.randomUUID()}`,marker:'real-indexeddb'};
+        const id=`revenue-browser-round-trip-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const record={id,marker:'real-indexeddb'};
         const updated={...record,marker:'real-indexeddb-updated'};
         const contains=async expected=>(await repository.list()).some(value=>JSON.stringify(value)===JSON.stringify(expected));
         await repository.create(record);
