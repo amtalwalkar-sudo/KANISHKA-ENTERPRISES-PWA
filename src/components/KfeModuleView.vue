@@ -7,6 +7,7 @@ import KfeFormField from './KfeFormField.vue';
 const props = defineProps({ module: { type: String, required: true } });
 const emit = defineEmits(['open', 'back', 'save-request', 'reset-request']);
 const activeAction = ref('');
+const settingsOpen = ref(false);
 
 const MODULES = {
   Driver: { eyebrow: 'Vehicle', title: 'Driver', subtitle: 'Driver attached to the current vehicle.', sections: [{ title: 'Driver', items: ['Driver details', 'Vehicle attachment'] }] },
@@ -42,6 +43,11 @@ const formSpec = computed(() => {
 });
 
 function openAction(item) {
+  if (props.module === 'Settings' && item === 'Application settings') {
+    settingsOpen.value = true;
+    activeAction.value = '';
+    return;
+  }
   if (props.module === 'Settings' && item === 'Reset all data') {
     if (!window.confirm('Reset all KFE data? This permanently removes all locally stored ERP data.')) return;
     emit('reset-request');
@@ -55,26 +61,19 @@ function openAction(item) {
 }
 
 function closeAction() { activeAction.value = ''; }
+function closeSettings() { settingsOpen.value = false; }
 function onSave(value) { emit('save-request', { module: props.module, action: activeAction.value, value }); }
 </script>
 
 <template>
   <section class="kfe-module-view" :data-module="module" aria-labelledby="module-title">
-    <div v-if="!activeAction" class="kfe-module-heading">
-      <button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('back')">‹ More</button>
-      <p class="kfe-eyebrow">{{ definition.eyebrow }}</p>
-      <h1 id="module-title">{{ definition.title }}</h1>
-      <p class="kfe-destination-subtitle">{{ definition.subtitle }}</p>
-    </div>
-
-    <div v-if="activeAction" class="kfe-action-heading">
-      <button class="kfe-secondary-action kfe-back-action" type="button" @click="closeAction">‹ {{ definition.title }}</button>
-    </div>
-
-    <template v-if="module === 'Settings' && activeAction === 'Application settings'">
-      <p class="kfe-eyebrow">System</p>
-      <h1 id="application-settings-title">Application settings</h1>
-      <p class="kfe-destination-subtitle">KFE application configuration and runtime information.</p>
+    <template v-if="settingsOpen">
+      <div class="kfe-module-heading">
+        <button class="kfe-secondary-action kfe-back-action" type="button" @click="closeSettings">‹ Settings</button>
+        <p class="kfe-eyebrow">System</p>
+        <h1 id="application-settings-title">Application settings</h1>
+        <p class="kfe-destination-subtitle">KFE application configuration and runtime information.</p>
+      </div>
       <section class="kfe-module-section">
         <h2>Application</h2>
         <div class="kfe-module-list">
@@ -85,24 +84,37 @@ function onSave(value) { emit('save-request', { module: props.module, action: ac
       </section>
     </template>
 
-    <KfeStatePanel v-if="!activeAction" state="normal" title="Ready" message="Module shell is ready for authoritative application-layer wiring." />
+    <template v-else>
+      <div v-if="!activeAction" class="kfe-module-heading">
+        <button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('back')">‹ More</button>
+        <p class="kfe-eyebrow">{{ definition.eyebrow }}</p>
+        <h1 id="module-title">{{ definition.title }}</h1>
+        <p class="kfe-destination-subtitle">{{ definition.subtitle }}</p>
+      </div>
 
-    <KfeFormShell v-if="formSpec" :draft-key="`${module}:${activeAction}`" :title="formSpec.title" :subtitle="formSpec.subtitle" @save="onSave">
-      <template #default="{ value }">
-        <KfeFormField v-for="field in formSpec.fields" :key="field.id" v-bind="field" v-model="value[field.id]" />
-        <p class="kfe-form-boundary-note">Save submits to the application boundary. This presentation layer does not create business records or calculate financial results.</p>
-      </template>
-    </KfeFormShell>
+      <div v-if="activeAction" class="kfe-action-heading">
+        <button class="kfe-secondary-action kfe-back-action" type="button" @click="closeAction">‹ {{ definition.title }}</button>
+      </div>
 
-    <div v-if="!activeAction" class="kfe-module-sections">
-      <section v-for="section in definition.sections" :key="section.title" class="kfe-module-section">
-        <h2>{{ section.title }}</h2>
-        <div class="kfe-module-list">
-          <button v-for="item in section.items" :key="item" type="button" @click="openAction(item)">
-            <span>{{ item }}</span><span aria-hidden="true">›</span>
-          </button>
-        </div>
-      </section>
-    </div>
+      <KfeStatePanel v-if="!activeAction" state="normal" title="Ready" message="Module shell is ready for authoritative application-layer wiring." />
+
+      <KfeFormShell v-if="formSpec" :draft-key="`${module}:${activeAction}`" :title="formSpec.title" :subtitle="formSpec.subtitle" @save="onSave">
+        <template #default="{ value }">
+          <KfeFormField v-for="field in formSpec.fields" :key="field.id" v-bind="field" v-model="value[field.id]" />
+          <p class="kfe-form-boundary-note">Save submits to the application boundary. This presentation layer does not create business records or calculate financial results.</p>
+        </template>
+      </KfeFormShell>
+
+      <div v-if="!activeAction" class="kfe-module-sections">
+        <section v-for="section in definition.sections" :key="section.title" class="kfe-module-section">
+          <h2>{{ section.title }}</h2>
+          <div class="kfe-module-list">
+            <button v-for="item in section.items" :key="item" type="button" @click="openAction(item)">
+              <span>{{ item }}</span><span aria-hidden="true">›</span>
+            </button>
+          </div>
+        </section>
+      </div>
+    </template>
   </section>
 </template>
