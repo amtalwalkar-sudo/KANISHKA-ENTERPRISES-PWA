@@ -5,7 +5,7 @@ import KfeFormShell from './KfeFormShell.vue';
 import KfeFormField from './KfeFormField.vue';
 
 const props = defineProps({ module: { type: String, required: true } });
-const emit = defineEmits(['open', 'back', 'save-request']);
+const emit = defineEmits(['open', 'back', 'save-request', 'reset-request']);
 const activeAction = ref('');
 
 const MODULES = {
@@ -17,7 +17,7 @@ const MODULES = {
   Compliance: { eyebrow: 'Vehicle Operations', title: 'Compliance', subtitle: 'Renewals, validity and historical records.', sections: [{ title: 'Renewals', items: ['Add renewal', 'Current validity', 'Renewal history'] }] },
   Dashboard: { eyebrow: 'Business', title: 'Dashboard', subtitle: 'Actual business performance — what actually happened.', sections: [{ title: 'Actuals', items: ['Revenue', 'Costs', 'Business profitability', 'Operating metrics'] }] },
   Profitability: { eyebrow: 'Business', title: 'Profitability', subtitle: 'Decision-oriented financial interpretation.', sections: [{ title: 'Views', items: ['Actual', 'Projected', 'Target', 'Break-even'] }] },
-  Settings: { eyebrow: 'System', title: 'Settings', subtitle: 'KFE system and application preferences.', sections: [{ title: 'System', items: ['Application settings'] }] },
+  Settings: { eyebrow: 'System', title: 'Settings', subtitle: 'KFE system and application preferences.', sections: [{ title: 'System', items: ['Application settings', 'Reset all data'] }] },
 };
 
 const definition = computed(() => MODULES[props.module] ?? { eyebrow: 'KFE 2.0', title: props.module, subtitle: 'KFE module.', sections: [{ title: props.module, items: [] }] });
@@ -41,6 +41,11 @@ const formSpec = computed(() => {
 });
 
 function openAction(item) {
+  if (props.module === 'Settings' && item === 'Reset all data') {
+    if (!window.confirm('Reset all KFE data? This permanently removes all locally stored ERP data.')) return;
+    emit('reset-request');
+    return;
+  }
   if ((ACTIONS[props.module] ?? []).includes(item)) {
     activeAction.value = item;
     return;
