@@ -13,7 +13,7 @@ const checks=[
  ['calculation version registry',read('js/core/calculation-version.js').includes('createCalculationVersionRegistry')],
  ['data confidence states',read('js/core/data-confidence.js').includes('dataConfidenceState')&&read('js/core/data-confidence.js').includes('UNKNOWN')&&read('js/core/data-confidence.js').includes('INSUFFICIENT_DATA')],
  ['atomic transaction boundary',read('js/core/transaction.js').includes("'readwrite'")&&read('js/core/transaction.js').includes('abort')],
- ['canonical hardened database',read('js/core/hardened-db.js').includes('DB_VERSION=4')&&read('js/core/hardened-db.js').includes('idempotency')&&read('js/core/hardened-db.js').includes('audit')],
+ ['canonical hardened database',read('js/core/hardened-db.js').includes('DB_VERSION=5')&&read('js/core/hardened-db.js').includes('idempotency')&&read('js/core/hardened-db.js').includes('audit')],
  ['repository uses hardened database',read('js/core/repository.js').includes("./hardened-db.js")],
  ['backup replacement is atomic',read('js/core/backup.js').includes('.clear()')&&read('js/core/backup.js').includes('runAtomicTransaction')],
  ['foundation registry',read('js/core/contracts.js').includes('FOUNDATION_CONTRACTS')],
