@@ -8,8 +8,9 @@ const uiSource=fs.readFileSync(new URL('../../src/components/WorkSessionView.vue
 const rootSource=fs.readFileSync(new URL('../../src/App.vue',import.meta.url),'utf8');
 assert.equal(appSource.includes("../core/hardened-db.js"),false);
 assert.equal(uiSource.includes("../../js/core/"),false);
-assert.equal(uiSource.includes('application.startWork'),true);
-assert.equal(uiSource.includes('application.completeWork'),true);
+assert.equal(uiSource.includes('actions.dispatch(createUiCommand(\'START_SHIFT\''),true);
+assert.equal(uiSource.includes('actions.dispatch(createUiCommand(isPersonal?\'END_PERSONAL_TRIP\':\'END_TRIP\''),true);
+assert.equal(uiSource.includes('actions.dispatch(createUiCommand(\'END_SHIFT\''),true);
 assert.equal(uiSource.includes('viewModels.workSession'),true);
 assert.equal(rootSource.includes('WorkSessionView'),true);
 
