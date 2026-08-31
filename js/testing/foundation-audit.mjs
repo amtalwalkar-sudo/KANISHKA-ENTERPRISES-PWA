@@ -8,7 +8,7 @@ const contract=await read('js/application/ui-contract.js');
 const dispatcher=await read('js/application/command-dispatcher.js');
 const pkg=JSON.parse(await read('package.json'));
 const html=await read('index.html');
-const css=await read('src/styles/structural-shell.css');
+const css=await read('src/styles/shell.css');
 
 assert.match(html,/id=["']app["']/,'PWA mount target missing');
 assert.doesNotMatch(app,/indexedDB|IDBDatabase|createRepository|openDatabase/i,'UI must not access persistence');
