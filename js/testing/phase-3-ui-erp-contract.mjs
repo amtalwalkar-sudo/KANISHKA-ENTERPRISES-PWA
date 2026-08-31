@@ -13,6 +13,6 @@ const seen=[];
 const dispatch=createCommandDispatcher({SELECT_MODULE:async payload=>{seen.push(payload);return 'ok';}});
 assert.equal(await dispatch(command),'ok');
 assert.deepEqual(seen,[{module:'Work'}]);
-assert.throws(()=>dispatch({version:1,type:'SELECT_MODULE',payload:null}),/Invalid UI command/);
-assert.throws(()=>dispatch(createUiCommand('RETRY')),/No application handler/);
+await assert.rejects(()=>dispatch({version:1,type:'SELECT_MODULE',payload:null}),/Invalid UI command/);
+await assert.rejects(()=>dispatch(createUiCommand('RETRY')),/No application handler/);
 console.log('PHASE_3_UI_ERP_CONTRACT=PASS');
