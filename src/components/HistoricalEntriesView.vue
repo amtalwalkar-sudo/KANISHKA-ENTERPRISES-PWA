@@ -8,6 +8,7 @@ const mode = ref('day');
 const saving = ref(false);
 const notice = ref('');
 const error = ref('');
+const formVersion = ref(0);
 const day = ref({date:'',start_odometer:'',end_odometer:'',revenue:''});
 const fuel = ref({date:'',odometer:'',amount:'',cost_per_kg:''});
 
@@ -20,6 +21,17 @@ const quantityKg = computed(() => {
 
 function number(value){return Number(value);}
 function resetMessages(){notice.value='';error.value='';}
+function finishSave(ok,message){
+  saving.value=false;
+  if(ok){
+    formVersion.value+=1;
+    notice.value=message;
+    error.value='';
+  }else{
+    error.value=message;
+    notice.value='';
+  }
+}
 function saveDay(value){
   resetMessages();
   const date=value.date;
@@ -28,7 +40,7 @@ function saveDay(value){
   const revenue=number(value.revenue);
   if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(start)||start<0||!Number.isFinite(end)||end<start||!Number.isFinite(revenue)||revenue<0){error.value='Enter a valid historical date, start/end odometer and revenue.';return;}
   saving.value=true;
-  emit('save-request',{kind:'HISTORICAL_DAY',value:{date,start_odometer:start,end_odometer:end,revenue_paise:Math.round(revenue*100)},done:()=>{saving.value=false;day.value={date:'',start_odometer:'',end_odometer:'',revenue:''};notice.value='Historical day saved safely.';}});
+  emit('save-request',{kind:'HISTORICAL_DAY',value:{date,start_odometer:start,end_odometer:end,revenue_paise:Math.round(revenue*100)},done:(ok,message)=>finishSave(ok,message)});
 }
 function saveFuel(value){
   resetMessages();
@@ -38,7 +50,7 @@ function saveFuel(value){
   const cost=number(value.cost_per_kg);
   if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(odometer)||odometer<0||!Number.isFinite(amount)||amount<=0||!Number.isFinite(cost)||cost<=0){error.value='Enter a valid historical fuel date, odometer, amount and cost per kg.';return;}
   saving.value=true;
-  emit('save-request',{kind:'HISTORICAL_FUEL',value:{date,odometer,amount_paise:Math.round(amount*100),price_per_kg:cost},done:()=>{saving.value=false;fuel.value={date:'',odometer:'',amount:'',cost_per_kg:''};notice.value='Historical fuel entry saved safely.';}});
+  emit('save-request',{kind:'HISTORICAL_FUEL',value:{date,odometer,amount_paise:Math.round(amount*100),price_per_kg:cost},done:(ok,message)=>finishSave(ok,message)});
 }
 </script>
 
@@ -56,7 +68,7 @@ function saveFuel(value){
   </div>
   <p v-if="notice" class="kfe-form-boundary-note" role="status">✓ {{notice}}</p>
   <p v-if="error" class="kfe-form-boundary-note" role="alert">{{error}}</p>
-  <KfeFormShell v-if="mode==='day'" draft-key="historical-day" title="Historical Day" subtitle="Pre-launch daily operational summary." :saving="saving" @save="saveDay">
+  <KfeFormShell v-if="mode==='day'" :key="`historical-day-${formVersion}`" draft-key="historical-day" title="Historical Day" subtitle="Pre-launch daily operational summary." :saving="saving" @save="saveDay">
     <template #default="{value}">
       <KfeFormField id="date" label="Date" type="date" required v-model="value.date" />
       <KfeFormField id="start_odometer" label="Start-day odometer" type="number" required v-model="value.start_odometer" />
@@ -65,7 +77,7 @@ function saveFuel(value){
       <p class="kfe-form-boundary-note">Stored as a completed historical business work session and revenue record. It cannot open or close a live shift.</p>
     </template>
   </KfeFormShell>
-  <KfeFormShell v-else draft-key="historical-fuel" title="Historical Fuel" subtitle="Pre-launch CNG fuel entry." :saving="saving" @save="saveFuel">
+  <KfeFormShell v-else :key="`historical-fuel-${formVersion}`" draft-key="historical-fuel" title="Historical Fuel" subtitle="Pre-launch CNG fuel entry." :saving="saving" @save="saveFuel">
     <template #default="{value}">
       <KfeFormField id="date" label="Date" type="date" required v-model="value.date" />
       <KfeFormField id="odometer" label="Odometer" type="number" required v-model="value.odometer" />
