@@ -13,50 +13,18 @@ const dayEndOdometer=computed(()=>{const r=workSessions.value.filter(x=>x.busine
 const prefillOdometer=computed(()=>dayEndOdometer.value!=null?String(dayEndOdometer.value):dayOdometer.value);
 const fuelDirty=computed(()=>!!(fuelOdometer.value||fuelPrice.value||fuelAmount.value));
 const formatDuration=(seconds)=>[Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(n=>String(n).padStart(2,'0')).join(':');
-
 const shiftDuration=computed(()=>{if(!activeShift.value)return'00:00:00';const s=Math.max(0,Math.floor((now.value-Date.parse(activeShift.value.started_at))/1000));return formatDuration(s);});const tripDuration=computed(()=>{if(!activeTrip.value)return'00:00:00';const s=Math.max(0,Math.floor((now.value-Date.parse(activeTrip.value.started_at))/1000));return formatDuration(s);});
 const stateLabel=computed(()=>activeTrip.value?(activeTrip.value.trip_type==='PERSONAL'?'PERSONAL TRIP ACTIVE':'TRIP ACTIVE'):activeShift.value?'SHIFT ACTIVE':dayEnded.value?'DAY COMPLETE':dayStarted.value?'DAY ACTIVE':'DAY READY');
 const todayTrips=computed(()=>trips.value.filter(t=>!t.is_deleted&&String(t.started_at||'').slice(0,10)===dayDate.value));
 function notify(message,action=null){notice.value=message;lastAction.value=action;if(navigator.vibrate)navigator.vibrate(16);clearTimeout(notify.t);notify.t=setTimeout(()=>{notice.value='';lastAction.value=null;},4000);}
 function numeric(v){const n=Number(v);return Number.isFinite(n)?n:NaN;}
-async function load(){state.value='LOADING';error.value=null;try{workSessions.value=(await application.listWork()).filter(x=>!x.is_deleted);trips.value=(await application.listTrips()).filter(x=>!x.is_deleted);const open=workSessions.value.find(x=>x.status==='OPEN');activeShift.value=open?viewModels.workSession(open).session:null;dayStarted.value=workSessions.value.some(x=>x.business_date===dayDate.value);dayEnded.value=false;if(!dayStarted.value)dayOdometer.value=prefillOdometer.value;const fuels=(await application.listFuel()).filter(x=>!x.is_deleted);lastFuel.value=fuels.sort((a,b)=>String(b.updated_at||b.recorded_at).localeCompare(String(a.updated_at||a.recorded_at)))[0]||null;state.value='READY';}catch(e){error.value=viewModels.error(e);state.value='ERROR';}}
+async function load(){state.value='LOADING';error.value=null;try{workSessions.value=(await application.listWork()).filter(x=>!x.is_deleted);trips.value=(await application.listTrips()).filter(x=>!x.is_deleted);const open=workSessions.value.find(x=>x.status==='OPEN');activeShift.value=open?viewModels.workSession(open).session:null;const openTrip=trips.value.filter(t=>t.status==='OPEN'&&(!activeShift.value||t.shift_id===activeShift.value.id)).sort((a,b)=>String(b.started_at||'').localeCompare(String(a.started_at||'')))[0];activeTrip.value=openTrip||null;dayStarted.value=workSessions.value.some(x=>x.business_date===dayDate.value);dayEnded.value=false;if(!dayStarted.value)dayOdometer.value=prefillOdometer.value;const fuels=(await application.listFuel()).filter(x=>!x.is_deleted);lastFuel.value=fuels.sort((a,b)=>String(b.updated_at||b.recorded_at).localeCompare(String(a.updated_at||a.recorded_at)))[0]||null;state.value='READY';}catch(e){error.value=viewModels.error(e);state.value='ERROR';}}
 async function startDay(){if(busy.value||dayStarted.value)return;const o=numeric(dayOdometer.value||prefillOdometer.value);if(!Number.isFinite(o)||o<0){error.value={error:'Enter a valid day-start odometer'};return;}busy.value=true;try{await application.startDay?.({business_date:dayDate.value,start_odometer:o});dayStarted.value=true;dayOdometer.value=String(o);shiftOdometer.value=String(o);notify('Day started safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 async function startShift(){if(busy.value||activeShift.value||!dayStarted.value||dayEnded.value)return;const o=numeric(shiftOdometer.value||prefillOdometer.value||dayOdometer.value);if(!Number.isFinite(o)||o<0){error.value={error:'Enter a valid shift-start odometer'};return;}busy.value=true;try{const p={started_at:new Date().toISOString(),start_odometer:o,break_minutes:numeric(breakMinutes.value)||0,business_date:dayDate.value,scope:'BUSINESS',status:'OPEN'};const c=await actions.dispatch(createUiCommand('START_SHIFT',p));activeShift.value=viewModels.workSession(c).session;workSessions.value=[c,...workSessions.value];shiftOdometer.value='';notify('Shift started safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 function captureLocation(){if(!navigator.geolocation)return Promise.resolve(null);return new Promise(resolve=>navigator.geolocation.getCurrentPosition(p=>resolve({latitude:p.coords.latitude,longitude:p.coords.longitude,accuracy:p.coords.accuracy}),()=>resolve(null),{enableHighAccuracy:false,maximumAge:60000,timeout:1200}));}
-async function startTrip(type='BUSINESS'){if(busy.value||activeTrip.value||!activeShift.value||dayEnded.value)return;const o=numeric(type==='PERSONAL'?personalOdometer.value:shiftOdometer.value||activeShift.value.start_odometer);if(!Number.isFinite(o)||o<0){error.value={error:'Enter a valid trip-start odometer'};return;}busy.value=true;try{const started=new Date().toISOString();const t=await actions.dispatch(createUiCommand(
-type==='PERSONAL'?'START_PERSONAL_TRIP':'START_TRIP',
-{
-trip_type:type,
-shift_id:activeShift.value.id,
-status:'OPEN',
-started_at:started,
-start_odometer:o,
-location_status:'PENDING',
-scope:type==='PERSONAL'?'PERSONAL':'BUSINESS'
-}
-));activeTrip.value=t;personalTripsOpen.value=false;notify(type==='PERSONAL'?'Personal trip started':'Trip started');captureLocation().then(loc=>{if(loc&&activeTrip.value?.id===t.id)application.updateTrip(t.id,{start_location:loc,location_status:'CAPTURED'}).catch(()=>{});});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
-async function endTrip(){if(busy.value||!activeTrip.value)return;busy.value=true;try{const ended=new Date().toISOString();const u=await actions.dispatch(createUiCommand(
-activeTrip.value.trip_type==='PERSONAL'?'END_PERSONAL_TRIP':'END_TRIP',
-{
-id:activeTrip.value.id,
-status:'COMPLETED',
-ended_at:ended,
-duration_seconds:Math.max(
-0,
-Math.floor(
-(Date.parse(ended)-Date.parse(activeTrip.value.started_at))/1000
-)
-)
-}
-));trips.value=[u,...trips.value.filter(t=>t.id!==u.id)];activeTrip.value=null;personalOdometer.value='';shiftEndOdometer.value='';notify('Trip saved safely',{kind:'TRIP',id:u.id});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
-async function endShift(){if(busy.value||!activeShift.value||activeTrip.value)return;const end=numeric(shiftEndOdometer.value);if(!Number.isFinite(end)||end<numeric(activeShift.value.start_odometer)){error.value={error:'End odometer cannot be below shift start'};return;}busy.value=true;try{const u=await actions.dispatch(createUiCommand(
-'END_SHIFT',
-{
-id:activeShift.value.id,
-ended_at:new Date().toISOString(),
-end_odometer:end
-}
-));workSessions.value=workSessions.value.map(x=>x.id===u.id?u:x);activeShift.value=null;shiftEndOdometer.value='';shiftOdometer.value=String(end);notify('Shift ended safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
+async function startTrip(type='BUSINESS'){if(busy.value||activeTrip.value||!activeShift.value||dayEnded.value)return;const o=numeric(type==='PERSONAL'?personalOdometer.value:shiftOdometer.value||activeShift.value.start_odometer);if(!Number.isFinite(o)||o<0){error.value={error:'Enter a valid trip-start odometer'};return;}busy.value=true;try{const started=new Date().toISOString();const t=await actions.dispatch(createUiCommand(type==='PERSONAL'?'START_PERSONAL_TRIP':'START_TRIP',{trip_type:type,shift_id:activeShift.value.id,status:'OPEN',started_at:started,start_odometer:o,location_status:'PENDING',scope:type==='PERSONAL'?'PERSONAL':'BUSINESS'}));activeTrip.value=t;personalTripsOpen.value=false;notify(type==='PERSONAL'?'Personal trip started':'Trip started');captureLocation().then(loc=>{if(loc&&activeTrip.value?.id===t.id)application.updateTrip(t.id,{start_location:loc,location_status:'CAPTURED'}).catch(()=>{});});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
+async function endTrip(){if(busy.value||!activeTrip.value)return;busy.value=true;try{const ended=new Date().toISOString();const u=await actions.dispatch(createUiCommand(activeTrip.value.trip_type==='PERSONAL'?'END_PERSONAL_TRIP':'END_TRIP',{id:activeTrip.value.id,status:'COMPLETED',ended_at:ended,duration_seconds:Math.max(0,Math.floor((Date.parse(ended)-Date.parse(activeTrip.value.started_at))/1000))}));trips.value=[u,...trips.value.filter(t=>t.id!==u.id)];activeTrip.value=null;personalOdometer.value='';shiftEndOdometer.value='';notify('Trip saved safely',{kind:'TRIP',id:u.id});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
+async function endShift(){if(busy.value||!activeShift.value||activeTrip.value)return;const end=numeric(shiftEndOdometer.value);if(!Number.isFinite(end)||end<numeric(activeShift.value.start_odometer)){error.value={error:'End odometer cannot be below shift start'};return;}busy.value=true;try{const u=await actions.dispatch(createUiCommand('END_SHIFT',{id:activeShift.value.id,ended_at:new Date().toISOString(),end_odometer:end}));workSessions.value=workSessions.value.map(x=>x.id===u.id?u:x);activeShift.value=null;shiftEndOdometer.value='';shiftOdometer.value=String(end);notify('Shift ended safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 async function finishEndDay(){if(busy.value||activeShift.value||activeTrip.value)return;busy.value=true;try{await application.recordRevenue({work_session_id:null,amount_paise:Math.round((numeric(dayRevenue.value)||0)*100),toll_paise:Math.round((numeric(toll.value)||0)*100),parking_paise:Math.round((numeric(parking.value)||0)*100),fare_included:fareIncluded.value,recorded_at:new Date().toISOString(),business_date:dayDate.value,scope:'BUSINESS'});dayRevenue.value='';toll.value='';parking.value='';dayEnded.value=true;notify('Day ended safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 async function saveFuel(){if(busy.value)return;const o=numeric(fuelOdometer.value||prefillOdometer.value),p=numeric(fuelPrice.value),a=numeric(fuelAmount.value);if(!Number.isFinite(o)||o<0||!Number.isFinite(p)||p<=0||!Number.isFinite(a)||a<=0){error.value={error:'Enter valid CNG fuel values'};return;}busy.value=true;try{const s=await application.recordFuel({odometer:o,price_per_kg:p,amount_paise:Math.round(a*100),recorded_at:new Date().toISOString(),scope:'BUSINESS'});lastFuel.value=s;closeFuelSheet(true);notify('Fuel refill saved safely',{kind:'FUEL',id:s.id});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 function closeFuelSheet(force=false){if(!force&&fuelDirty.value){if(!window.confirm('Discard this refill?'))return;}fuelOpen.value=false;fuelOdometer.value='';fuelPrice.value='';fuelAmount.value='';}
@@ -78,16 +46,8 @@ onUnmounted(()=>{clearInterval(timer);clearTimeout(notify.t);window.removeEventL
 <template>
 <section class="kfe-work-session" aria-labelledby="work-title">
 <header class="work-header">
-
-<div>
-<p class="kfe-eyebrow">Operational cockpit</p>
-<h1 id="work-title">Work</h1>
-<p>Today · {{ stateLabel }}</p>
-</div>
-<div v-if="activeShift" class="header-shift-timer">
-<span>SHIFT</span>
-<strong>{{ shiftDuration }}</strong>
-</div>
+<div><p class="kfe-eyebrow">Operational cockpit</p><h1 id="work-title">Work</h1><p>Today · {{ stateLabel }}</p></div>
+<div v-if="activeShift" class="header-shift-timer"><span>SHIFT</span><strong>{{ shiftDuration }}</strong></div>
 <button class="fuel-icon" type="button" aria-label="Open fuel" @click="fuelOpen=true">⛽</button>
 </header>
 <div v-if="state==='LOADING'" role="status" class="work-card">Loading…</div><div v-if="error" role="alert" class="work-error">{{ error.error }}</div><div v-if="notice" role="status" class="work-notice">✓ {{ notice }} <button v-if="lastAction" type="button" @click="undoLast">Undo</button></div>
@@ -96,23 +56,9 @@ onUnmounted(()=>{clearInterval(timer);clearTimeout(notify.t);window.removeEventL
 <div v-else class="screen-panel">
 <div v-if="!dayStarted" class="work-card primary-state day-card"><div><p class="kfe-eyebrow">DAY</p><h2>Start today</h2></div><label>Start odometer<input v-model="dayOdometer" inputmode="numeric" type="number" min="0" :disabled="busy" /></label><button class="primary compact-action" :disabled="busy||!dayOdometer" @click="startDay">Start day</button></div>
 <div v-else-if="dayEnded" class="work-card primary-state day-card"><p class="kfe-eyebrow">DAY COMPLETE</p><h2>Day complete</h2><p class="muted">Today's operational work is closed.</p></div>
-<div v-else-if="activeTrip" class="trip-focus">
-  <p class="kfe-eyebrow">{{ activeTrip.trip_type==='PERSONAL'?'PERSONAL TRIP':'TRIP' }}</p>
-  <div class="trip-timer" aria-label="Trip duration">{{ tripDuration }}</div>
-  <div class="trip-meta">Start odometer <strong>{{ activeTrip.start_odometer }}</strong></div>
-</div>
+<div v-else-if="activeTrip" class="trip-focus"><p class="kfe-eyebrow">{{ activeTrip.trip_type==='PERSONAL'?'PERSONAL TRIP':'TRIP' }}</p><div class="trip-timer" aria-label="Trip duration">{{ tripDuration }}</div><div class="trip-meta">Start odometer <strong>{{ activeTrip.start_odometer }}</strong></div></div>
 <div v-else-if="activeShift" class="shift-focus"><div class="focus-card"><p class="kfe-eyebrow">CURRENT SHIFT</p><div class="focus-grid"><div><span>Start odometer</span><strong>{{ activeShift.start_odometer }}</strong></div><div><span>Trips</span><strong>{{ trips.filter(t=>t.shift_id===activeShift.id).length }}</strong></div></div></div><div class="secondary-actions"><label>Shift end odometer<input v-model="shiftEndOdometer" inputmode="numeric" type="number" min="0" :disabled="busy" /></label><button class="secondary compact-action" :disabled="busy||!shiftEndOdometer" @click="endShift">End shift</button></div></div>
-<div v-else class="day-shift-grid"><div class="focus-card"><p class="kfe-eyebrow">DAY ACTIVE</p><div class="focus-grid"><div><span>Odometer</span><strong>{{ prefillOdometer||'—' }}</strong></div><div><span>Shifts</span><strong>{{ workSessions.filter(x=>x.business_date===dayDate&&!x.is_deleted).length }}</strong></div></div><button class="secondary compact-action" type="button" :disabled="busy||dayEnded" @click="endDayOpen=true">End day</button>
-<div v-if="endDayOpen" class="end-day-form">
-<label>Revenue<input v-model="dayRevenue" inputmode="decimal" type="number" min="0" step="0.01" :disabled="busy" /></label>
-<label>Toll<input v-model="toll" inputmode="decimal" type="number" min="0" step="0.01" :disabled="busy" /></label>
-<label>Parking<input v-model="parking" inputmode="decimal" type="number" min="0" step="0.01" :disabled="busy" /></label>
-<label class="checkbox-row"><input v-model="fareIncluded" type="checkbox" :disabled="busy" /> Fare included</label>
-<div class="end-day-actions">
-<button class="primary compact-action" type="button" :disabled="busy" @click="finishEndDay">Confirm end day</button>
-<button class="secondary compact-action" type="button" :disabled="busy" @click="endDayOpen=false">Cancel</button>
-</div>
-</div></div><div class="focus-card"><p class="kfe-eyebrow">SHIFT</p><p class="muted">No active shift</p><label>Start odometer<input v-model="shiftOdometer" :placeholder="prefillOdometer" inputmode="numeric" type="number" min="0" :disabled="busy" /></label><button class="primary compact-action" :disabled="busy||(!shiftOdometer&&!prefillOdometer)" @click="startShift">Start shift</button></div></div>
+<div v-else class="day-shift-grid"><div class="focus-card"><p class="kfe-eyebrow">DAY ACTIVE</p><div class="focus-grid"><div><span>Odometer</span><strong>{{ prefillOdometer||'—' }}</strong></div><div><span>Shifts</span><strong>{{ workSessions.filter(x=>x.business_date===dayDate&&!x.is_deleted).length }}</strong></div></div><button class="secondary compact-action" type="button" :disabled="busy||dayEnded" @click="endDayOpen=true">End day</button><div v-if="endDayOpen" class="end-day-form"><label>Revenue<input v-model="dayRevenue" inputmode="decimal" type="number" min="0" step="0.01" :disabled="busy" /></label><label>Toll<input v-model="toll" inputmode="decimal" type="number" min="0" step="0.01" :disabled="busy" /></label><label>Parking<input v-model="parking" inputmode="decimal" type="number" min="0" step="0.01" :disabled="busy" /></label><label class="checkbox-row"><input v-model="fareIncluded" type="checkbox" :disabled="busy" /> Fare included</label><div class="end-day-actions"><button class="primary compact-action" type="button" :disabled="busy" @click="finishEndDay">Confirm end day</button><button class="secondary compact-action" type="button" :disabled="busy" @click="endDayOpen=false">Cancel</button></div></div></div><div class="focus-card"><p class="kfe-eyebrow">SHIFT</p><p class="muted">No active shift</p><label>Start odometer<input v-model="shiftOdometer" :placeholder="prefillOdometer" inputmode="numeric" type="number" min="0" :disabled="busy" /></label><button class="primary compact-action" :disabled="busy||(!shiftOdometer&&!prefillOdometer)" @click="startShift">Start shift</button></div></div>
 <button class="personal-entry" type="button" @click="personalTripsOpen=true"><span>Personal Trips</span><span>{{ todayTrips.filter(t=>t.trip_type==='PERSONAL').length }} ›</span></button>
 </div></main>
 <div class="bottom-action"><div v-if="personalTripsOpen&&activeShift&&!dayEnded" class="trip-swipe start-swipe" role="button" tabindex="0" data-action="start-personal" @pointerdown="tripSwipeStart" @pointerup="tripSwipeEnd" @pointercancel="tripSwipeCancel" @click="tripActionTap" @keydown="tripActionKey">SWIPE TO START PERSONAL TRIP <span>→</span></div><div v-else-if="activeTrip" class="trip-swipe end-swipe" role="button" tabindex="0" data-action="end-trip" @pointerdown="tripSwipeStart" @pointerup="tripSwipeEnd" @pointercancel="tripSwipeCancel" @click="tripActionTap" @keydown="tripActionKey">SWIPE TO END TRIP <span>→</span></div><div v-else-if="activeShift&&!dayEnded" class="trip-swipe start-swipe" role="button" tabindex="0" data-action="start-business" @pointerdown="tripSwipeStart" @pointerup="tripSwipeEnd" @pointercancel="tripSwipeCancel" @click="tripActionTap" @keydown="tripActionKey">SWIPE TO START TRIP <span>→</span></div></div>
