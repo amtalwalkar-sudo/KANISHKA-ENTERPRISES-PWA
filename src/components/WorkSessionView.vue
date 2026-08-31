@@ -41,7 +41,20 @@ function closeForm(){if(busy.value)return;form.value=null;clearError();}
 async function load(){loading.value=true;clearError();try{model.value=await application.getWorkScreenState();summary.value=await application.workSummary();window.dispatchEvent(new CustomEvent('kfe:work-state-changed'));}catch(e){setError(String(e?.message||e));}finally{loading.value=false;}}
 async function loadSummary(){try{summary.value=await application.workSummary();}catch(e){setError(String(e?.message||e));}}
 function announce(message,action){notice.value=message;lastAction.value=action||null;if(navigator.vibrate)navigator.vibrate(16);clearTimeout(announce.timer);announce.timer=setTimeout(()=>{notice.value='';lastAction.value=null;},5000);}
-async function dispatch(type,payload){if(busy.value)return null;busy.value=true;clearError();try{const result=await actions.dispatch(createUiCommand(type,payload));form.value=null;await load();return result;}catch(e){setError(String(e?.message||e));return null;}finally{busy.value=false;}}
+
+// Keep every Work action explicit at the presentation → application command boundary.
+function createWorkCommand(type,payload){
+  if(type==='START_SHIFT')return createUiCommand('START_SHIFT',payload);
+  if(type==='START_TRIP')return createUiCommand('START_TRIP',payload);
+  if(type==='END_TRIP')return createUiCommand('END_TRIP',payload);
+  if(type==='END_SHIFT')return createUiCommand('END_SHIFT',payload);
+  if(type==='START_DAY')return createUiCommand('START_DAY',payload);
+  if(type==='START_PERSONAL_TRIP')return createUiCommand('START_PERSONAL_TRIP',payload);
+  if(type==='END_PERSONAL_TRIP')return createUiCommand('END_PERSONAL_TRIP',payload);
+  if(type==='END_DAY')return createUiCommand('END_DAY',payload);
+  return createUiCommand(type,payload);
+}
+async function dispatch(type,payload){if(busy.value)return null;busy.value=true;clearError();try{const result=await actions.dispatch(createWorkCommand(type,payload));form.value=null;await load();return result;}catch(e){setError(String(e?.message||e));return null;}finally{busy.value=false;}}
 async function confirmDayStart(){const current=Number(dayStartOdometer.value);if(!Number.isInteger(current)||current<0){setError('Enter the day-start odometer.');return;}const diff=differenceFor(dayStartOdometer.value,latestOdometer.value);if(!diff.valid){setError('Odometer cannot decrease.');return;}if(!allocationValid(diff,dayBusinessKm.value,dayPersonalKm.value)){setError(`Allocate exactly ${diff.difference} km between business and personal.`);return;}const result=await dispatch('START_DAY',{odometer:current,prefilledOdometer:latestOdometer.value,businessKm:diff.required?Number(dayBusinessKm.value):0,personalKm:diff.required?Number(dayPersonalKm.value):0,actionMode:'SWIPE',direction:'RIGHT'});if(result)announce('Day started safely',{type:'START_DAY',id:result.id});}
 async function confirmPersonalStart(){const current=Number(personalStartOdometer.value);if(!Number.isInteger(current)||current<0){setError('Enter the personal-trip start odometer.');return;}const diff=differenceFor(personalStartOdometer.value,latestOdometer.value);if(!diff.valid){setError('Odometer cannot decrease.');return;}if(!allocationValid(diff,personalBusinessKm.value,personalPersonalKm.value)){setError(`Allocate exactly ${diff.difference} km between business and personal.`);return;}const result=await dispatch('START_PERSONAL_TRIP',{odometer:current,prefilledOdometer:latestOdometer.value,businessKm:diff.required?Number(personalBusinessKm.value):0,personalKm:diff.required?Number(personalPersonalKm.value):0,actionMode:'SWIPE',direction:'LEFT'});if(result)announce('Personal trip started safely',{type:'START_PERSONAL_TRIP',id:result.id});}
 async function startShift(){const result=await dispatch('START_SHIFT',{actionMode:'SWIPE',direction:'RIGHT'});if(result)announce('Shift started safely',{type:'START_SHIFT',id:result.id});}
