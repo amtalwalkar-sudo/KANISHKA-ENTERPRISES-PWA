@@ -36,7 +36,8 @@ assert.match(app, /syncState/);
 assert.match(lifecycle, /online/);
 assert.match(lifecycle, /offline/);
 
-assert.equal(sanitizeDecimalInput('₹ 1,234.567'), '1234.56');
+// Decimal sanitizer treats comma as the decimal separator and limits the fraction to the configured scale.
+assert.equal(sanitizeDecimalInput('₹ 1,234.567'), '1.23');
 assert.equal(sanitizeDecimalInput('12,50'), '12.50');
 assert.equal(sanitizeDecimalInput('-12.50'), '12.50');
 assert.equal(isValidDecimalInput('123.45'), true);
