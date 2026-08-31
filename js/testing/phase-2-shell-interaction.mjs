@@ -14,7 +14,7 @@ assert.ok(app.includes('createInteractionGuard'),'interaction guard wired');
 assert.ok(css.includes('touch-action:pan-y'),'vertical scroll interaction boundary present');
 assert.ok(css.includes('prefers-reduced-motion:reduce'),'reduced motion remains present');
 
-const router=createUiRouter({initialPath:'Dashboard'});
+const router=createUiRouter({initialPath:'Work'});
 assert.equal(router.route,DEFAULT_ROUTE);
 const state=createUiState();
 state.set(UI_STATES.LOADING);assert.equal(state.state,UI_STATES.LOADING);
