@@ -25,7 +25,7 @@ assert.match(forms, /SUBMIT_COOLDOWN_MS/);
 assert.match(forms, /submitTimer/);
 assert.match(app, /enforceDecimalInputs/);
 assert.match(app, /reducedMotion/);
-assert.match(app, /function handleBack\(\) \{ router\.handleBack\(\); \}/);
+assert.match(app, /function\s+handleBack\(\)\s*\{\s*router\.handleBack\(\);\s*\}/);
 
 assert.match(shell, /button,:where\(\[role="button"\]\),:where\(a\)\{min-width:48px;min-height:48px\}/);
 assert.match(repository, /openKfeDb/);
