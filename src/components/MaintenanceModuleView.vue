@@ -3,19 +3,31 @@ import { ref } from 'vue';
 import KfeFormShell from './KfeFormShell.vue';
 const emit = defineEmits(['save-request', 'back']);
 const showForm = ref(false);
+const detail = ref('');
 const categories = ['Service', 'Tyres', 'Brakes', 'Battery', 'Repair', 'Other'];
 const initial = { maintenanceId: '', date: new Date().toISOString().slice(0, 10), vehicle: 'Current vehicle', odometer: '', category: '', description: '', amount: '', reference: '', workSessionId: '' };
 function save(value) { emit('save-request', { module: 'Maintenance', value }); }
+function openDetail(value) { detail.value = value; }
+function closeDetail() { detail.value = ''; }
 </script>
 <template>
   <section class="kfe-module-view" aria-labelledby="maintenance-title">
-    <button class="kfe-secondary-action" type="button" @click="showForm ? showForm = false : emit('back')">‹ {{ showForm ? 'Maintenance' : 'More' }}</button>
-    <p class="kfe-eyebrow">Vehicle Operations</p><h1 id="maintenance-title">Maintenance</h1>
-    <p class="kfe-destination-subtitle">Vehicle maintenance records and usage context.</p>
-    <template v-if="!showForm">
+    <button class="kfe-secondary-action" type="button" @click="detail ? closeDetail() : showForm ? showForm = false : emit('back')">‹ {{ detail ? 'Maintenance' : showForm ? 'Maintenance' : 'More' }}</button>
+    <template v-if="detail">
+      <p class="kfe-eyebrow">Vehicle Operations</p>
+      <h1 id="maintenance-title">{{ detail === 'history' ? 'Maintenance history' : 'Maintenance categories' }}</h1>
+      <article class="kfe-detail-card">
+        <strong>{{ detail === 'history' ? 'Authoritative maintenance history' : 'Maintenance catalogue' }}</strong>
+        <p>{{ detail === 'history' ? 'Completed maintenance records will appear here from the application read model.' : 'Supported maintenance categories remain defined by the KFE maintenance model.' }}</p>
+        <div v-if="detail === 'categories'" class="kfe-module-list"><div v-for="category in categories" :key="category" class="kfe-detail-card"><strong>{{ category }}</strong></div></div>
+      </article>
+    </template>
+    <template v-else-if="!showForm">
+      <p class="kfe-eyebrow">Vehicle Operations</p><h1 id="maintenance-title">Maintenance</h1>
+      <p class="kfe-destination-subtitle">Vehicle maintenance records and usage context.</p>
       <article class="kfe-action-card"><div><span class="kfe-card-label">Maintenance</span><strong>Record vehicle work</strong><p>Usage-based allocation is handled by the business layer.</p></div><button class="kfe-primary-action" type="button" @click="showForm = true">Add maintenance</button></article>
-      <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button"><span>Maintenance history</span><span aria-hidden="true">›</span></button></section>
-      <section class="kfe-module-section"><h2>Catalogue</h2><button class="kfe-list-action" type="button"><span>Maintenance categories</span><span aria-hidden="true">›</span></button></section>
+      <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button" @click="openDetail('history')"><span>Maintenance history</span><span aria-hidden="true">›</span></button></section>
+      <section class="kfe-module-section"><h2>Catalogue</h2><button class="kfe-list-action" type="button" @click="openDetail('categories')"><span>Maintenance categories</span><span aria-hidden="true">›</span></button></section>
     </template>
     <KfeFormShell v-else draft-key="maintenance-entry" title="Add maintenance" subtitle="Required record information first; supporting links remain optional." :initial-value="initial" @save="save">
       <template #default="{ value }">
