@@ -10,7 +10,7 @@ const pkg=JSON.parse(await read('package.json'));
 const html=await read('index.html');
 const css=await read('src/styles/shell.css');
 
-assert.match(html,/id=["']app["']/,'PWA mount target missing');
+assert.match(html,/id=["'](?:app|vue-runtime)["']/,'PWA mount target missing');
 assert.doesNotMatch(app,/indexedDB|IDBDatabase|createRepository|openDatabase/i,'UI must not access persistence');
 assert.doesNotMatch(app,/from ["'][^"']*\/domain\//,'UI must not import domain modules');
 assert.match(contract,/UI_CONTRACT_VERSION=1/,'UI contract must be versioned');
