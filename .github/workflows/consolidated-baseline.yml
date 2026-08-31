@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Build application
-        run: npm run build
+        run: GITHUB_ACTIONS=false npm run build
       - name: Install Chromium
         run: timeout 180s npx playwright install --with-deps chromium
       - name: Architecture and foundation
@@ -115,7 +115,7 @@ jobs:
       - name: Legacy resilience and offline validation
         run: node js/testing/app-resilience-reliability-offline.mjs
       - name: Final build verification
-        run: npm run build
+        run: GITHUB_ACTIONS=false npm run build
 
   deploy:
     name: Publish PWA to GitHub Pages
