@@ -19,6 +19,7 @@ function copyRuntimeAssets(){
 
 export default defineConfig({
   appType:'spa',
+  base:process.env.GITHUB_ACTIONS?'/KANISHKA-ENTERPRISES-PWA/':'/',
   plugins:[vue(),copyRuntimeAssets()],
   server:{host:'0.0.0.0'},
   build:{target:'es2022'},

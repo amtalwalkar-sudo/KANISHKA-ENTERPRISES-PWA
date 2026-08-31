@@ -13,40 +13,25 @@ export const state=createStore(initialState,repository);
 export const application=createKfeApplication(repository);
 
 const commandHandlers=Object.freeze({
-  START_SHIFT:payload=>application.startWork(payload),
-  END_SHIFT:payload=>{
-    const {id,...data}=payload;
-    return application.completeWork(id,data);
-  },
-  START_TRIP:payload=>application.recordTrip(payload),
-  END_TRIP:payload=>{
-    const {id,...changes}=payload;
-    return application.updateTrip(id,changes);
-  },
-  START_PERSONAL_TRIP:payload=>application.recordTrip(payload),
-  END_PERSONAL_TRIP:payload=>{
-    const {id,...changes}=payload;
-    return application.updateTrip(id,changes);
-  }
+  START_DAY:payload=>application.startDay(payload),
+  START_SHIFT:payload=>application.startShift(payload),
+  END_SHIFT:payload=>application.endShift(payload),
+  START_TRIP:payload=>application.startBusinessTrip(payload),
+  END_TRIP:payload=>application.endBusinessTrip(payload),
+  START_PERSONAL_TRIP:payload=>application.startPersonalTrip(payload),
+  END_PERSONAL_TRIP:payload=>application.endPersonalTrip(payload),
+  END_DAY:payload=>application.endDay(payload),
+  UNDO_WORK_ACTION:payload=>application.undoWorkAction(payload),
+  SELECT_MODULE:async()=>true
 });
 
 export const commandDispatcher=createCommandDispatcher(commandHandlers);
 installCrashBuffer();
 const noTransport=async()=>{throw new Error('No sync transport configured');};
 export const network=createNetworkManager({sendOutbox:noTransport,onStatus:online=>window.dispatchEvent(new CustomEvent('kfe:network',{detail:{online}}))});
-export const actions=Object.freeze({
-  dispatch:commandDispatcher
-});
+export const actions=Object.freeze({dispatch:commandDispatcher});
 export const viewModels=Object.freeze({dashboard:dashboardReadModel,workSession:workSessionReadModel,error:presentationError});
-const runtime={
-  repository,
-  state,
-  application,
-  commandDispatcher,
-  network,
-  actions,
-  viewModels
-};
+const runtime={repository,state,application,commandDispatcher,network,actions,viewModels};
 window.__KFE_RUNTIME__=runtime;
 window.KFE_REPOSITORY=repository;
 window.KFE_NETWORK=network;

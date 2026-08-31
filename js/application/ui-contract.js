@@ -1,6 +1,6 @@
 export const UI_CONTRACT_VERSION=1;
 
-const commandNames=new Set(['SELECT_MODULE','RETRY','START_SHIFT','END_SHIFT','START_TRIP','END_TRIP','START_PERSONAL_TRIP','END_PERSONAL_TRIP']);
+const commandNames=new Set(['SELECT_MODULE','RETRY','START_DAY','START_SHIFT','END_SHIFT','START_TRIP','END_TRIP','START_PERSONAL_TRIP','END_PERSONAL_TRIP','END_DAY','UNDO_WORK_ACTION']);
 
 export function createUiCommand(type,payload={}){
   if(!commandNames.has(type)) throw new Error(`Unsupported UI command: ${type}`);

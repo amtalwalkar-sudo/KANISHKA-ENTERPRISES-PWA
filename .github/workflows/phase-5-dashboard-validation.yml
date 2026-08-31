@@ -1,28 +1,10 @@
-name: Phase 5 Dashboard validation
+name: KFE legacy validation (manual only)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
-concurrency:
-  group: phase-5-dashboard-validation-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  dashboard-validation:
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm install
-      - name: Build application
-        run: npm run build
-      - name: Validate Dashboard application boundary
-        run: npm run validate:phase-5-dashboard-application
+      - run: echo "This legacy workflow is intentionally manual-only. The canonical automatic validation is KFE 2.0 single CI."

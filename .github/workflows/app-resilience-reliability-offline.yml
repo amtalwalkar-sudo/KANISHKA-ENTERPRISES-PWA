@@ -1,106 +1,10 @@
-name: App resilience, reliability and offline-first validation
+name: KFE legacy validation (manual only)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
-  architecture-boundaries:
+  retired:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm install
-      - name: Build Vue + Vite PWA
-        run: npm run build
-      - name: Verify repository and foundation contracts
-        run: |
-          npm run validate:architecture
-          npm run validate:foundation
-      - name: Verify domain runtime identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "WORKTREE=$(git rev-parse HEAD)"
-          echo "dashboard.js SHA256=$(sha256sum js/domain/dashboard.js | cut -d' ' -f1)"
-          echo "domain-calculation-verify.mjs SHA256=$(sha256sum js/testing/domain-calculation-verify.mjs | cut -d' ' -f1)"
-          node --input-type=module <<'NODE'
-          import { profitability } from './js/domain/dashboard.js';
-          const input={revenue:1000000,fuel:100000,maintenanceProvision:50000,fixedOverhead:100000,loanPrincipal:100000,loanInterest:20000,otherBusinessCosts:30000,takeHomeTargetPaise:200000};
-          const output=profitability(input);
-          console.log('DIRECT_PROFITABILITY_RESULT='+JSON.stringify(output));
-          if(output.value?.netProfitPaise!==600000) process.exit(1);
-          NODE
-      - name: Verify repository and domain contracts
-        run: npm run validate:domain
-      - name: Verify Phase I operational lifecycle
-        run: npm run validate:phase-i
-      - name: Verify Phase J financial lifecycle
-        run: npm run validate:phase-j
-      - name: Verify Phase K persistence and recovery
-        run: npm run validate:phase-k
-      - name: Verify Phase L operational integrity
-        run: npm run validate:phase-l
-      - name: Verify Phase M application orchestration
-        run: npm run validate:phase-m
-      - name: Verify Phase N presentation/read-model boundary
-        run: npm run validate:phase-n
-      - name: Verify Phase 4 Work Session vertical slice contract
-        run: npm run validate:phase-4
-      - name: Verify Phase 5 module expansion contract
-        run: npm run validate:phase-5
-      - name: Syntax-check runtime and domain modules
-        shell: bash
-        run: |
-          set -euo pipefail
-          for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done
-      - name: Guard Vue shell from business logic
-        shell: bash
-        run: |
-          set -euo pipefail
-          if grep -En "from ['\"]\./(domain|screens|dashboard)/|from ['\"]\.\./(domain|screens|dashboard)/" src/*.vue src/*.js 2>/dev/null; then exit 1; fi
-      - name: Guard Service Worker modular boundary
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f js/pwa/sw-strategies.js
-          grep -q "importScripts('./js/pwa/sw-strategies.js')" service-worker.js
-          grep -q "event.request.mode==='navigate'" service-worker.js
-          grep -q "kfe-outbox-retry" service-worker.js
-
-  resilience-reliability-offline:
-    needs: architecture-boundaries
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm install
-      - name: Install Playwright package and Chromium
-        run: npm install --no-save playwright@1.55.0 && npx playwright install --with-deps chromium
-      - name: Build Vue + Vite PWA
-        run: npm run build
-      - name: Start built PWA server
-        run: python3 -m http.server 4173 --directory dist --bind 127.0.0.1 >/tmp/kfe-server.log 2>&1 &
-      - name: Run Phase 4 real persistence browser test
-        run: node js/testing/phase-4-work-session-browser.mjs
-      - name: Run resilience, reliability and offline-first tests
-        run: node js/testing/app-resilience-reliability-offline.mjs
-      - name: Upload server log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kfe-pwa-server-log
-          path: /tmp/kfe-server.log
-          if-no-files-found: ignore
+      - run: echo "This legacy workflow is intentionally manual-only. The canonical automatic validation is KFE 2.0 single CI."

@@ -1,145 +1,146 @@
-name: KFE 2.0 consolidated baseline validation
+name: KFE 2.0 single CI
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
-  group: kfe-consolidated-baseline
+  group: kfe-single-ci
   cancel-in-progress: true
 
-jobs:
-  baseline:
-    name: Consolidated baseline
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout main baseline
-        uses: actions/checkout@v5
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
+jobs:
+  validate:
+    name: KFE validation and Work Screen integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
       - name: Setup Node 20
         uses: actions/setup-node@v5
         with:
           node-version: 20
-
+          cache: npm
       - name: Install dependencies
         run: npm install
-
       - name: Build application
         run: npm run build
-
-      - name: Install Chromium for browser persistence checks
+      - name: Install Chromium
         run: timeout 180s npx playwright install --with-deps chromium
-
-      - name: Architecture validation
-        run: npm run validate:architecture
-
-      - name: Foundation hardening
-        run: npm run validate:foundation
-
-      - name: Domain calculations
-        run: npm run validate:domain
-
-      - name: Foundation audit
-        run: npm run validate:foundation-audit
-
-      - name: Phase I operational lifecycle
-        run: npm run validate:phase-i
-
-      - name: Phase J financial lifecycle
-        run: npm run validate:phase-j
-
-      - name: Phase K persistence recovery
+      - name: Architecture and foundation
+        run: |
+          npm run validate:architecture
+          npm run validate:foundation
+          npm run validate:foundation-audit
+      - name: Domain and lifecycle
+        run: |
+          npm run validate:domain
+          npm run validate:phase-i
+          npm run validate:phase-j
+          npm run validate:phase-l
+          npm run validate:phase-m
+          npm run validate:phase-n
+      - name: Persistence and recovery
         run: npm run validate:phase-k
-
-      - name: Phase L operational integrity
-        run: npm run validate:phase-l
-
-      - name: Phase M application orchestration
-        run: npm run validate:phase-m
-
-      - name: Phase N presentation read model
-        run: npm run validate:phase-n
-
-      - name: Phase 1 structural PWA shell
-        run: npm run validate:phase-1
-
-      - name: Phase 2 shell interaction
-        run: npm run validate:phase-2
-
-      - name: Phase 3 UI ERP contract
-        run: npm run validate:phase-3
-
-      - name: Phase 4 Work Session vertical slice
-        run: npm run validate:phase-4
-
-      - name: Phase 5 module expansion
-        run: npm run validate:phase-5
-
-      - name: Phase 5 replication contract
-        run: npm run validate:phase-5-replication
-
-      - name: Phase 5 module application contracts
-        run: npm run validate:phase-5-module-contracts
-
-      - name: Vehicle application boundary
-        run: npm run validate:phase-5-vehicle
-
-      - name: Vehicle real persistence
-        run: npm run validate:phase-5-vehicle-real-persistence
-
-      - name: Fuel application boundary
-        run: npm run validate:phase-5-fuel-application
-
-      - name: Fuel real persistence
-        run: npm run validate:phase-5-fuel-real-persistence
-
-      - name: Expenses application boundary
-        run: npm run validate:phase-5-expenses-application
-
-      - name: Expenses real persistence
-        run: npm run validate:phase-5-expenses-real-persistence
-
-      - name: Revenue application boundary
-        run: npm run validate:phase-5-revenue-application
-
-      - name: Revenue real persistence
-        run: npm run validate:phase-5-revenue-real-persistence
-
-      - name: Loans application boundary
-        run: npm run validate:phase-5-loans-application
-
-      - name: Loans real persistence
-        run: npm run validate:phase-5-loans-real-persistence
-
-      - name: Renewals and compliance application boundary
-        run: npm run validate:phase-5-renewals-compliance-application
-
-      - name: Renewals and compliance real persistence
-        run: npm run validate:phase-5-renewals-compliance-real-persistence
-
-      - name: Maintenance application boundary
-        run: npm run validate:phase-5-maintenance-application
-
-      - name: Maintenance real persistence
-        run: npm run validate:phase-5-maintenance-real-persistence
-
-      - name: Profitability application boundary
-        run: npm run validate:phase-5-profitability-application
-
-      - name: Profitability real persistence
-        run: npm run validate:phase-5-profitability-real-persistence
-
-      - name: Dashboard application boundary
-        run: npm run validate:phase-5-dashboard-application
-
-      - name: Phase 5 completion integrity
-        run: npm run validate:phase-5-completion-integrity
-
-      - name: Phase 6 UI shell contract
-        run: npm run validate:phase-6-ui-shell
-
-      - name: Phase 7 reliability contract
-        run: npm run validate:phase-7-reliability
-
+      - name: UI shell contracts
+        run: |
+          npm run validate:phase-1
+          npm run validate:phase-2
+          npm run validate:phase-3
+          npm run validate:phase-5
+          npm run validate:phase-5-replication
+          npm run validate:phase-5-module-contracts
+          npm run validate:phase-5-completion-integrity
+          npm run validate:phase-6-ui-shell
+          npm run validate:phase-7-reliability
+      - name: Module application boundaries
+        run: |
+          npm run validate:phase-5-vehicle
+          npm run validate:phase-5-fuel-application
+          npm run validate:phase-5-expenses-application
+          npm run validate:phase-5-revenue-application
+          npm run validate:phase-5-loans-application
+          npm run validate:phase-5-renewals-compliance-application
+          npm run validate:phase-5-maintenance-application
+          npm run validate:phase-5-profitability-application
+          npm run validate:phase-5-dashboard-application
+      - name: Real persistence checks
+        run: |
+          npm run validate:phase-5-vehicle-real-persistence
+          npm run validate:phase-5-fuel-real-persistence
+          npm run validate:phase-5-expenses-real-persistence
+          npm run validate:phase-5-revenue-real-persistence
+          npm run validate:phase-5-loans-real-persistence
+          npm run validate:phase-5-renewals-compliance-real-persistence
+          npm run validate:phase-5-maintenance-real-persistence
+          npm run validate:phase-5-profitability-real-persistence
+      - name: Runtime syntax and Work Screen domain contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done
+          npm run validate:phase-4
+      - name: Runtime identity and service-worker boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { profitability } from './js/domain/dashboard.js';
+          const input={revenue:1000000,fuel:100000,maintenanceProvision:50000,fixedOverhead:100000,loanPrincipal:100000,loanInterest:20000,otherBusinessCosts:30000,takeHomeTargetPaise:200000};
+          const output=profitability(input);
+          if(output.value?.netProfitPaise!==600000) process.exit(1);
+          console.log('DIRECT_PROFITABILITY_RESULT='+JSON.stringify(output));
+          NODE
+          test -f js/pwa/sw-strategies.js
+          grep -q "importScripts('./js/pwa/sw-strategies.js')" service-worker.js
+          grep -q "event.request.mode==='navigate'" service-worker.js
+          grep -q "kfe-outbox-retry" service-worker.js
+      - name: Start PWA for browser integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
+          cat /tmp/kfe-vite.log
+          exit 1
+      - name: Work Screen real browser flow
+        run: npm run validate:work-screen-browser
+      - name: Legacy resilience and offline validation
+        run: node js/testing/app-resilience-reliability-offline.mjs
       - name: Final build verification
         run: npm run build
+
+  deploy:
+    name: Publish PWA to GitHub Pages
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Build PWA for Pages
+        run: npm run build
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

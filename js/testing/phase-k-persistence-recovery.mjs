@@ -30,10 +30,13 @@ const fakeDb=new FakeDb();
 globalThis.indexedDB={open(){const r=new FakeRequest();queueMicrotask(()=>{r.result=fakeDb;r.onupgradeneeded?.();r.onsuccess?.();});return r;}};
 
 assert.equal(DB_NAME,'kfe');
-assert.equal(DB_VERSION,5);
+assert.equal(DB_VERSION,6);
 assert.equal(STORE_NAMES.length,Object.keys(STORES).length);
 assert.ok(STORE_NAMES.includes('vehicles'));
 assert.ok(STORE_NAMES.includes('work_sessions'));
+assert.ok(STORE_NAMES.includes('work_days'));
+assert.ok(STORE_NAMES.includes('odometer_allocations'));
+assert.ok(STORE_NAMES.includes('operational_events'));
 assert.ok(STORE_NAMES.includes('maintenance_records'));
 assert.ok(STORE_NAMES.includes('loans'));
 assert.ok(STORE_NAMES.includes('renewals_compliance'));
@@ -52,21 +55,10 @@ assert.equal((await all('vehicles')).length,2);
 assert.equal((await all('work_sessions')).length,1);
 
 const beforeVehicles=await all('vehicles');
-await assert.rejects(
-  runAtomicTransaction(fakeDb,['vehicles','work_sessions'],(stores)=>{
-    stores.vehicles.put({id:'rollback-vehicle'});
-    throw new Error('intentional rollback');
-  }),
-  /intentional rollback/
-);
+await assert.rejects(runAtomicTransaction(fakeDb,['vehicles','work_sessions'],(stores)=>{stores.vehicles.put({id:'rollback-vehicle'});throw new Error('intentional rollback');}),/intentional rollback/);
 assert.deepEqual(await all('vehicles'),beforeVehicles);
 
-const snapshot=createSnapshot({
-  stores:{vehicles:[{id:'restore-vehicle',registration:'RESTORED'}],work_sessions:[{id:'restore-shift',vehicleId:'restore-vehicle'}]},
-  configuration:[{id:'cfg-1',effective_from:'2026-08-28T00:00:00.000Z'}],
-  relationships:[{from:'restore-shift',to:'restore-vehicle'}],
-  calculationVersions:[{calculation:'profitability',version:1}]
-});
+const snapshot=createSnapshot({stores:{vehicles:[{id:'restore-vehicle',registration:'RESTORED'}],work_sessions:[{id:'restore-shift',vehicleId:'restore-vehicle'}],work_days:[],odometer_allocations:[],operational_events:[]},configuration:[{id:'cfg-1',effective_from:'2026-08-28T00:00:00.000Z'}],relationships:[{from:'restore-shift',to:'restore-vehicle'}],calculationVersions:[{calculation:'profitability',version:1}]});
 assert.equal(snapshot.schemaVersion,KFE_BACKUP_VERSION);
 assert.equal(validateSnapshot(snapshot),true);
 await restoreSnapshot(fakeDb,snapshot);
