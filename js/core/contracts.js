@@ -9,5 +9,6 @@ export const FOUNDATION_CONTRACTS=Object.freeze({
   dependencyGraph:'js/core/dependency-graph.js',
   calculationVersions:'js/core/calculation-version.js',
   dataConfidence:'js/core/data-confidence.js',
-  atomicTransactions:'js/core/transaction.js'
+  atomicTransactions:'js/core/transaction.js',
+  operationalTelemetry:'js/services/operational-telemetry.js'
 });

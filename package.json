@@ -21,6 +21,7 @@
     "validate:phase-2": "node js/testing/phase-2-shell-interaction.mjs",
     "validate:phase-3": "node js/testing/phase-3-ui-erp-contract.mjs",
     "validate:phase-4": "node js/testing/phase-4-work-session-vertical-slice.mjs",
+    "validate:work-screen-browser": "node js/testing/work-screen-browser.mjs",
     "validate:foundation-audit": "node js/testing/foundation-audit.mjs",
     "validate:phase-5": "node js/testing/phase-5-module-expansion.mjs",
     "validate:phase-5-replication": "node js/testing/phase-5-replication-contract.mjs",

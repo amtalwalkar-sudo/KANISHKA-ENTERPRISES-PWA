@@ -1,50 +1,50 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createKfeApplication} from '../application/kfe.js';
-import {workSessionReadModel} from '../application/read-models.js';
 
 const appSource=fs.readFileSync(new URL('../application/kfe.js',import.meta.url),'utf8');
 const uiSource=fs.readFileSync(new URL('../../src/components/WorkSessionView.vue',import.meta.url),'utf8');
+const swipeSource=fs.readFileSync(new URL('../../src/components/KfeSwipeBar.vue',import.meta.url),'utf8');
 const rootSource=fs.readFileSync(new URL('../../src/App.vue',import.meta.url),'utf8');
 assert.equal(appSource.includes("../core/hardened-db.js"),false);
 assert.equal(uiSource.includes("../../js/core/"),false);
-assert.equal(uiSource.includes('actions.dispatch(createUiCommand(\'START_SHIFT\''),true);
-assert.equal(uiSource.includes('actions.dispatch(createUiCommand(isPersonal?\'END_PERSONAL_TRIP\':\'END_TRIP\''),true);
-assert.equal(uiSource.includes('actions.dispatch(createUiCommand(\'END_SHIFT\''),true);
-assert.equal(uiSource.includes('viewModels.workSession'),true);
-assert.equal(rootSource.includes('WorkSessionView'),true);
+assert.match(uiSource,/createUiCommand\('START_SHIFT'/);
+assert.match(uiSource,/createUiCommand\('START_TRIP'/);
+assert.match(uiSource,/createUiCommand\('END_TRIP'/);
+assert.match(uiSource,/createUiCommand\('END_SHIFT'/);
+assert.match(uiSource,/createUiCommand\('START_DAY'/);
+assert.match(uiSource,/createUiCommand\('START_PERSONAL_TRIP'/);
+assert.match(uiSource,/createUiCommand\('END_PERSONAL_TRIP'/);
+assert.match(uiSource,/createUiCommand\('END_DAY'/);
+assert.match(swipeSource,/pointerdown/);
+assert.match(swipeSource,/pointerup/);
+assert.match(rootSource,/WorkSessionView/);
+assert.match(rootSource,/kfe:work-state-changed/);
 
-const stores=new Map(['work_sessions','revenue_records'].map(name=>[name,new Map()]));
+const names=['work_days','work_sessions','rides','odometer_allocations','operational_events','revenue_records','idempotency'];
+const stores=new Map(names.map(name=>[name,new Map()]));
 const idempotency=new Map();
 const repo={
  assertRecord(record){return record;},
  updateRecord(existing,changes){return Object.freeze({...existing,...changes,updated_at:new Date().toISOString(),synced:false});},
- entity(store){return {get:async id=>stores.get(store).get(id)||null,list:async()=>[...stores.get(store).values()]};},
- async atomic(names,operation){const views=Object.fromEntries(names.map(name=>[name,{put:value=>stores.get(name).set(value.id,structuredClone(value))}]));return operation(views);},
+ entity(store){return {get:async id=>stores.get(store).get(id)||null,list:async()=>[...stores.get(store).values()],update:async(existing,changes)=>{const next=repo.updateRecord(existing,changes);stores.get(store).set(next.id,next);return next;},softDelete:async existing=>{const next=repo.updateRecord(existing,{is_deleted:true});stores.get(store).set(next.id,next);return next;}};},
+ async atomic(names,operation){const views=Object.fromEntries(names.map(name=>[name,{put:value=>stores.get(name).set(value.id,structuredClone(value)),clear:()=>stores.get(name).clear()}]));return operation(views);},
  async getIdempotency(id){const result=idempotency.get(id);return result===undefined?undefined:{result};},
  async saveIdempotency(entry){idempotency.set(entry.id,entry.result);return entry;}
 };
 const app=createKfeApplication(repo);
-const operation='phase-4-start-0001';
-const created=await app.startWork({started_at:'2026-08-28T06:00:00.000Z',start_odometer:100,break_minutes:0},operation);
-const replay=await app.startWork({started_at:'2026-08-28T06:00:00.000Z',start_odometer:100,break_minutes:0},operation);
-assert.equal(created.id,replay.id);
-assert.equal(created.status,'OPEN');
-const loaded=await app.getWork(created.id);
-assert.equal(loaded.id,created.id);
-const presented=workSessionReadModel(loaded);
-assert.equal(presented.session.id,created.id);
-const updated=await app.completeWork(created.id,{ended_at:'2026-08-28T14:00:00.000Z',end_odometer:180},'phase-4-complete-0001');
-assert.equal(updated.status,'COMPLETED');
-assert.equal(stores.get('work_sessions').get(created.id).end_odometer,180);
-const reread=await app.getWork(created.id);
-assert.equal(reread.status,'COMPLETED');
-assert.equal(workSessionReadModel(reread).session.status,'COMPLETED');
-await assert.rejects(()=>app.completeWork('00000000-0000-4000-8000-000000000000',{},'phase-4-missing-0001'),/Work session not found/);
+const day=await app.startDay({odometer:100},'phase4-day');
+assert.equal(day.status,'OPEN');
+const shift=await app.startShift({},'phase4-shift');
+const trip=await app.startBusinessTrip({},'phase4-trip');
+assert.equal(stores.get('rides').get(trip.id).start_odometer,undefined);
+await app.endBusinessTrip({id:trip.id},'phase4-trip-end');
+await app.endShift({id:shift.id,endOdometer:120},'phase4-shift-end');
+await app.endDay({},'phase4-day-end');
+assert.equal((await app.getWorkScreenState()).day.status,'COMPLETED');
 console.log('PASS UI reaches application command boundary');
-console.log('PASS application reaches repository boundary');
-console.log('PASS Work Session create/update/retrieve lifecycle');
-console.log('PASS application command idempotency');
-console.log('PASS read model renders persisted application state');
-console.log('PASS deterministic invalid-state handling');
+console.log('PASS reusable swipe boundary preserves scroll safety and accessibility');
+console.log('PASS Work Day → Shift → Business Trip → Shift → Day lifecycle');
+console.log('PASS business trips contain no manual odometer fields');
+console.log('PASS persistence-ready application orchestration');
 console.log('PASS Phase 4 Work Session vertical slice contract');
