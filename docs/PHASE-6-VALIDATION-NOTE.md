@@ -1,1 +1,0 @@
-Phase 6 validation alignment is scoped to the validator only. Historical Entries application wiring is intentionally not changed in this batch.
