@@ -19,8 +19,8 @@ function copyRuntimeAssets(){
 
 export default defineConfig({
   appType:'spa',
-  // GitHub Pages needs the repository base path; local/CI browser validation needs root.
-  base:process.env.GITHUB_ACTIONS==='true'?'/KANISHKA-ENTERPRISES-PWA/':'/',
+  // Pages needs the repository base path only for the production build. Dev/CI browser validation must stay rooted so source-module validators can load canonical assets.
+  base:process.env.GITHUB_ACTIONS==='true'&&process.env.npm_lifecycle_event==='build'?'/KANISHKA-ENTERPRISES-PWA/':'/',
   plugins:[vue(),copyRuntimeAssets()],
   server:{host:'0.0.0.0'},
   build:{target:'es2022'},
