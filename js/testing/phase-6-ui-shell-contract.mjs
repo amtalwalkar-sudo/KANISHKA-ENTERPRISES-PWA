@@ -14,6 +14,7 @@ const maintenance = read('src/components/MaintenanceModuleView.vue');
 const compliance = read('src/components/ComplianceModuleView.vue');
 const loan = read('src/components/LoanModuleView.vue');
 const modules = read('src/components/KfeModuleView.vue');
+const historical = read('src/components/HistoricalEntriesView.vue');
 const loanBoundary = read('js/application/loan-module.js');
 const loanDomain = read('js/domain/loans.js');
 const loanRepository = read('js/application/loan-repository.js');
@@ -56,7 +57,17 @@ assert.match(compliance, /save-request/);
 assert.doesNotMatch(compliance, /renewedButUnpaid|renewed-but-unpaid|renewed_unpaid|paymentStatus\s*[:=]\s*['\"]?renewed/i);
 
 assert.match(app, /LoanModuleView/);
-assert.match(app, /activeModule === 'Loans'/);
+assert.match(app, /activeModule\s*===\s*['"]Loans['"]/);
+assert.match(app, /HistoricalEntriesView/);
+assert.match(app, /activeModule\s*===\s*['"]Historical Entries['"]/);
+assert.match(app, /HistoricalEntriesView[\s\S]*@save-request="handleHistoricalSave"/);
+assert.match(historical, /Historical Day/);
+assert.match(historical, /Historical Fuel/);
+assert.match(historical, /save-request/);
+
+const requiredModules = ['Vehicle','Driver','Fuel','Expenses','Revenue','Loans','Maintenance','Compliance','Dashboard','Profitability','Historical Entries','Settings'];
+for (const module of requiredModules) assert.match(app, new RegExp(module.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+
 assert.match(loan, /Loan status/);
 assert.match(loan, /EMI/);
 assert.match(loan, /Outstanding balance/);
@@ -79,4 +90,4 @@ assert.match(contracts, /driver:/);
 assert.match(contracts, /analytics: false/);
 
 console.log('Phase 6 UI shell contract: PASS');
-console.log('Frozen navigation, timeline chronology, draft boundary, vehicle lifecycle/driver attachment, maintenance capture, compliance renewal flow, dedicated loan presentation boundary, Tax Reserve exclusion, and application/domain separation verified.');
+console.log('Navigation, module routing, Historical Entries event wiring, timeline chronology, draft boundary, vehicle/driver lifecycle, maintenance, compliance, loan presentation/domain separation, and Tax Reserve exclusion verified.');
