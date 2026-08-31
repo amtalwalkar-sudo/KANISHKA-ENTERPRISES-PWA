@@ -49,7 +49,14 @@ Math.floor(
 )
 }
 ));trips.value=[u,...trips.value.filter(t=>t.id!==u.id)];activeTrip.value=null;personalOdometer.value='';shiftEndOdometer.value='';notify('Trip saved safely',{kind:'TRIP',id:u.id});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
-async function endShift(){if(busy.value||!activeShift.value||activeTrip.value)return;const end=numeric(shiftEndOdometer.value);if(!Number.isFinite(end)||end<numeric(activeShift.value.start_odometer)){error.value={error:'End odometer cannot be below shift start'};return;}busy.value=true;try{const u=await application.completeWork(activeShift.value.id,{ended_at:new Date().toISOString(),end_odometer:end});workSessions.value=workSessions.value.map(x=>x.id===u.id?u:x);activeShift.value=null;shiftEndOdometer.value='';shiftOdometer.value=String(end);notify('Shift ended safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
+async function endShift(){if(busy.value||!activeShift.value||activeTrip.value)return;const end=numeric(shiftEndOdometer.value);if(!Number.isFinite(end)||end<numeric(activeShift.value.start_odometer)){error.value={error:'End odometer cannot be below shift start'};return;}busy.value=true;try{const u=await actions.dispatch(createUiCommand(
+'END_SHIFT',
+{
+id:activeShift.value.id,
+ended_at:new Date().toISOString(),
+end_odometer:end
+}
+));workSessions.value=workSessions.value.map(x=>x.id===u.id?u:x);activeShift.value=null;shiftEndOdometer.value='';shiftOdometer.value=String(end);notify('Shift ended safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 async function finishEndDay(){if(busy.value||activeShift.value||activeTrip.value)return;busy.value=true;try{await application.recordRevenue({work_session_id:null,amount_paise:Math.round((numeric(dayRevenue.value)||0)*100),toll_paise:Math.round((numeric(toll.value)||0)*100),parking_paise:Math.round((numeric(parking.value)||0)*100),fare_included:fareIncluded.value,recorded_at:new Date().toISOString(),business_date:dayDate.value,scope:'BUSINESS'});dayRevenue.value='';toll.value='';parking.value='';dayEnded.value=true;notify('Day ended safely');}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 async function saveFuel(){if(busy.value)return;const o=numeric(fuelOdometer.value||prefillOdometer.value),p=numeric(fuelPrice.value),a=numeric(fuelAmount.value);if(!Number.isFinite(o)||o<0||!Number.isFinite(p)||p<=0||!Number.isFinite(a)||a<=0){error.value={error:'Enter valid CNG fuel values'};return;}busy.value=true;try{const s=await application.recordFuel({odometer:o,price_per_kg:p,amount_paise:Math.round(a*100),recorded_at:new Date().toISOString(),scope:'BUSINESS'});lastFuel.value=s;closeFuelSheet(true);notify('Fuel refill saved safely',{kind:'FUEL',id:s.id});}catch(e){error.value=viewModels.error(e);}finally{busy.value=false;}}
 function closeFuelSheet(force=false){if(!force&&fuelDirty.value){if(!window.confirm('Discard this refill?'))return;}fuelOpen.value=false;fuelOdometer.value='';fuelPrice.value='';fuelAmount.value='';}
