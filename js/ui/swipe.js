@@ -1,19 +1,5 @@
 const DEFAULT_THRESHOLD = 72;
 const DEFAULT_AXIS_RATIO = 1.25;
-const LOCAL_GESTURE_SELECTOR = [
-  '[data-action="trip"]',
-  '.quick-fuel-zone',
-  'button',
-  'input',
-  'textarea',
-  'select',
-  'a',
-  '[contenteditable="true"]',
-].join(',');
-
-function isLocalGestureTarget(target) {
-  return target instanceof Element && Boolean(target.closest(LOCAL_GESTURE_SELECTOR));
-}
 
 export function axisLockedDirection(dx, dy, { threshold = DEFAULT_THRESHOLD, axisRatio = DEFAULT_AXIS_RATIO } = {}) {
   const x = Number(dx) || 0;
@@ -37,10 +23,6 @@ export function createHorizontalSwipeEngine({
 
   const onPointerDown = (event) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
-    if (isLocalGestureTarget(event.target)) {
-      tracking = false;
-      return;
-    }
     startX = event.clientX;
     startY = event.clientY;
     tracking = true;
