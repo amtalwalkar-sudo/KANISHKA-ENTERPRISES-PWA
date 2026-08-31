@@ -3,17 +3,28 @@ import { ref } from 'vue';
 import KfeFormShell from './KfeFormShell.vue';
 const emit = defineEmits(['save-request', 'back']);
 const editing = ref(false);
+const detail = ref('');
 const initial = { type: '', cost: '', start: '', end: '' };
 function save(value) { emit('save-request', { module: 'Compliance', value }); }
+function openDetail(value) { detail.value = value; }
+function closeDetail() { detail.value = ''; }
 </script>
 <template>
   <section class="kfe-module-view" aria-labelledby="compliance-title">
-    <button class="kfe-secondary-action" type="button" @click="editing ? editing = false : emit('back')">‹ {{ editing ? 'Compliance' : 'More' }}</button>
-    <p class="kfe-eyebrow">Vehicle Operations</p><h1 id="compliance-title">Compliance</h1><p class="kfe-destination-subtitle">Renewals, validity and historical records.</p>
-    <template v-if="!editing">
+    <button class="kfe-secondary-action" type="button" @click="detail ? closeDetail() : editing ? editing = false : emit('back')">‹ {{ detail ? 'Compliance' : editing ? 'Compliance' : 'More' }}</button>
+    <template v-if="detail">
+      <p class="kfe-eyebrow">Vehicle Operations</p>
+      <h1 id="compliance-title">{{ detail === 'history' ? 'Renewal history' : 'Current validity' }}</h1>
+      <article class="kfe-detail-card">
+        <strong>{{ detail === 'history' ? 'Authoritative renewal history' : 'No active validity recorded' }}</strong>
+        <p>{{ detail === 'history' ? 'Completed renewals will appear here from the application read model.' : 'The current validity record will appear here when authoritative renewal data is available.' }}</p>
+      </article>
+    </template>
+    <template v-else-if="!editing">
+      <p class="kfe-eyebrow">Vehicle Operations</p><h1 id="compliance-title">Compliance</h1><p class="kfe-destination-subtitle">Renewals, validity and historical records.</p>
       <article class="kfe-action-card"><div><span class="kfe-card-label">Renewal</span><strong>Record a completed renewal</strong><p>Keep renewal type, cost and validity dates clear.</p></div><button class="kfe-primary-action" type="button" @click="editing = true">Add renewal</button></article>
-      <section class="kfe-module-section"><h2>Current validity</h2><article class="kfe-detail-card"><strong>No active validity recorded</strong><p>Authoritative renewal information will appear here when available.</p></article></section>
-      <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button"><span>Renewal history</span><span aria-hidden="true">›</span></button></section>
+      <section class="kfe-module-section"><h2>Current validity</h2><button class="kfe-list-action" type="button" @click="openDetail('validity')"><span>Current validity</span><span aria-hidden="true">›</span></button></section>
+      <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button" @click="openDetail('history')"><span>Renewal history</span><span aria-hidden="true">›</span></button></section>
     </template>
     <KfeFormShell v-else draft-key="compliance-renewal" title="Add renewal" subtitle="Record a completed renewal." :initial-value="initial" @save="save">
       <template #default="{ value }">
