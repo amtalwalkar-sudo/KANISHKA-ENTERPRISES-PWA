@@ -1,0 +1,145 @@
+name: KFE 2.0 consolidated baseline validation
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: kfe-consolidated-baseline
+  cancel-in-progress: true
+
+jobs:
+  baseline:
+    name: Consolidated baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout main baseline
+        uses: actions/checkout@v5
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build application
+        run: npm run build
+
+      - name: Install Chromium for browser persistence checks
+        run: timeout 180s npx playwright install --with-deps chromium
+
+      - name: Architecture validation
+        run: npm run validate:architecture
+
+      - name: Foundation hardening
+        run: npm run validate:foundation
+
+      - name: Domain calculations
+        run: npm run validate:domain
+
+      - name: Foundation audit
+        run: npm run validate:foundation-audit
+
+      - name: Phase I operational lifecycle
+        run: npm run validate:phase-i
+
+      - name: Phase J financial lifecycle
+        run: npm run validate:phase-j
+
+      - name: Phase K persistence recovery
+        run: npm run validate:phase-k
+
+      - name: Phase L operational integrity
+        run: npm run validate:phase-l
+
+      - name: Phase M application orchestration
+        run: npm run validate:phase-m
+
+      - name: Phase N presentation read model
+        run: npm run validate:phase-n
+
+      - name: Phase 1 structural PWA shell
+        run: npm run validate:phase-1
+
+      - name: Phase 2 shell interaction
+        run: npm run validate:phase-2
+
+      - name: Phase 3 UI ERP contract
+        run: npm run validate:phase-3
+
+      - name: Phase 4 Work Session vertical slice
+        run: npm run validate:phase-4
+
+      - name: Phase 5 module expansion
+        run: npm run validate:phase-5
+
+      - name: Phase 5 replication contract
+        run: npm run validate:phase-5-replication
+
+      - name: Phase 5 module application contracts
+        run: npm run validate:phase-5-module-contracts
+
+      - name: Vehicle application boundary
+        run: npm run validate:phase-5-vehicle
+
+      - name: Vehicle real persistence
+        run: npm run validate:phase-5-vehicle-real-persistence
+
+      - name: Fuel application boundary
+        run: npm run validate:phase-5-fuel-application
+
+      - name: Fuel real persistence
+        run: npm run validate:phase-5-fuel-real-persistence
+
+      - name: Expenses application boundary
+        run: npm run validate:phase-5-expenses-application
+
+      - name: Expenses real persistence
+        run: npm run validate:phase-5-expenses-real-persistence
+
+      - name: Revenue application boundary
+        run: npm run validate:phase-5-revenue-application
+
+      - name: Revenue real persistence
+        run: npm run validate:phase-5-revenue-real-persistence
+
+      - name: Loans application boundary
+        run: npm run validate:phase-5-loans-application
+
+      - name: Loans real persistence
+        run: npm run validate:phase-5-loans-real-persistence
+
+      - name: Renewals and compliance application boundary
+        run: npm run validate:phase-5-renewals-compliance-application
+
+      - name: Renewals and compliance real persistence
+        run: npm run validate:phase-5-renewals-compliance-real-persistence
+
+      - name: Maintenance application boundary
+        run: npm run validate:phase-5-maintenance-application
+
+      - name: Maintenance real persistence
+        run: npm run validate:phase-5-maintenance-real-persistence
+
+      - name: Profitability application boundary
+        run: npm run validate:phase-5-profitability-application
+
+      - name: Profitability real persistence
+        run: npm run validate:phase-5-profitability-real-persistence
+
+      - name: Dashboard application boundary
+        run: npm run validate:phase-5-dashboard-application
+
+      - name: Phase 5 completion integrity
+        run: npm run validate:phase-5-completion-integrity
+
+      - name: Phase 6 UI shell contract
+        run: npm run validate:phase-6-ui-shell
+
+      - name: Phase 7 reliability contract
+        run: npm run validate:phase-7-reliability
+
+      - name: Final build verification
+        run: npm run build
