@@ -29,7 +29,6 @@ const ACTIONS = {
   Revenue: ['Enter today’s revenue'],
   Loans: ['Prepayment calculator'],
   Compliance: ['Add renewal'],
-  Settings: ['Application settings'],
 };
 
 const formSpec = computed(() => {
@@ -42,10 +41,16 @@ const formSpec = computed(() => {
   return null;
 });
 
+function openApplicationSettings(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  settingsOpen.value = true;
+  activeAction.value = '';
+}
+
 function openAction(item) {
   if (props.module === 'Settings' && item === 'Application settings') {
-    settingsOpen.value = true;
-    activeAction.value = '';
+    openApplicationSettings();
     return;
   }
   if (props.module === 'Settings' && item === 'Reset all data') {
@@ -109,7 +114,11 @@ function onSave(value) { emit('save-request', { module: props.module, action: ac
         <section v-for="section in definition.sections" :key="section.title" class="kfe-module-section">
           <h2>{{ section.title }}</h2>
           <div class="kfe-module-list">
-            <button v-for="item in section.items" :key="item" type="button" @click="openAction(item)">
+            <template v-if="module === 'Settings' && section.title === 'System'">
+              <button type="button" @click.stop.prevent="openApplicationSettings($event)"><span>Application settings</span><span aria-hidden="true">›</span></button>
+              <button type="button" @click.stop.prevent="openAction('Reset all data')"><span>Reset all data</span><span aria-hidden="true">›</span></button>
+            </template>
+            <button v-else v-for="item in section.items" :key="item" type="button" @click="openAction(item)">
               <span>{{ item }}</span><span aria-hidden="true">›</span>
             </button>
           </div>
