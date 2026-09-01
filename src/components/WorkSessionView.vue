@@ -52,33 +52,19 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
   <section class="kfe-work-session" aria-labelledby="work-title">
     <div v-if="loading" class="work-loading" role="status">Loading Work…</div>
     <template v-else>
-      <header class="work-header">
-        <div><p class="kfe-eyebrow">Operational cockpit</p><h1 id="work-title">Work</h1><p>Today · {{ screenState.replaceAll('_', ' ') }}</p></div>
-        <div class="work-header-status"><span class="work-shift-mini">SHIFT {{ activeShift ? duration(shiftElapsed) : '—' }}</span></div>
-      </header>
-      <div v-if="error" class="work-error" role="alert">{{ error }}</div>
-      <div v-if="notice" class="work-notice" role="status">✓ {{ notice }}</div>
+      <header class="work-header"><div><p class="kfe-eyebrow">Operational cockpit</p><h1 id="work-title">Work</h1><p>Today · {{ screenState.replaceAll('_', ' ') }}</p></div><div class="work-header-status"><span class="work-shift-mini">SHIFT {{ activeShift ? duration(shiftElapsed) : '—' }}</span></div></header>
+      <div v-if="error" class="work-error" role="alert">{{ error }}</div><div v-if="notice" class="work-notice" role="status">✓ {{ notice }}</div>
       <main class="work-main">
-        <section v-if="screenState === 'DAY_START' || screenState === 'DAY_ENDED'" class="work-state-panel day-start-panel">
-          <p class="kfe-eyebrow">{{ screenState === 'DAY_ENDED' ? 'DAY ENDED' : 'START OF DAY' }}</p>
-          <h2>{{ screenState === 'DAY_ENDED' ? 'Ready for the next operational day' : 'Ready for operation' }}</h2>
-          <p class="muted">{{ latestOdometer == null ? 'Enter the odometer to establish the first authoritative reading.' : 'Your latest authoritative odometer is prefilled when you start the day.' }}</p>
-        </section>
-        <section v-else-if="screenState === 'DAY_READY'" class="work-state-panel ready-panel">
-          <p class="kfe-eyebrow">READY FOR OPERATION</p><div class="ready-odometer"><span>Odometer</span><strong>{{ latestOdometer }}</strong><small>km</small></div>
-          <div class="ready-status"><span>Shift: <b>NOT ACTIVE</b></span><span>Personal trip: <b>NOT ACTIVE</b></span></div>
-          <button class="end-day-button" type="button" :disabled="busy || !canEndDay" @click="requestEndDay">End day</button>
-        </section>
-        <section v-else-if="screenState === 'SHIFT_WAITING'" class="work-state-panel waiting-panel">
-          <p class="kfe-eyebrow">SHIFT ACTIVE</p><div class="waiting-metrics"><div><span>Trips</span><strong>{{ shiftTripCount }}</strong></div><div><span>Shift time</span><strong>{{ duration(shiftElapsed) }}</strong></div></div><p class="waiting-copy">Waiting for the next ride.</p>
-        </section>
+        <section v-if="screenState === 'DAY_START' || screenState === 'DAY_ENDED'" class="work-state-panel day-start-panel"><p class="kfe-eyebrow">{{ screenState === 'DAY_ENDED' ? 'DAY ENDED' : 'START OF DAY' }}</p><h2>{{ screenState === 'DAY_ENDED' ? 'Ready for the next operational day' : 'Ready for operation' }}</h2><p class="muted">{{ latestOdometer == null ? 'Enter the odometer to establish the first authoritative reading.' : 'Your latest authoritative odometer is prefilled when you start the day.' }}</p></section>
+        <section v-else-if="screenState === 'DAY_READY'" class="work-state-panel ready-panel"><p class="kfe-eyebrow">READY FOR OPERATION</p><div class="ready-odometer"><span>Odometer</span><strong>{{ latestOdometer }}</strong><small>km</small></div><div class="ready-status"><span>Shift: <b>NOT ACTIVE</b></span><span>Personal trip: <b>NOT ACTIVE</b></span></div><button class="end-day-button" type="button" :disabled="busy || !canEndDay" @click="requestEndDay">End day</button></section>
+        <section v-else-if="screenState === 'SHIFT_WAITING'" class="work-state-panel waiting-panel"><p class="kfe-eyebrow">SHIFT ACTIVE</p><div class="waiting-metrics"><div><span>Trips</span><strong>{{ shiftTripCount }}</strong></div><div><span>Shift time</span><strong>{{ duration(shiftElapsed) }}</strong></div></div><p class="waiting-copy">Waiting for the next ride.</p></section>
         <section v-else-if="screenState === 'BUSINESS_TRIP'" class="work-state-panel trip-panel"><p class="kfe-eyebrow">BUSINESS TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Trip active</p></section>
         <section v-else-if="screenState === 'PERSONAL_TRIP'" class="work-state-panel trip-panel"><p class="kfe-eyebrow">PERSONAL TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Personal trip active</p></section>
       </main>
       <div class="bottom-action" aria-label="Work action">
         <KfeSwipeBar v-if="!form && screenState === 'DAY_START'" left-label="START PERSONAL TRIP" right-label="START DAY" left-action="START_PERSONAL_TRIP" right-action="START_DAY" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="!form && screenState === 'DAY_READY'" left-label="START PERSONAL TRIP" right-label="START BUSINESS SHIFT" left-action="START_PERSONAL_TRIP" right-action="START_SHIFT" :disabled="busy" @swipe="handleSwipe" />
-        <KfeSwipeBar v-else-if="!form && screenState === 'SHIFT_WAITING'" left-label="END SHIFT" right-label="START BUSINESS TRIP" left-action="START_TRIP" right-action="START_TRIP" :disabled="busy" @swipe="handleSwipe" />
+        <KfeSwipeBar v-else-if="!form && screenState === 'SHIFT_WAITING'" left-label="END SHIFT" right-label="START BUSINESS TRIP" left-action="END_SHIFT" right-action="START_TRIP" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="!form && screenState === 'BUSINESS_TRIP'" right-label="END BUSINESS TRIP" right-action="END_TRIP" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="!form && screenState === 'PERSONAL_TRIP'" right-label="END PERSONAL TRIP" right-action="END_PERSONAL_TRIP" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="form === 'DAY_START'" right-label="CONFIRM START DAY" right-action="START_DAY_CONFIRM" :disabled="busy || !dayAllocationValid" @swipe="handleSwipe" />
@@ -86,40 +72,14 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
         <KfeSwipeBar v-else-if="form === 'PERSONAL_END'" right-label="CLOSE PERSONAL TRIP" right-action="CLOSE_PERSONAL_TRIP" :disabled="busy || !personalEndValid" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="form === 'SHIFT_END'" left-label="CLOSE SHIFT" left-action="CLOSE_SHIFT" :disabled="busy || !shiftEndValid || !shiftRevenueValid" @swipe="handleSwipe" />
       </div>
-      <div v-if="form" class="work-form-overlay" role="dialog" aria-modal="true">
-        <div class="work-form-card">
-          <p class="kfe-eyebrow">{{ form === 'DAY_START' ? 'START OF DAY' : form === 'PERSONAL_START' ? 'START PERSONAL TRIP' : form === 'PERSONAL_END' ? 'END PERSONAL TRIP' : 'END SHIFT' }}</p>
-          <div v-if="form === 'DAY_START'" class="work-form-fields">
-            <label>Start odometer *<input v-model="dayStartOdometer" inputmode="numeric" type="number" min="0" step="1"></label>
-            <div v-if="dayDiff.required" class="allocation-block"><p>Allocate {{ dayDiff.difference }} km</p><label>Business KM *<input v-model="dayBusinessKm" inputmode="numeric" type="number" min="0" step="1"></label><label>Personal KM *<input v-model="dayPersonalKm" inputmode="numeric" type="number" min="0" step="1"></label></div>
-            <p class="muted">Prefilled from the latest authoritative odometer when available; editable.</p>
-          </div>
-          <div v-else-if="form === 'PERSONAL_START'" class="work-form-fields">
-            <label>Start odometer *<input v-model="personalStartOdometer" inputmode="numeric" type="number" min="0" step="1"></label>
-            <div v-if="personalDiff.required" class="allocation-block"><p>Allocate {{ personalDiff.difference }} km</p><label>Business KM *<input v-model="personalBusinessKm" inputmode="numeric" type="number" min="0" step="1"></label><label>Personal KM *<input v-model="personalPersonalKm" inputmode="numeric" type="number" min="0" step="1"></label></div>
-            <p class="muted">Prefilled from the latest authoritative odometer; editable.</p>
-          </div>
-          <div v-else-if="form === 'PERSONAL_END'" class="work-form-fields">
-            <label>End odometer *<input v-model="personalEndOdometer" inputmode="numeric" type="number" min="0" step="1"></label>
-            <label>Toll <span class="muted">Optional</span><input v-model="personalToll" inputmode="decimal" type="number" min="0" step="0.01"></label>
-            <label>Parking <span class="muted">Optional</span><input v-model="personalParking" inputmode="decimal" type="number" min="0" step="0.01"></label>
-            <p class="muted">End odometer is required and starts empty. Complete the form, then use the Close Personal Trip swipe.</p>
-          </div>
-          <div v-else class="work-form-fields">
-            <label>Revenue *<input v-model="shiftRevenue" inputmode="decimal" type="number" min="0" step="0.01"></label>
-            <label>End odometer *<input v-model="shiftEndOdometer" inputmode="numeric" type="number" min="0" step="1"></label>
-            <label>Toll <span class="muted">Optional</span><input v-model="shiftToll" inputmode="decimal" type="number" min="0" step="0.01"></label>
-            <label>Parking <span class="muted">Optional</span><input v-model="shiftParking" inputmode="decimal" type="number" min="0" step="0.01"></label>
-            <fieldset><legend>Toll fare treatment</legend><label><input v-model="shiftTollIncluded" type="radio" :value="true" name="shift-toll"> Included in fare</label><label><input v-model="shiftTollIncluded" type="radio" :value="false" name="shift-toll"> Not included in fare</label></fieldset>
-            <fieldset><legend>Parking fare treatment</legend><label><input v-model="shiftParkingIncluded" type="radio" :value="true" name="shift-parking"> Included in fare</label><label><input v-model="shiftParkingIncluded" type="radio" :value="false" name="shift-parking"> Not included in fare</label></fieldset>
-            <p class="muted">Revenue and end odometer are required. Toll and parking are optional. Complete the form, then use the Close Shift swipe.</p>
-          </div>
-          <button class="secondary-action" type="button" :disabled="busy" @click="closeForm">Cancel</button>
-        </div>
-      </div>
-      <div v-if="endDayConfirm" class="work-form-overlay" role="dialog" aria-modal="true">
-        <div class="work-form-card"><p class="kfe-eyebrow">END DAY</p><h2>Confirm day closure</h2><p>All active work must be closed before ending the day.</p><button class="primary-action" type="button" :disabled="busy" @click="confirmEndDay">Confirm</button><button class="secondary-action" type="button" :disabled="busy" @click="endDayConfirm = false">Cancel</button></div>
-      </div>
+      <div v-if="form" class="work-form-overlay" role="dialog" aria-modal="true"><div class="work-form-card"><p class="kfe-eyebrow">{{ form === 'DAY_START' ? 'START OF DAY' : form === 'PERSONAL_START' ? 'START PERSONAL TRIP' : form === 'PERSONAL_END' ? 'END PERSONAL TRIP' : 'END SHIFT' }}</p>
+        <div v-if="form === 'DAY_START'" class="work-form-fields"><label>Start odometer *<input v-model="dayStartOdometer" inputmode="numeric" type="number" min="0" step="1"></label><div v-if="dayDiff.required" class="allocation-block"><p>Allocate {{ dayDiff.difference }} km</p><label>Business KM *<input v-model="dayBusinessKm" inputmode="numeric" type="number" min="0" step="1"></label><label>Personal KM *<input v-model="dayPersonalKm" inputmode="numeric" type="number" min="0" step="1"></label></div><p class="muted">Prefilled from the latest authoritative odometer when available; editable.</p></div>
+        <div v-else-if="form === 'PERSONAL_START'" class="work-form-fields"><label>Start odometer *<input v-model="personalStartOdometer" inputmode="numeric" type="number" min="0" step="1"></label><div v-if="personalDiff.required" class="allocation-block"><p>Allocate {{ personalDiff.difference }} km</p><label>Business KM *<input v-model="personalBusinessKm" inputmode="numeric" type="number" min="0" step="1"></label><label>Personal KM *<input v-model="personalPersonalKm" inputmode="numeric" type="number" min="0" step="1"></label></div><p class="muted">Prefilled from the latest authoritative odometer; editable.</p></div>
+        <div v-else-if="form === 'PERSONAL_END'" class="work-form-fields"><label>End odometer *<input v-model="personalEndOdometer" inputmode="numeric" type="number" min="0" step="1"></label><label>Toll <span class="muted">Optional</span><input v-model="personalToll" inputmode="decimal" type="number" min="0" step="0.01"></label><label>Parking <span class="muted">Optional</span><input v-model="personalParking" inputmode="decimal" type="number" min="0" step="0.01"></label><p class="muted">End odometer is required and starts empty. Complete the form, then use the Close Personal Trip swipe.</p></div>
+        <div v-else class="work-form-fields"><label>Revenue *<input v-model="shiftRevenue" inputmode="decimal" type="number" min="0" step="0.01"></label><label>End odometer *<input v-model="shiftEndOdometer" inputmode="numeric" type="number" min="0" step="1"></label><label>Toll <span class="muted">Optional</span><input v-model="shiftToll" inputmode="decimal" type="number" min="0" step="0.01"></label><label>Parking <span class="muted">Optional</span><input v-model="shiftParking" inputmode="decimal" type="number" min="0" step="0.01"></label><fieldset><legend>Toll fare treatment</legend><label><input v-model="shiftTollIncluded" type="radio" :value="true" name="shift-toll"> Included in fare</label><label><input v-model="shiftTollIncluded" type="radio" :value="false" name="shift-toll"> Not included in fare</label></fieldset><fieldset><legend>Parking fare treatment</legend><label><input v-model="shiftParkingIncluded" type="radio" :value="true" name="shift-parking"> Included in fare</label><label><input v-model="shiftParkingIncluded" type="radio" :value="false" name="shift-parking"> Not included in fare</label></fieldset><p class="muted">Revenue and end odometer are required. Toll and parking are optional. Complete the form, then use the Close Shift swipe.</p></div>
+        <button class="secondary-action" type="button" :disabled="busy" @click="closeForm">Cancel</button>
+      </div></div>
+      <div v-if="endDayConfirm" class="work-form-overlay" role="dialog" aria-modal="true"><div class="work-form-card"><p class="kfe-eyebrow">END DAY</p><h2>Confirm day closure</h2><p>All active work must be closed before ending the day.</p><button class="primary-action" type="button" :disabled="busy" @click="confirmEndDay">Confirm</button><button class="secondary-action" type="button" :disabled="busy" @click="endDayConfirm = false">Cancel</button></div></div>
     </template>
   </section>
 </template>
