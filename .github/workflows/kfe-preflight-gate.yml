@@ -1,0 +1,62 @@
+name: KFE Preflight Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: kfe-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: KFE Preflight Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build PWA
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: #8 Frozen-rule drift audit
+        run: npm run validate:foundation-audit
+
+      - name: #7 Full wiring verification
+        run: |
+          npm run validate:module-application-boundaries
+          npm run validate:real-persistence
+
+      - name: #5 Complete browser workflow
+        run: npm run validate:work-screen-browser
+
+      - name: #2 Exact CI-mirror validation
+        run: |
+          npm run validate:architecture
+          npm run validate:foundation
+          npm run validate:domain
+          npm run validate:lifecycle
+          npm run validate:persistence
+          npm run validate:recovery
+          npm run validate:ui-shell
+          npm run validate:runtime-syntax
+          npm run validate:runtime-identity
+          npm run validate:service-worker
+          npm run validate:offline-resilience
+
+      - name: Preflight result
+        run: echo "KFE PREFLIGHT GATE PASSED — normal CI may proceed."
