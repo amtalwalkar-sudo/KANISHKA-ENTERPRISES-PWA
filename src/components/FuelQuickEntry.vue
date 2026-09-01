@@ -105,7 +105,6 @@ async function save() {
       data.location_name = location.location_name
       const record = await application.recordFuel(data)
       lastFuel.value = record
-      // Location is optional background enrichment; it never blocks the Fuel transaction.
       void locationPromise?.then(async captured => {
         if (!captured || captured.latitude == null || captured.longitude == null) return
         await application.updateFuel(record.id, {
@@ -141,6 +140,7 @@ onUnmounted(() => { locationPromise = null })
     <div class="fuel-form-card">
       <p class="kfe-eyebrow">⛽ REFUEL</p>
       <h2>Quick Fuel</h2>
+      <p class="fuel-capture-note">Date/time and optional location are captured automatically in the background.</p>
       <div class="fuel-form-fields">
         <label>Odometer *<input v-model="odometer" inputmode="numeric" type="number" min="0" step="1" autocomplete="off"></label>
         <label>Fuel price per litre/kg *<input v-model="price" inputmode="decimal" type="number" min="0" step="0.01" autocomplete="off"></label>
@@ -154,10 +154,10 @@ onUnmounted(() => { locationPromise = null })
         <p>Amount: ₹{{ (Number(lastFuel.amount_paise || 0) / 100).toFixed(2) }}</p>
         <button type="button" class="secondary-action" :disabled="busy" @click="beginEdit">Edit</button>
       </div>
-      <p v-if="error" class="work-error" role="alert">{{ error }}</p>
+      <p v-if="error" class="work-error kfe-qf-error" role="alert">{{ error }}</p>
       <p v-if="notice" class="work-notice" role="status">{{ notice }}</p>
       <KfeSwipeBar right-label="SAVE FUEL" right-action="SAVE_FUEL" :disabled="busy || !fieldsValid" @swipe="requestSave" />
-      <button type="button" class="secondary-action" :disabled="busy" @click="cancel">Cancel</button>
+      <button type="button" class="secondary-action kfe-qf-close" :disabled="busy" @click="cancel">Cancel</button>
     </div>
   </div>
 </template>
@@ -165,6 +165,7 @@ onUnmounted(() => { locationPromise = null })
 <style scoped>
 .fuel-form-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:1rem;background:rgba(0,0,0,.45)}
 .fuel-form-card{width:min(32rem,100%);max-height:90vh;overflow:auto;border-radius:1rem;padding:1.25rem;background:var(--surface,#fff);box-shadow:0 1rem 3rem rgba(0,0,0,.2)}
+.fuel-capture-note{margin:.5rem 0 1rem}
 .fuel-form-fields,.last-fuel-entry{display:grid;gap:.75rem;margin:.75rem 0 1rem}
 .fuel-form-card label{display:grid;gap:.35rem;font-weight:600}
 .fuel-form-card input{width:100%;box-sizing:border-box;padding:.75rem;border:1px solid #bbb;border-radius:.5rem}
