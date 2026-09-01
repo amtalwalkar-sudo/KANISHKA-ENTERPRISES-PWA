@@ -30,5 +30,6 @@ function save(payload) {
       </template>
     </KfeFormShell>
     <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button" @click="emit('open', 'Vehicle timeline')"><span>Relevant timeline events</span><span aria-hidden="true">›</span></button></section>
+    <section class="kfe-module-section"><h2>Related</h2><button class="kfe-list-action" type="button" @click="emit('open', 'Driver')"><span>Driver</span><span aria-hidden="true">›</span></button></section>
   </section>
 </template>
