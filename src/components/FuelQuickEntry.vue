@@ -143,7 +143,7 @@ onUnmounted(() => { locationPromise = null })
       <h2>Quick Fuel</h2>
       <div class="fuel-form-fields">
         <label>Odometer *<input v-model="odometer" inputmode="numeric" type="number" min="0" step="1" autocomplete="off"></label>
-        <label>Fuel price per litre/kg *<input v-model="price" inputmode="decimal" type="number" min="0" step="0.01" autocomplete="off"></label>
+        <label>Fuel price per kg *<input v-model="price" inputmode="decimal" type="number" min="0" step="0.01" autocomplete="off"></label>
         <label>Amount *<input v-model="amount" inputmode="decimal" type="number" min="0" step="0.01" autocomplete="off"></label>
         <p v-if="quantity != null" class="muted">Quantity: {{ quantity.toFixed(3) }} kg</p>
       </div>
