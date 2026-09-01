@@ -85,6 +85,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install browser runtime prerequisites
+        run: npx playwright install --with-deps chromium
+
       - name: Specification and architecture gates
         run: |
           npm run validate:architecture
@@ -126,16 +129,29 @@ jobs:
           npm run validate:phase-5-profitability-application
           npm run validate:phase-5-dashboard-application
 
-      - name: Real persistence gates
-        run: |
-          npm run validate:phase-5-vehicle-real-persistence
-          npm run validate:phase-5-fuel-real-persistence
-          npm run validate:phase-5-expenses-real-persistence
-          npm run validate:phase-5-revenue-real-persistence
-          npm run validate:phase-5-loans-real-persistence
-          npm run validate:phase-5-renewals-compliance-real-persistence
-          npm run validate:phase-5-maintenance-real-persistence
-          npm run validate:phase-5-profitability-real-persistence
+      - name: Real persistence — vehicle
+        run: npm run validate:phase-5-vehicle-real-persistence
+
+      - name: Real persistence — fuel
+        run: npm run validate:phase-5-fuel-real-persistence
+
+      - name: Real persistence — expenses
+        run: npm run validate:phase-5-expenses-real-persistence
+
+      - name: Real persistence — revenue
+        run: npm run validate:phase-5-revenue-real-persistence
+
+      - name: Real persistence — loans
+        run: npm run validate:phase-5-loans-real-persistence
+
+      - name: Real persistence — renewals/compliance
+        run: npm run validate:phase-5-renewals-compliance-real-persistence
+
+      - name: Real persistence — maintenance
+        run: npm run validate:phase-5-maintenance-real-persistence
+
+      - name: Real persistence — profitability
+        run: npm run validate:phase-5-profitability-real-persistence
 
       - name: Runtime syntax and Work Screen domain gates
         shell: bash
@@ -193,9 +209,7 @@ jobs:
           exit 1
 
       - name: Production browser smoke gate
-        run: |
-          npx playwright install --with-deps chromium
-          node js/testing/work-screen-browser.mjs
+        run: node js/testing/work-screen-browser.mjs
 
       - name: Offline/resilience gate
         run: node js/testing/app-resilience-reliability-offline.mjs
