@@ -7,7 +7,11 @@ export const WORK_SCREEN_STATES=Object.freeze({
   DAY_ENDED:'DAY_ENDED'
 });
 
-function finite(value){const n=Number(value);return Number.isFinite(n)?n:null;}
+function finite(value){
+  if(value===null||value===undefined||value==='')return null;
+  const n=Number(value);
+  return Number.isFinite(n)?n:null;
+}
 
 export function calculateOdometerDifference(prefilled,current){
   const previous=finite(prefilled),next=finite(current);
