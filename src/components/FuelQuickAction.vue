@@ -1,6 +1,7 @@
 <script setup>
 import {computed,onMounted,onUnmounted,ref} from 'vue';
 import {application} from '../../js/app.js';
+import KfeSwipeBar from './KfeSwipeBar.vue';
 
 const open=ref(false),busy=ref(false),error=ref(''),confirming=ref(false),editing=ref(false),otherFormOpen=ref(false);
 const odometer=ref(''),price=ref(''),amount=ref('');
@@ -66,8 +67,6 @@ async function saveEdit(){
     await loadLast();open.value=false;clearForm();window.dispatchEvent(new CustomEvent('kfe:fuel-saved',{detail:{id}}));
   }catch(e){error.value=String(e?.message||e);confirming.value=false;}finally{busy.value=false;}
 }
-function pointerDown(event){if(!canSave.value)return;if(event.pointerType==='mouse'&&event.button!==0)return;event.currentTarget.setPointerCapture?.(event.pointerId);event.currentTarget.dataset.startX=String(event.clientX);}
-function pointerUp(event){const start=Number(event.currentTarget.dataset.startX);if(!Number.isFinite(start))return;delete event.currentTarget.dataset.startX;if(start-event.clientX>100)void requestSave();}
 onMounted(()=>{observer=new MutationObserver(syncOtherForm);observer.observe(document.body,{subtree:true,childList:true});syncOtherForm();});
 onUnmounted(()=>{observer?.disconnect();clearTimeout(locationTimer);});
 </script>
@@ -85,12 +84,12 @@ onUnmounted(()=>{observer?.disconnect();clearTimeout(locationTimer);});
       <div v-if="confirming" class="fuel-confirm"><p>Confirm this fuel entry?</p><button class="primary-action" type="button" :disabled="busy" @click="editing?saveEdit():saveNew()">Confirm</button><button class="secondary-action" type="button" :disabled="busy" @click="confirming=false">Cancel</button></div>
       <button v-else class="secondary-action" type="button" :disabled="busy" @click="closeFuel">Cancel</button>
     </div>
-    <div v-if="!confirming" class="fuel-swipe-zone" :class="{'is-disabled':!canSave||busy}" @pointerdown="pointerDown" @pointerup="pointerUp">SWIPE LEFT TO CONFIRM →</div>
+    <KfeSwipeBar v-if="!confirming" right-label="CONFIRM FUEL" right-action="CONFIRM_FUEL" :disabled="!canSave||busy" @swipe="requestSave" />
   </div>
 </template>
 <style scoped>
 .fuel-quick-tab{position:fixed;right:16px;bottom:calc(var(--kfe-bottom-nav-height) + var(--kfe-safe-bottom) + 92px);z-index:70;min-height:48px;padding:0 14px;border:2px solid var(--kfe-shell-border);border-radius:14px;background:var(--kfe-shell-surface);color:var(--kfe-shell-text);font-weight:850;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .fuel-form-overlay{position:fixed;inset:0;z-index:100;background:color-mix(in srgb,var(--kfe-shell-bg) 96%,transparent);display:flex;align-items:flex-start;justify-content:center;padding:calc(var(--kfe-topbar-height) + var(--kfe-safe-top) + 10px) 10px calc(var(--kfe-bottom-nav-height) + var(--kfe-safe-bottom) + 96px);overflow:auto}
 .fuel-form-card{width:min(620px,100%);display:grid;gap:13px;padding:20px;border:1px solid var(--kfe-shell-border);border-radius:18px;background:var(--kfe-shell-surface);box-shadow:0 12px 36px rgba(0,0,0,.25)}
-.fuel-form-card h2{margin:0}.fuel-form-card label{display:grid;gap:6px;font-weight:700}.fuel-form-card input{width:100%;min-height:50px;padding:11px 13px;border:1px solid var(--kfe-shell-border);border-radius:12px;background:var(--kfe-shell-bg);color:var(--kfe-shell-text);font-size:16px;box-sizing:border-box}.fuel-auto,.fuel-last-entry{display:grid;gap:5px;padding:14px;border:1px solid var(--kfe-shell-border);border-radius:15px;background:var(--kfe-shell-bg);color:var(--kfe-shell-muted)}.fuel-last-entry h3{margin:0;color:var(--kfe-shell-text)}.fuel-last-entry p{margin:0}.fuel-error{padding:10px 12px;border:1px solid var(--kfe-shell-border);border-radius:12px;font-weight:700}.fuel-confirm{display:grid;gap:10px}.fuel-swipe-zone{position:fixed;left:calc(var(--kfe-safe-left) + 16px);right:calc(var(--kfe-safe-right) + 16px);bottom:calc(var(--kfe-bottom-nav-height) + var(--kfe-safe-bottom) + 8px);height:68px;display:flex;align-items:center;justify-content:center;border:2px solid var(--kfe-shell-border);border-radius:18px;background:var(--kfe-shell-surface);font-weight:850;box-shadow:0 4px 14px rgba(0,0,0,.16);touch-action:none;user-select:none}.fuel-swipe-zone.is-disabled{opacity:.48}@media(min-width:700px){.fuel-swipe-zone{left:50%;right:auto;width:min(calc(100% - 48px),928px);transform:translateX(-50%)}}
+.fuel-form-card h2{margin:0}.fuel-form-card label{display:grid;gap:6px;font-weight:700}.fuel-form-card input{width:100%;min-height:50px;padding:11px 13px;border:1px solid var(--kfe-shell-border);border-radius:12px;background:var(--kfe-shell-bg);color:var(--kfe-shell-text);font-size:16px;box-sizing:border-box}.fuel-auto,.fuel-last-entry{display:grid;gap:5px;padding:14px;border:1px solid var(--kfe-shell-border);border-radius:15px;background:var(--kfe-shell-bg);color:var(--kfe-shell-muted)}.fuel-last-entry h3{margin:0;color:var(--kfe-shell-text)}.fuel-last-entry p{margin:0}.fuel-error{padding:10px 12px;border:1px solid var(--kfe-shell-border);border-radius:12px;font-weight:700}.fuel-confirm{display:grid;gap:10px}
 </style>
