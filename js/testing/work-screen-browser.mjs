@@ -11,7 +11,7 @@ try{
  await swipe(page.locator('.kfe-swipe-bar'),'LEFT');
  const personalStart=page.getByLabel('Start odometer *');
  await personalStart.fill('100');
- await page.getByRole('button',{name:'Start personal trip',exact:true}).click();
+ await swipe(page.locator('.kfe-swipe-bar'),'RIGHT');
  await waitState('PERSONAL TRIP');
  await swipe(page.locator('.kfe-swipe-bar'),'RIGHT');
  const personalEnd=page.getByLabel('End odometer *');
@@ -28,7 +28,7 @@ try{
  await page.getByText('Allocate 10 km',{exact:true}).waitFor({state:'visible'});
  await page.getByLabel('Business KM').fill('7');
  await page.getByLabel('Personal KM').fill('3');
- await page.getByRole('button',{name:'Confirm',exact:true}).click();
+ await swipe(page.locator('.kfe-swipe-bar'),'RIGHT');
  await waitState('READY FOR OPERATION');
  // READY FOR OPERATION -> Personal Trip form -> editable prefilled odometer + allocation -> Personal Trip -> READY FOR OPERATION.
  await swipe(page.locator('.kfe-swipe-bar'),'LEFT');
@@ -38,7 +38,7 @@ try{
  await page.getByText('Allocate 1 km',{exact:true}).waitFor({state:'visible'});
  await page.getByLabel('Business KM').fill('1');
  await page.getByLabel('Personal KM').fill('0');
- await page.getByRole('button',{name:'Start personal trip',exact:true}).click();
+ await swipe(page.locator('.kfe-swipe-bar'),'RIGHT');
  await waitState('PERSONAL TRIP');
  await swipe(page.locator('.kfe-swipe-bar'),'RIGHT');
  await page.getByLabel('End odometer *').fill('125');
@@ -59,7 +59,8 @@ try{
  const shiftEnd=page.getByLabel('End odometer *');
  assert.equal(await shiftEnd.inputValue(),'');
  await shiftEnd.fill('130');
- await swipe(page.locator('.kfe-swipe-bar'),'RIGHT');
+ await page.getByLabel('Revenue *').fill('1000');
+ await swipe(page.locator('.kfe-swipe-bar'),'LEFT');
  await waitState('READY FOR OPERATION');
  // End Day is button + confirmation, not a swipe/form.
  await page.getByRole('button',{name:'End day',exact:true}).click();
