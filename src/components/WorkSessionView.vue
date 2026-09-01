@@ -12,7 +12,6 @@ const personalEndOdometer = ref(''), personalToll = ref(''), personalParking = r
 const shiftRevenue = ref(''), shiftEndOdometer = ref(''), shiftToll = ref(''), shiftParking = ref('')
 const shiftTollIncluded = ref(false), shiftParkingIncluded = ref(false)
 let timer
-
 const screenState = computed(() => model.value?.state || 'DAY_START')
 const latestOdometer = computed(() => model.value?.latestOdometer)
 const dayStatus = computed(() => model.value?.day?.status || 'NOT_STARTED')
@@ -21,7 +20,6 @@ const activeTrip = computed(() => model.value?.trip?.active ? model.value.trip :
 const shiftElapsed = computed(() => activeShift.value?.startedAt ? Math.max(0, Math.floor((now.value - Date.parse(activeShift.value.startedAt)) / 1000)) : 0)
 const tripElapsed = computed(() => activeTrip.value?.startedAt ? Math.max(0, Math.floor((now.value - Date.parse(activeTrip.value.startedAt)) / 1000)) : 0)
 const shiftTripCount = computed(() => activeShift.value?.tripCount || 0)
-
 function duration(seconds) { const value = Math.max(0, Number(seconds) || 0); return [Math.floor(value / 3600), Math.floor(value / 60) % 60, value % 60].map(v => String(v).padStart(2, '0')).join(':') }
 function odometerDifference(current, previous) { const value = Number(current), prior = previous == null ? null : Number(previous); if (!Number.isInteger(value) || value < 0) return { valid: false, difference: 0, required: false }; if (prior == null) return { valid: true, difference: 0, required: false }; if (value < prior) return { valid: false, difference: prior - value, required: false }; return { valid: true, difference: value - prior, required: value !== prior } }
 function allocationValid(diff, business, personal) { if (!diff.valid) return false; if (!diff.required) return true; const b = Number(business), p = Number(personal); return Number.isInteger(b) && Number.isInteger(p) && b >= 0 && p >= 0 && b + p === diff.difference }
@@ -34,19 +32,12 @@ const personalEndValid = computed(() => { const n = Number(personalEndOdometer.v
 const shiftRevenueValid = computed(() => String(shiftRevenue.value).trim() !== '' && Number.isFinite(Number(shiftRevenue.value)) && Number(shiftRevenue.value) >= 0)
 const canStartDay = computed(() => screenState.value === 'DAY_START' && dayStatus.value !== 'COMPLETED')
 const canEndDay = computed(() => screenState.value === 'DAY_READY' && !activeShift.value && !activeTrip.value && dayStatus.value !== 'COMPLETED')
-
-function openForm(kind) {
-  error.value = ''; notice.value = ''; form.value = kind
-  if (kind === 'DAY_START') dayStartOdometer.value = latestOdometer.value == null ? '' : String(latestOdometer.value)
-  if (kind === 'PERSONAL_START') personalStartOdometer.value = latestOdometer.value == null ? '' : String(latestOdometer.value)
-  if (kind === 'PERSONAL_END') personalEndOdometer.value = ''
-  if (kind === 'SHIFT_END') { shiftRevenue.value = ''; shiftEndOdometer.value = ''; shiftToll.value = ''; shiftParking.value = ''; shiftTollIncluded.value = false; shiftParkingIncluded.value = false }
-}
+function openForm(kind) { error.value = ''; notice.value = ''; form.value = kind; if (kind === 'DAY_START') dayStartOdometer.value = latestOdometer.value == null ? '' : String(latestOdometer.value); if (kind === 'PERSONAL_START') personalStartOdometer.value = latestOdometer.value == null ? '' : String(latestOdometer.value); if (kind === 'PERSONAL_END') personalEndOdometer.value = ''; if (kind === 'SHIFT_END') { shiftRevenue.value = ''; shiftEndOdometer.value = ''; shiftToll.value = ''; shiftParking.value = ''; shiftTollIncluded.value = false; shiftParkingIncluded.value = false } }
 function closeForm() { if (!busy.value) { form.value = null; error.value = '' } }
 async function load() { loading.value = true; try { model.value = await application.getWorkScreenState() } catch (e) { error.value = String(e?.message || e) } finally { loading.value = false } }
 async function dispatch(type, payload = {}) { if (busy.value) return null; busy.value = true; error.value = ''; try { const result = await actions.dispatch(createUiCommand(type,payload)); form.value = null; endDayConfirm.value = false; await load(); return result } catch (e) { error.value = String(e?.message || e); return null } finally { busy.value = false } }
-async function confirmDayStart() { const odometer = Number(dayStartOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'Enter the day-start odometer.'); if (!dayDiff.value.valid) return (error.value = 'Odometer cannot decrease.'); if (!dayAllocationValid.value) return (error.value = `Allocate exactly ${dayDiff.value.difference} km between business and personal.`); await dispatch('START_DAY', { odometer, businessKm: dayDiff.value.required ? Number(dayBusinessKm.value) : 0, personalKm: dayDiff.value.required ? Number(dayPersonalKm.value) : 0, actionMode: 'SWIPE', direction: 'RIGHT' }) }
-async function confirmPersonalStart() { const odometer = Number(personalStartOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'Enter the personal-trip start odometer.'); if (!personalDiff.value.valid) return (error.value = 'Odometer cannot decrease.'); if (!personalAllocationValid.value) return (error.value = `Allocate exactly ${personalDiff.value.difference} km between business and personal.`); await dispatch('START_PERSONAL_TRIP', { odometer, businessKm: personalDiff.value.required ? Number(personalBusinessKm.value) : 0, personalKm: personalDiff.value.required ? Number(personalPersonalKm.value) : 0, actionMode: 'SWIPE', direction: 'LEFT' }) }
+async function confirmDayStart() { const odometer = Number(dayStartOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'Enter the day-start odometer.'); if (!dayDiff.value.valid) return (error.value = 'Odometer cannot decrease.'); if (!dayAllocationValid.value) return (error.value = `Allocate exactly ${dayDiff.value.difference} km between business and personal.`); await dispatch('START_DAY', { odometer, prefilledOdometer: latestOdometer.value, businessKm: dayDiff.value.required ? Number(dayBusinessKm.value) : 0, personalKm: dayDiff.value.required ? Number(dayPersonalKm.value) : 0, actionMode: 'SWIPE', direction: 'RIGHT' }) }
+async function confirmPersonalStart() { const odometer = Number(personalStartOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'Enter the personal-trip start odometer.'); if (!personalDiff.value.valid) return (error.value = 'Odometer cannot decrease.'); if (!personalAllocationValid.value) return (error.value = `Allocate exactly ${personalDiff.value.difference} km between business and personal.`); await dispatch('START_PERSONAL_TRIP', { odometer, prefilledOdometer: latestOdometer.value, businessKm: personalDiff.value.required ? Number(personalBusinessKm.value) : 0, personalKm: personalDiff.value.required ? Number(personalPersonalKm.value) : 0, actionMode: 'SWIPE', direction: 'LEFT' }) }
 async function confirmPersonalEnd() { const odometer = Number(personalEndOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'End odometer is compulsory.'); if (!personalEndValid.value) return (error.value = 'End odometer cannot be below the trip start odometer.'); await dispatch('END_PERSONAL_TRIP', { id: activeTrip.value?.id, endOdometer: odometer, tollPaise: Math.round(Math.max(0, Number(personalToll.value) || 0) * 100), parkingPaise: Math.round(Math.max(0, Number(personalParking.value) || 0) * 100), actionMode: 'SWIPE', direction: 'RIGHT' }) }
 async function confirmShiftEnd() { if (!shiftRevenueValid.value) return (error.value = 'Revenue is compulsory to close the business shift.'); const odometer = Number(shiftEndOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'End odometer is compulsory.'); if (!shiftEndValid.value) return (error.value = 'End odometer cannot be below the shift start odometer.'); await dispatch('END_SHIFT', { id: activeShift.value?.id, endOdometer: odometer, revenuePaise: Math.round(Number(shiftRevenue.value) * 100), tollPaise: Math.round(Math.max(0, Number(shiftToll.value) || 0) * 100), parkingPaise: Math.round(Math.max(0, Number(shiftParking.value) || 0) * 100), tollIncludedInFare: shiftTollIncluded.value, parkingIncludedInFare: shiftParkingIncluded.value, actionMode: 'SWIPE', direction: 'LEFT' }) }
 function handleSwipe(action) { if (action === 'START_DAY') return openForm('DAY_START'); if (action === 'START_PERSONAL_TRIP') return openForm('PERSONAL_START'); if (action === 'START_SHIFT') return dispatch('START_SHIFT', { actionMode: 'SWIPE', direction: 'RIGHT' }); if (action === 'START_TRIP') return dispatch('START_TRIP', { actionMode: 'SWIPE', direction: 'RIGHT' }); if (action === 'END_TRIP') return dispatch('END_TRIP', { id: activeTrip.value?.id, actionMode: 'SWIPE', direction: 'RIGHT' }); if (action === 'END_PERSONAL_TRIP') return openForm('PERSONAL_END'); if (action === 'END_SHIFT') return openForm('SHIFT_END'); if (action === 'START_DAY_CONFIRM') return confirmDayStart(); if (action === 'START_PERSONAL_TRIP_CONFIRM') return confirmPersonalStart(); if (action === 'CLOSE_PERSONAL_TRIP') return confirmPersonalEnd(); if (action === 'CLOSE_SHIFT') return confirmShiftEnd() }
@@ -87,7 +78,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
       <div class="bottom-action" aria-label="Work action">
         <KfeSwipeBar v-if="!form && screenState === 'DAY_START'" left-label="START PERSONAL TRIP" right-label="START DAY" left-action="START_PERSONAL_TRIP" right-action="START_DAY" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="!form && screenState === 'DAY_READY'" left-label="START PERSONAL TRIP" right-label="START BUSINESS SHIFT" left-action="START_PERSONAL_TRIP" right-action="START_SHIFT" :disabled="busy" @swipe="handleSwipe" />
-        <KfeSwipeBar v-else-if="!form && screenState === 'SHIFT_WAITING'" left-label="END SHIFT" right-label="START BUSINESS TRIP" left-action="END_SHIFT" right-action="START_TRIP" :disabled="busy" @swipe="handleSwipe" />
+        <KfeSwipeBar v-else-if="!form && screenState === 'SHIFT_WAITING'" left-label="END SHIFT" right-label="START BUSINESS TRIP" left-action="START_TRIP" right-action="START_TRIP" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="!form && screenState === 'BUSINESS_TRIP'" right-label="END BUSINESS TRIP" right-action="END_TRIP" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="!form && screenState === 'PERSONAL_TRIP'" right-label="END PERSONAL TRIP" right-action="END_PERSONAL_TRIP" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="form === 'DAY_START'" right-label="CONFIRM START DAY" right-action="START_DAY_CONFIRM" :disabled="busy || !dayAllocationValid" @swipe="handleSwipe" />
@@ -112,21 +103,22 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
             <label>End odometer *<input v-model="personalEndOdometer" inputmode="numeric" type="number" min="0" step="1"></label>
             <label>Toll <span class="muted">Optional</span><input v-model="personalToll" inputmode="decimal" type="number" min="0" step="0.01"></label>
             <label>Parking <span class="muted">Optional</span><input v-model="personalParking" inputmode="decimal" type="number" min="0" step="0.01"></label>
+            <p class="muted">End odometer is required and starts empty. Complete the form, then use the Close Personal Trip swipe.</p>
           </div>
-          <div v-else-if="form === 'SHIFT_END'" class="work-form-fields">
+          <div v-else class="work-form-fields">
             <label>Revenue *<input v-model="shiftRevenue" inputmode="decimal" type="number" min="0" step="0.01"></label>
             <label>End odometer *<input v-model="shiftEndOdometer" inputmode="numeric" type="number" min="0" step="1"></label>
             <label>Toll <span class="muted">Optional</span><input v-model="shiftToll" inputmode="decimal" type="number" min="0" step="0.01"></label>
-            <fieldset><legend>Toll fare treatment</legend><label><input v-model="shiftTollIncluded" type="radio" :value="true" name="shift-toll"> Included in fare</label><label><input v-model="shiftTollIncluded" type="radio" :value="false" name="shift-toll"> Not included in fare</label></fieldset>
             <label>Parking <span class="muted">Optional</span><input v-model="shiftParking" inputmode="decimal" type="number" min="0" step="0.01"></label>
+            <fieldset><legend>Toll fare treatment</legend><label><input v-model="shiftTollIncluded" type="radio" :value="true" name="shift-toll"> Included in fare</label><label><input v-model="shiftTollIncluded" type="radio" :value="false" name="shift-toll"> Not included in fare</label></fieldset>
             <fieldset><legend>Parking fare treatment</legend><label><input v-model="shiftParkingIncluded" type="radio" :value="true" name="shift-parking"> Included in fare</label><label><input v-model="shiftParkingIncluded" type="radio" :value="false" name="shift-parking"> Not included in fare</label></fieldset>
-            <p class="muted">Revenue and end odometer are compulsory. Toll and parking are optional.</p>
+            <p class="muted">Revenue and end odometer are required. Toll and parking are optional. Complete the form, then use the Close Shift swipe.</p>
           </div>
           <button class="secondary-action" type="button" :disabled="busy" @click="closeForm">Cancel</button>
         </div>
       </div>
       <div v-if="endDayConfirm" class="work-form-overlay" role="dialog" aria-modal="true">
-        <div class="work-form-card"><p class="kfe-eyebrow">END DAY</p><h2>Confirm day closure</h2><button class="primary-action" type="button" :disabled="busy" @click="confirmEndDay">Confirm</button><button class="secondary-action" type="button" :disabled="busy" @click="endDayConfirm = false">Cancel</button></div>
+        <div class="work-form-card"><p class="kfe-eyebrow">END DAY</p><h2>Confirm day closure</h2><p>All active work must be closed before ending the day.</p><button class="primary-action" type="button" :disabled="busy" @click="confirmEndDay">Confirm</button><button class="secondary-action" type="button" :disabled="busy" @click="endDayConfirm = false">Cancel</button></div>
       </div>
     </template>
   </section>
