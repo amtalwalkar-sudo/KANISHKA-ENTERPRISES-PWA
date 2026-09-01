@@ -17,7 +17,7 @@
   },
   "currentScope": {
     "Vehicle": {"required": true},
-    "Driver": {"required": true, "analytics": false},
+    "Driver": {"required": false, "scope": "future", "analytics": false},
     "Work": {"required": true},
     "Fuel": {"required": true},
     "Expenses": {"required": true},
@@ -33,7 +33,7 @@
   "presentationRules": [
     "Business calculations belong outside Vue presentation components.",
     "Loan calculations belong in the domain/application layers, not loan presentation.",
-    "Vehicle presentation must expose the Driver navigation contract.",
+    "Future-scope modules must not be treated as required current-scope UI capabilities.",
     "Historical Entries must expose its save-request contract."
   ]
 }
