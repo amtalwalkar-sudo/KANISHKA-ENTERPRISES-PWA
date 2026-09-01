@@ -5,7 +5,7 @@ const browser=await chromium.launch({headless:true});
 const context=await browser.newContext();
 const page=await context.newPage();
 async function swipe(locator,direction){const box=await locator.boundingBox();assert.ok(box,'swipe bar must be visible');const x=box.x+box.width/2,y=box.y+box.height/2;await page.mouse.move(direction==='RIGHT'?x-100:x+100,y);await page.mouse.down();await page.mouse.move(direction==='RIGHT'?x+140:x-140,y,{steps:8});await page.mouse.up();}
-async function waitState(text){await page.getByText(text,{exact:true}).first().waitFor({state:'visible'});}
+async function waitState(text){try{await page.getByText(text,{exact:true}).first().waitFor({state:'visible',timeout:30000});}catch(error){console.log(`WORK_SCREEN_WAIT_FAILED=${text}`);console.log('WORK_SCREEN_BODY='+await page.locator('body').innerText().catch(()=>''));console.log('WORK_SCREEN_RUNTIME='+await page.evaluate(()=>{const r=window.__KFE_RUNTIME__||{};return JSON.stringify({hasRuntime:Boolean(r),application:Boolean(r.application),vue:window.KFE_VUE_RUNTIME?.mounted===true});}).catch(()=>''));throw error;}}
 try{
   await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});
   await page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.deleteDatabase('kfe');r.onsuccess=r.onerror=()=>resolve();}));
