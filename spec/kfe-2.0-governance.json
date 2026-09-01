@@ -21,5 +21,22 @@
     "Today's implementation must preserve extension points for future multi-vehicle/fleet and integration capabilities without implementing those capabilities now."
   ],
   "traceability": "SPECIFICATION -> CONTRACT -> TEST -> IMPLEMENTATION",
-  "deploymentRule": "Deployment is permitted only when every mandatory governance and existing validation gate passes."
+  "deploymentRule": "Deployment is permitted only when every mandatory governance and existing validation gate passes.",
+  "stateGovernance": {
+    "invariants": [
+      {
+        "id": "KFE-GOV-STATE-001",
+        "rule": "Every governance operation MUST begin by resolving repository, target branch, PR number, exact PR HEAD SHA, workflow commit SHA, and latest CI run SHA. A result from any other SHA MUST NOT be used as evidence for the current implementation.",
+        "onMismatch": "STOP; classify as STATE_MISMATCH; refresh repository state; do not modify application code; do not modify tests; do not declare PASS; do not deploy.",
+        "deploymentEffect": "No stale CI result may authorize a merge or deployment."
+      },
+      {
+        "id": "KFE-GOV-STATE-002",
+        "rule": "After ANY governance or implementation change, the new PR HEAD SHA and the CI validation code SHA MUST be resolved and compared before any result is accepted.",
+        "onMismatch": "STOP; classify as STATE_MISMATCH; do not diagnose using the stale run; do not make another implementation change; do not declare PASS; do not deploy."
+      }
+    ],
+    "freshnessRule": "CI evidence is valid only for the exact repository revision that the gate inspected.",
+    "staleLoopPrevention": "Never iterate on a stale failure. Re-resolve repository, PR, branch, HEAD SHA, workflow revision and CI run before each governance diagnosis or repair."
+  }
 }
