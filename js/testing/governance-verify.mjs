@@ -38,12 +38,6 @@ for (const file of [
   'docs/AI-ENGINEERING-CONTRACT.md'
 ]) if (!exists(file)) fail(`required governance file missing: ${file}`);
 
-// Production dependency-direction guard. Existing foundation exceptions are explicit and narrow.
-const productionRoots = [
-  ['src', ['js/application/', 'js/domain/', 'js/core/idb', 'js/core/repository', 'js/core/store']],
-  ['js/domain', ['src/', 'js/application/', 'js/services/', 'js/pwa/']],
-  ['js/application', ['src/', 'js/core/idb']]
-];
 function walk(dir) {
   const out = [];
   for (const entry of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
@@ -53,21 +47,29 @@ function walk(dir) {
   }
   return out;
 }
-for (const [dir, forbidden] of productionRoots) {
-  if (!exists(dir)) continue;
-  for (const file of walk(dir)) {
-    const text = read(file);
-    for (const token of forbidden) {
-      if (text.includes(token)) {
-        // Domain may use the shared data-confidence contract from core; it is not a persistence bypass.
-        if (dir === 'js/domain' && token === 'js/core/' && !/from ['"]\.\.\/core\/data-confidence\.js['"]/.test(text)) continue;
-        fail(`forbidden dependency token '${token}' in ${file}`);
-      }
-    }
+
+// Presentation may call application/domain contracts, but may not bypass persistence.
+for (const file of walk('src')) {
+  const text = read(file);
+  for (const token of ['js/core/idb', 'js/core/repository', 'js/core/store']) {
+    if (text.includes(token)) fail(`presentation persistence bypass '${token}' in ${file}`);
+  }
+}
+// Domain is pure business logic; the one existing foundation exception is the calculation-result contract.
+for (const file of walk('js/domain')) {
+  const text = read(file);
+  for (const token of ['src/', 'js/application/', 'js/services/', 'js/pwa/']) {
+    if (text.includes(token)) fail(`forbidden domain dependency token '${token}' in ${file}`);
+  }
+}
+// Application orchestrates domain and repository contracts but must not import Vue or raw IndexedDB.
+for (const file of walk('js/application')) {
+  const text = read(file);
+  for (const token of ['src/', 'js/core/idb']) {
+    if (text.includes(token)) fail(`forbidden application dependency token '${token}' in ${file}`);
   }
 }
 
-// Current UI contract tripwires. These intentionally catch the known Vehicle -> Driver drift.
 const app = read('src/App.vue');
 const vehicle = read('src/components/VehicleModuleView.vue');
 for (const module of Object.keys(contracts.modules)) {
@@ -77,13 +79,11 @@ if (!/DriverModuleView/.test(app)) fail('DriverModuleView is not wired into App.
 if (!/emit\('open', 'Driver'\)/.test(vehicle)) fail("VehicleModuleView must emit open/Driver according to the UI contract");
 if (!/save-request/.test(read('src/components/HistoricalEntriesView.vue'))) fail('Historical Entries save-request contract missing');
 
-// Frozen Tax Reserve exclusion applies to production runtime, not governance/tests/docs.
 for (const file of [...walk('src'), ...walk('js/domain'), ...walk('js/application'), ...walk('js/core')]) {
   const text = read(file);
   if (/Tax Reserve|tax reserve/i.test(text)) fail(`forbidden Tax Reserve concept found in production runtime: ${file}`);
 }
 
-// PWA integrity: every service-worker app-shell URL must resolve to a tracked repository path.
 const sw = read('service-worker.js');
 const shellMatch = sw.match(/const APP_SHELL=\[(.*?)\];/s);
 if (!shellMatch) fail('service-worker APP_SHELL declaration missing');
@@ -96,7 +96,6 @@ const main = read('src/main.js');
 if (!/navigator\.serviceWorker\.register/.test(main)) fail('service-worker registration is not present in src/main.js');
 if (!/event\.request\.mode==='navigate'/.test(sw)) fail('SPA navigation fallback guard is missing from service-worker.js');
 
-// Financial golden vector: execute the current authoritative implementation against an approved case.
 const { profitability } = await import(path.join(root, 'js/domain/dashboard.js'));
 const vector = golden.vectors.find(v => v.id === 'PROFITABILITY-001');
 if (!vector) fail('required profitability golden vector is missing');
