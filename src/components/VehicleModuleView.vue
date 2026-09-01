@@ -29,7 +29,6 @@ function save(payload) {
         <div class="kfe-form-field"><label class="kfe-form-label" for="vehicle-retirement"><span>Retirement date</span><span class="kfe-optional">Optional</span></label><input id="vehicle-retirement" v-model="value.retirementDate" class="kfe-form-input" type="date" /></div>
       </template>
     </KfeFormShell>
-    <section class="kfe-module-section"><h2>Driver</h2><button class="kfe-list-action" type="button" @click="emit('open', 'Driver')"><span>Manage current driver</span><span aria-hidden="true">›</span></button></section>
     <section class="kfe-module-section"><h2>History</h2><button class="kfe-list-action" type="button" @click="emit('open', 'Vehicle timeline')"><span>Relevant timeline events</span><span aria-hidden="true">›</span></button></section>
   </section>
 </template>
