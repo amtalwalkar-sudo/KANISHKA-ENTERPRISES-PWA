@@ -3,8 +3,6 @@ name: KFE Preflight Gate
 on:
   workflow_call:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
 
 concurrency:
   group: kfe-preflight-${{ github.ref }}
