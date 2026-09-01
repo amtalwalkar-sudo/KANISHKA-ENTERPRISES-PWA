@@ -23,6 +23,7 @@
     "validate:phase-4": "node js/testing/phase-4-work-session-vertical-slice.mjs",
     "validate:work-screen-browser": "node js/testing/work-screen-browser.mjs",
     "validate:foundation-audit": "node js/testing/foundation-audit.mjs",
+    "validate:repository-hardening": "node js/testing/repository-hardening-contract.mjs",
     "validate:phase-5": "node js/testing/phase-5-module-expansion.mjs",
     "validate:phase-5-replication": "node js/testing/phase-5-replication-contract.mjs",
     "validate:phase-5-module-contracts": "node js/testing/phase-5-module-application-contracts.mjs",
