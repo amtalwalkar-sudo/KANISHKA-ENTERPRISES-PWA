@@ -89,8 +89,6 @@ onUnmounted(()=>{clearInterval(timer);window.removeEventListener('keydown',onKey
 </template>
 </section>
 </template>
-</section>
-</template>
 <style scoped>
 /* existing work-session styling remains in work-session.css */
 </style>
