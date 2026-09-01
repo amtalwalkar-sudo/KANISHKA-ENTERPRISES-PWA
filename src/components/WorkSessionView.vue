@@ -63,7 +63,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
         <section v-else-if="screenState === 'BUSINESS_TRIP'" class="work-state-panel trip-panel"><p class="kfe-eyebrow">BUSINESS TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Trip active</p></section>
         <section v-else-if="screenState === 'PERSONAL_TRIP'" class="work-state-panel trip-panel"><p class="kfe-eyebrow">PERSONAL TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Personal trip active</p></section>
       </main>
-      <div v-if="!form && !fuelOpen" class="fuel-tab-wrap"><button class="fuel-tab" type="button" aria-label="Quick fuel" @click="openFuel">⛽ FUEL</button></div>
+      <div v-if="!form && !fuelOpen" class="fuel-tab-wrap"><button class="fuel-tab" type="button" aria-label="Quick Fuel" @click="openFuel">⛽ FUEL</button></div>
       <div class="bottom-action" aria-label="Work action">
         <KfeSwipeBar v-if="!form && screenState === 'DAY_START'" left-label="START PERSONAL TRIP" right-label="START DAY" left-action="START_PERSONAL_TRIP" right-action="START_DAY" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="!form && screenState === 'DAY_READY'" left-label="START PERSONAL TRIP" right-label="START BUSINESS SHIFT" left-action="START_PERSONAL_TRIP" right-action="START_SHIFT" :disabled="busy" @swipe="handleSwipe" />
