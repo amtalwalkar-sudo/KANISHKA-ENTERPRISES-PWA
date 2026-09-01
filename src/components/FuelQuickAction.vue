@@ -39,7 +39,7 @@ function validate(){
   if(!Number.isFinite(a)||a<=0){error.value='Enter the fuel amount.';return false;}
   return true;
 }
-async function authoritativeOdometer(){try{return await application.latestWorkOdometer();}catch{return null;}}
+async function authoritativeOdometer(){try{const latest=await application.latestWorkOdometer();return latest?.odometer??null;}catch{return null;}}
 async function requestSave(){
   if(!validate())return;
   const current=Number(odometer.value),authoritative=await authoritativeOdometer();
@@ -62,9 +62,9 @@ async function saveEdit(){
   if(authoritative!=null&&Number.isFinite(Number(authoritative))&&current<Number(authoritative)){error.value='Fuel odometer cannot be below the authoritative odometer.';return;}
   busy.value=true;error.value='';
   try{
-    const pricePerUnit=Number(price.value),quantity=Number(amount.value)/pricePerUnit;
-    await application.updateFuel(lastFuel.value.id,{odometer:current,amount_paise:Math.round(Number(amount.value)*100),price_per_unit:pricePerUnit,price_per_kg:pricePerUnit,quantity,quantity_kg:quantity});
-    await loadLast();open.value=false;clearForm();window.dispatchEvent(new CustomEvent('kfe:fuel-saved',{detail:{id:lastFuel.value?.id}}));
+    const pricePerUnit=Number(price.value),quantity=Number(amount.value)/pricePerUnit,id=lastFuel.value.id;
+    await application.updateFuel(id,{odometer:current,amount_paise:Math.round(Number(amount.value)*100),price_per_unit:pricePerUnit,price_per_kg:pricePerUnit,quantity,quantity_kg:quantity});
+    await loadLast();open.value=false;clearForm();window.dispatchEvent(new CustomEvent('kfe:fuel-saved',{detail:{id}}));
   }catch(e){error.value=String(e?.message||e);confirming.value=false;}finally{busy.value=false;}
 }
 function pointerDown(event){if(!canSave.value)return;if(event.pointerType==='mouse'&&event.button!==0)return;event.currentTarget.setPointerCapture?.(event.pointerId);event.currentTarget.dataset.startX=String(event.clientX);}
