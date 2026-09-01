@@ -1,5 +1,4 @@
 import '../js/app.js';
-import '../js/ui/shift-revenue.js';
 import {createApp} from 'vue';
 import App from './App.vue';
 
