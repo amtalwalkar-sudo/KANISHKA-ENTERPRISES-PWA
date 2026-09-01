@@ -16,14 +16,13 @@ const commandHandlers=Object.freeze({
   START_DAY:payload=>application.startDay(payload),
   START_SHIFT:payload=>application.startShift(payload),
   END_SHIFT:async payload=>{
-    const revenue=window.__KFE_SHIFT_REVENUE_PAISE;
+    const revenue=payload?.revenuePaise;
     if(!Number.isInteger(revenue)||revenue<0)throw new Error('Shift revenue is compulsory. Enter revenue before closing the shift.');
     const shift=await application.getWork(payload?.id);
     if(!shift)throw new Error('Shift is not active.');
     const revenueRecord=await application.recordRevenue({work_session_id:shift.id,amount_paise:revenue,scope:'BUSINESS',business_date:shift.business_date,recorded_at:new Date().toISOString(),entry_source:'SHIFT_CLOSURE'});
     try{
       const result=await application.endShift(payload);
-      window.__KFE_SHIFT_REVENUE_PAISE=null;
       return result;
     }catch(error){
       try{const existing=await repository.entity('revenue_records').get(revenueRecord.id);if(existing)await repository.entity('revenue_records').softDelete(existing);}catch{}
