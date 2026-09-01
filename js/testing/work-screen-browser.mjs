@@ -27,6 +27,14 @@ async function newScenario({location='denied'}={}){
   await page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.deleteDatabase('kfe');r.onsuccess=r.onerror=r.onblocked=()=>resolve();}));
   await page.reload({waitUntil:'networkidle'});await page.getByRole('button',{name:'Work',exact:true}).click();await waitState(page,'START OF DAY');return {context,page};
 }
+async function newAvailableLocationScenario(){
+  const context=await browser.newContext({geolocation:{latitude:19.0176,longitude:72.8562},permissions:['geolocation']});
+  const page=await context.newPage();
+  await page.route('https://nominatim.openstreetmap.org/reverse**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({display_name:'KFE Test Location',name:'KFE Test Location'})}));
+  await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});
+  await page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.deleteDatabase('kfe');r.onsuccess=r.onerror=r.onblocked=()=>resolve();}));
+  await page.reload({waitUntil:'networkidle'});await page.getByRole('button',{name:'Work',exact:true}).click();await waitState(page,'START OF DAY');return {context,page};
+}
 async function openFuel(page){await page.getByRole('button',{name:'Quick fuel',exact:true}).click();await page.getByText('Quick Fuel',{exact:true}).waitFor({state:'visible'});}
 async function confirmFuel(page){await swipe(page,page.locator('.fuel-form-overlay .kfe-swipe-bar'),'RIGHT');await page.getByText('Confirm this fuel entry?',{exact:true}).waitFor({state:'visible'});}
 async function saveFuel(page,{odometer,price,amount}){await fillVisible(page,'Odometer *',odometer);await fillVisible(page,'Fuel price per litre/kg *',price);await fillVisible(page,'Amount *',amount);await confirmFuel(page);await page.getByRole('button',{name:'Confirm',exact:true}).click();}
@@ -90,6 +98,22 @@ try{
 
   // Location unavailable must not block Fuel save.
   await saveFuel(page,{odometer:32,price:80,amount:400});fuels=await appFuelRows(page);assert.equal(fuels.length,5);assert.equal(fuels.at(-1).location_name,null);assert.equal(fuels.at(-1).location_coordinates,null);
+
+  // Dedicated location-available browser proof: geolocation + reverse-geocoded name must persist.
+  const available=await newAvailableLocationScenario();
+  try{
+    const availableBar=available.page.locator('.kfe-swipe-bar');
+    await expectBar(available.page,'← START PERSONAL TRIP START DAY →');await swipe(available.page,availableBar,'RIGHT');
+    await fillVisible(available.page,'Start odometer *',100);await page.getByText('Allocate 100 km',{exact:true}).waitFor({state:'visible'}).catch(()=>{});
+    const businessKm=available.page.getByLabel('Business KM *');if(await businessKm.count())await fillVisible(available.page,'Business KM *',100);
+    const personalKm=available.page.getByLabel('Personal KM *');if(await personalKm.count())await fillVisible(available.page,'Personal KM *',0);
+    await swipe(available.page,availableBar,'RIGHT');await waitState(available.page,'READY FOR OPERATION');
+    await openFuel(available.page);await saveFuel(available.page,{odometer:100,price:80,amount:400});
+    const availableRows=await appFuelRows(available.page);assert.equal(availableRows.length,1);
+    const availableFuel=availableRows[0];assert.equal(availableFuel.odometer,100);assert.equal(availableFuel.amount_paise,40000);assert.equal(Number(availableFuel.price_per_kg),80);assert.equal(availableFuel.latitude,19.0176);assert.equal(availableFuel.longitude,72.8562);assert.equal(availableFuel.location_name,'KFE Test Location');assert.equal(availableFuel.location_source,'REVERSE_GEOCODED');
+    const persisted=await available.page.evaluate(async()=>await window.__KFE_RUNTIME__.application.listFuel());const persistedFuel=persisted[0];assert.equal(persistedFuel.id,availableFuel.id);assert.equal(persistedFuel.location_name,'KFE Test Location');assert.equal(persistedFuel.location_source,'REVERSE_GEOCODED');assert.equal(persistedFuel.latitude,19.0176);assert.equal(persistedFuel.longitude,72.8562);
+    console.log('PASS: Fuel location-available coordinates and reverse-geocoded name persisted');
+  }finally{await available.context.close();}
 
   // End Day confirmation -> closed.
   await page.getByRole('button',{name:'End day',exact:true}).click();await page.getByRole('dialog').getByText("End today's work day?",{exact:true}).waitFor({state:'visible'});await page.getByRole('button',{name:'Cancel',exact:true}).click();await waitState(page,'READY FOR OPERATION');await page.getByRole('button',{name:'End day',exact:true}).click();await page.getByRole('button',{name:'Confirm End Day',exact:true}).click();await waitState(page,'DAY ENDED');
