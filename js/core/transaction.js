@@ -14,6 +14,10 @@ export function runAtomicTransaction(db,storeNames,operation){
       transaction.onabort=()=>{if(!settled){settled=true;reject(transaction.error||new Error('IndexedDB transaction aborted'));}};
       const stores=Object.freeze(Object.fromEntries(storeNames.map(name=>[name,transaction.objectStore(name)])));
       result=operation(stores,transaction);
+      if(result&&typeof result.then==='function'){
+        try{transaction.abort();}catch{}
+        throw new TypeError('Transaction operation must queue IndexedDB requests synchronously; async operations are not atomic');
+      }
     }catch(error){try{transaction?.abort();}catch{}if(!settled){settled=true;reject(error);}}
   });
 }
