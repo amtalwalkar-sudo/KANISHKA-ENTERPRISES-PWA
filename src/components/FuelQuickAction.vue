@@ -2,14 +2,14 @@
 import {computed,onMounted,onUnmounted,ref} from 'vue';
 import {application} from '../../js/app.js';
 
-const open=ref(false),busy=ref(false),error=ref(''),confirming=ref(false),editing=ref(false);
+const open=ref(false),busy=ref(false),error=ref(''),confirming=ref(false),editing=ref(false),otherFormOpen=ref(false);
 const odometer=ref(''),price=ref(''),amount=ref('');
 const lastFuel=ref(null),location=ref(null),locationPending=ref(false);
 let observer=null,locationTimer=null;
 
 const canSave=computed(()=>Number.isInteger(Number(odometer.value))&&Number(odometer.value)>=0&&Number(price.value)>0&&Number(amount.value)>0&&!busy.value);
 const locationText=computed(()=>location.value?.name||location.value?.coordinates||'Location optional');
-
+function syncOtherForm(){otherFormOpen.value=Boolean(document.querySelector('.work-form-overlay'));}
 function clearForm(){odometer.value='';price.value='';amount.value='';error.value='';confirming.value=false;editing.value=false;location.value=null;locationPending.value=false;}
 async function loadLast(){try{const rows=await application.listFuel();lastFuel.value=rows.filter(r=>!r.is_deleted).sort((a,b)=>Date.parse(b.recorded_at||b.created_at||0)-Date.parse(a.recorded_at||a.created_at||0))[0]||null;}catch{lastFuel.value=null;}}
 function startLocationCapture(){
@@ -28,13 +28,9 @@ function startLocationCapture(){
       if(response.ok){const data=await response.json();if(data?.display_name)location.value={...fallback,name:data.display_name};}
     }catch{}
     finish();
-    if(editing.value===false&&lastFuel.value?.id===undefined){};
   },()=>finish(),{enableHighAccuracy:true,timeout:4500,maximumAge:300000});
 }
-async function openFuel(){
-  if(document.querySelector('.work-form-overlay'))return;
-  clearForm();open.value=true;await loadLast();startLocationCapture();
-}
+async function openFuel(){syncOtherForm();if(otherFormOpen.value)return;clearForm();open.value=true;await loadLast();startLocationCapture();}
 function closeFuel(){if(busy.value)return;open.value=false;clearForm();}
 function validate(){
   const o=Number(odometer.value),p=Number(price.value),a=Number(amount.value);
@@ -54,11 +50,9 @@ async function saveNew(){
   if(!validate())return;
   busy.value=true;error.value='';
   try{
-    const now=new Date().toISOString();
-    const amountPaise=Math.round(Number(amount.value)*100),pricePerUnit=Number(price.value),quantity=Number(amount.value)/pricePerUnit;
+    const now=new Date().toISOString(),amountPaise=Math.round(Number(amount.value)*100),pricePerUnit=Number(price.value),quantity=Number(amount.value)/pricePerUnit;
     const record=await application.recordFuel({odometer:Number(odometer.value),amount_paise:amountPaise,price_per_unit:pricePerUnit,price_per_kg:pricePerUnit,quantity,quantity_kg:quantity,fuel_unit:'kg_or_litre',recorded_at:now,location_name:location.value?.name||null,location_coordinates:location.value?.coordinates||null,latitude:location.value?.latitude??null,longitude:location.value?.longitude??null});
-    lastFuel.value=record;open.value=false;clearForm();
-    window.dispatchEvent(new CustomEvent('kfe:fuel-saved',{detail:{id:record.id}}));
+    lastFuel.value=record;open.value=false;clearForm();window.dispatchEvent(new CustomEvent('kfe:fuel-saved',{detail:{id:record.id}}));
   }catch(e){error.value=String(e?.message||e);confirming.value=false;}finally{busy.value=false;}
 }
 function beginEdit(){if(!lastFuel.value)return;editing.value=true;confirming.value=false;error.value='';odometer.value=String(lastFuel.value.odometer??'');price.value=String(lastFuel.value.price_per_unit??lastFuel.value.price_per_kg??'');amount.value=(Number(lastFuel.value.amount_paise||0)/100).toFixed(2);startLocationCapture();}
@@ -69,20 +63,17 @@ async function saveEdit(){
   busy.value=true;error.value='';
   try{
     const pricePerUnit=Number(price.value),quantity=Number(amount.value)/pricePerUnit;
-    const changes={odometer:current,amount_paise:Math.round(Number(amount.value)*100),price_per_unit:pricePerUnit,price_per_kg:pricePerUnit,quantity,quantity_kg:quantity};
-    await application.updateFuel(lastFuel.value.id,changes);
+    await application.updateFuel(lastFuel.value.id,{odometer:current,amount_paise:Math.round(Number(amount.value)*100),price_per_unit:pricePerUnit,price_per_kg:pricePerUnit,quantity,quantity_kg:quantity});
     await loadLast();open.value=false;clearForm();window.dispatchEvent(new CustomEvent('kfe:fuel-saved',{detail:{id:lastFuel.value?.id}}));
   }catch(e){error.value=String(e?.message||e);confirming.value=false;}finally{busy.value=false;}
 }
-async function confirmSwipe(){if(busy.value)return;if(editing.value){await saveEdit();}else{await saveNew();}}
-function pointerDown(event){if(event.pointerType==='mouse'&&event.button!==0)return;event.currentTarget.setPointerCapture?.(event.pointerId);event.currentTarget.dataset.startX=String(event.clientX);}
-function pointerUp(event){const start=Number(event.currentTarget.dataset.startX);if(!Number.isFinite(start))return;delete event.currentTarget.dataset.startX;if(start-event.clientX>100)void confirmSwipe();}
-function onDocPointer(){if(!open.value)return;if(!document.querySelector('.work-form-overlay'))return;}
-onMounted(()=>{observer=new MutationObserver(()=>{if(!open.value&&document.querySelector('.work-form-overlay')){};});observer.observe(document.body,{subtree:true,childList:true});document.addEventListener('pointerdown',onDocPointer);});
-onUnmounted(()=>{observer?.disconnect();document.removeEventListener('pointerdown',onDocPointer);clearTimeout(locationTimer);});
+function pointerDown(event){if(!canSave.value)return;if(event.pointerType==='mouse'&&event.button!==0)return;event.currentTarget.setPointerCapture?.(event.pointerId);event.currentTarget.dataset.startX=String(event.clientX);}
+function pointerUp(event){const start=Number(event.currentTarget.dataset.startX);if(!Number.isFinite(start))return;delete event.currentTarget.dataset.startX;if(start-event.clientX>100)void requestSave();}
+onMounted(()=>{observer=new MutationObserver(syncOtherForm);observer.observe(document.body,{subtree:true,childList:true});syncOtherForm();});
+onUnmounted(()=>{observer?.disconnect();clearTimeout(locationTimer);});
 </script>
 <template>
-  <button v-if="!open && !document.querySelector?.('.work-form-overlay')" class="fuel-quick-tab" type="button" aria-label="Quick fuel" @click="openFuel">⛽ FUEL</button>
+  <button v-if="!open && !otherFormOpen" class="fuel-quick-tab" type="button" aria-label="Quick fuel" @click="openFuel">⛽ FUEL</button>
   <div v-if="open" class="fuel-form-overlay" role="dialog" aria-modal="true" aria-labelledby="fuel-title">
     <div class="fuel-form-card">
       <p class="kfe-eyebrow">⛽ REFUEL</p><h2 id="fuel-title">{{ editing?'Edit Last Fuel Entry':'Quick Fuel' }}</h2>
@@ -92,7 +83,7 @@ onUnmounted(()=>{observer?.disconnect();document.removeEventListener('pointerdow
       <label>Amount *<input v-model="amount" inputmode="decimal" type="number" min="0" step="0.01" /></label>
       <div class="fuel-auto"><span>Date &amp; time: automatic</span><span>Location: {{ locationPending?'capturing…':locationText }}</span></div>
       <section v-if="lastFuel && !editing" class="fuel-last-entry"><h3>LAST FUEL ENTRY</h3><p>Odometer: {{ lastFuel.odometer }}</p><p>Price: ₹ {{ Number(lastFuel.price_per_unit??lastFuel.price_per_kg??0).toFixed(2) }}</p><p>Amount: ₹ {{ (Number(lastFuel.amount_paise||0)/100).toFixed(2) }}</p><button type="button" class="secondary-action" :disabled="busy" @click="beginEdit">Edit</button></section>
-      <div v-if="confirming" class="fuel-confirm"><p>Confirm this fuel entry?</p><button class="primary-action" type="button" :disabled="busy" @click="confirmSwipe">Confirm</button><button class="secondary-action" type="button" :disabled="busy" @click="confirming=false">Cancel</button></div>
+      <div v-if="confirming" class="fuel-confirm"><p>Confirm this fuel entry?</p><button class="primary-action" type="button" :disabled="busy" @click="editing?saveEdit():saveNew()">Confirm</button><button class="secondary-action" type="button" :disabled="busy" @click="confirming=false">Cancel</button></div>
       <button v-else class="secondary-action" type="button" :disabled="busy" @click="closeFuel">Cancel</button>
     </div>
     <div v-if="!confirming" class="fuel-swipe-zone" :class="{'is-disabled':!canSave||busy}" @pointerdown="pointerDown" @pointerup="pointerUp">SWIPE LEFT TO CONFIRM →</div>
