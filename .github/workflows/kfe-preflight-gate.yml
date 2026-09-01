@@ -70,6 +70,7 @@ jobs:
           set -euo pipefail
           npm run validate:architecture
           npm run validate:foundation
+          npm run validate:foundation-audit
           npm run validate:domain
           npm run validate:phase-i
           npm run validate:phase-j
@@ -86,9 +87,21 @@ jobs:
           npm run validate:phase-5-completion-integrity
           npm run validate:phase-6-ui-shell
           npm run validate:phase-7-reliability
-          npm run validate:runtime-syntax
+          for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done
           npm run validate:phase-4
-          npm run validate:offline-resilience
+          node --input-type=module <<'NODE'
+          import { profitability } from './js/domain/dashboard.js';
+          const input={revenue:1000000,fuel:100000,maintenanceProvision:50000,fixedOverhead:100000,loanPrincipal:100000,loanInterest:20000,otherBusinessCosts:30000,takeHomeTargetPaise:200000};
+          const output=profitability(input);
+          if(output.value?.netProfitPaise!==600000) process.exit(1);
+          console.log('DIRECT_PROFITABILITY_RESULT='+JSON.stringify(output));
+          NODE
+          test -f js/pwa/sw-strategies.js
+          grep -q "importScripts('./js/pwa/sw-strategies.js')" service-worker.js
+          grep -q "event.request.mode==='navigate'" service-worker.js
+          grep -q "kfe-outbox-retry" service-worker.js
+          node js/testing/app-resilience-reliability-offline.mjs
+          GITHUB_ACTIONS=false npm run build
 
       - name: Preflight result
         run: echo "KFE PREFLIGHT GATE PASSED — normal CI may proceed."
