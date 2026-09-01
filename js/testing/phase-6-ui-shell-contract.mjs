@@ -34,7 +34,7 @@ assert.match(forms, /emit\('save'/);
 assert.match(vehicle, /Acquisition date/);
 assert.match(vehicle, /Retirement date/);
 assert.match(vehicle, /save-request/);
-assert.match(vehicle, /emit\('open', 'Driver'\)/);
+assert.doesNotMatch(vehicle, /emit\('open', 'Driver'\)/);
 assert.doesNotMatch(vehicle, /Activated|activation tab/i);
 assert.doesNotMatch(vehicle, /Fleet|fleet management/i);
 assert.doesNotMatch(vehicle, /Promise\.resolve|saved\.value\s*=\s*true/);
@@ -65,8 +65,8 @@ assert.match(historical, /Historical Day/);
 assert.match(historical, /Historical Fuel/);
 assert.match(historical, /save-request/);
 
-const requiredModules = ['Vehicle','Driver','Fuel','Expenses','Revenue','Loans','Maintenance','Compliance','Dashboard','Profitability','Historical Entries','Settings'];
-for (const module of requiredModules) assert.match(app, new RegExp(module.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+const currentModules = ['Vehicle','Fuel','Expenses','Revenue','Loans','Maintenance','Compliance','Dashboard','Profitability','Historical Entries','Settings'];
+for (const module of currentModules) assert.match(app, new RegExp(module.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 
 assert.match(loan, /Loan status/);
 assert.match(loan, /EMI/);
@@ -86,8 +86,7 @@ assert.match(loanDomain, /applyPrepayment/);
 assert.doesNotMatch(modules, /Tax Reserve|tax reserve/i);
 
 assert.match(contracts, /vehicle:/);
-assert.match(contracts, /driver:/);
 assert.match(contracts, /analytics: false/);
 
 console.log('Phase 6 UI shell contract: PASS');
-console.log('Navigation, module routing, Historical Entries event wiring, timeline chronology, draft boundary, vehicle/driver lifecycle, maintenance, compliance, loan presentation/domain separation, and Tax Reserve exclusion verified.');
+console.log('Current-scope module routing, Historical Entries event wiring, timeline chronology, draft boundary, vehicle lifecycle, maintenance, compliance, loan presentation/domain separation, future Driver isolation, and Tax Reserve exclusion verified.');
