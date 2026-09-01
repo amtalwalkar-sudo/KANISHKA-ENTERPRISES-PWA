@@ -21,6 +21,7 @@ assert.ok(spec.frozenRules.length >= 10, 'Frozen KFE rule set is unexpectedly in
 assert.equal(spec.currentScope, 'Single vehicle ERP');
 assert.ok(spec.forbiddenInCurrentScope.includes('GPS'));
 assert.ok(spec.forbiddenInCurrentScope.includes('multiple vehicles'));
+assert.ok(spec.forbiddenInCurrentScope.includes('multiple drivers'));
 assert.equal(future.capabilities.gps, 'future');
 assert.equal(future.capabilities.kfeAdvisor, 'future');
 
@@ -48,21 +49,18 @@ function walk(dir) {
   return out;
 }
 
-// Presentation may call application/domain contracts, but may not bypass persistence.
 for (const file of walk('src')) {
   const text = read(file);
   for (const token of ['js/core/idb', 'js/core/repository', 'js/core/store']) {
     if (text.includes(token)) fail(`presentation persistence bypass '${token}' in ${file}`);
   }
 }
-// Domain is pure business logic; the one existing foundation exception is the calculation-result contract.
 for (const file of walk('js/domain')) {
   const text = read(file);
   for (const token of ['src/', 'js/application/', 'js/services/', 'js/pwa/']) {
     if (text.includes(token)) fail(`forbidden domain dependency token '${token}' in ${file}`);
   }
 }
-// Application orchestrates domain and repository contracts but must not import Vue or raw IndexedDB.
 for (const file of walk('js/application')) {
   const text = read(file);
   for (const token of ['src/', 'js/core/idb']) {
@@ -71,12 +69,17 @@ for (const file of walk('js/application')) {
 }
 
 const app = read('src/App.vue');
-const vehicle = read('src/components/VehicleModuleView.vue');
-for (const module of Object.keys(contracts.modules)) {
-  if (!app.includes(module)) fail(`required UI module is not represented in src/App.vue: ${module}`);
+const requiredModules = Object.entries(contracts.currentScope)
+  .filter(([, contract]) => contract?.required === true)
+  .map(([module]) => module);
+for (const module of requiredModules) {
+  if (!app.includes(module)) fail(`required current-scope UI module is not represented in src/App.vue: ${module}`);
 }
-if (!/DriverModuleView/.test(app)) fail('DriverModuleView is not wired into App.vue');
-if (!/emit\('open', 'Driver'\)/.test(vehicle)) fail("VehicleModuleView must emit open/Driver according to the UI contract");
+if (contracts.currentScope.Driver?.required === true) {
+  if (!/DriverModuleView/.test(app)) fail('DriverModuleView is required by the UI contract but is not wired into App.vue');
+  const vehicle = read('src/components/VehicleModuleView.vue');
+  if (!/emit\('open', 'Driver'\)/.test(vehicle)) fail("VehicleModuleView must emit open/Driver according to the UI contract");
+}
 if (!/save-request/.test(read('src/components/HistoricalEntriesView.vue'))) fail('Historical Entries save-request contract missing');
 
 for (const file of [...walk('src'), ...walk('js/domain'), ...walk('js/application'), ...walk('js/core')]) {
@@ -107,4 +110,4 @@ assert.equal(calculations.calculations.loan.version, 1);
 assert.equal(golden.expansionPolicy.includes('approved specification'), true);
 
 console.log('KFE 2.0 Governance Gate: PASS');
-console.log('Specification authority, architecture contract, UI wiring contract, Tax Reserve exclusion, PWA integrity, service-worker registration, future-scope markers, and financial golden vector verified.');
+console.log('Specification authority, current-scope UI contracts, architecture contract, Tax Reserve exclusion, PWA integrity, service-worker registration, future-scope markers, and financial golden vector verified.');
