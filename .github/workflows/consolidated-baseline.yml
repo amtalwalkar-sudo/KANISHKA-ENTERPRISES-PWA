@@ -1,4 +1,4 @@
-name: KFE 2.0 single CI
+name: KFE 2.0 Airtight Pipeline
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: kfe-single-ci
+  group: kfe-airtight-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -18,30 +18,29 @@ permissions:
 
 jobs:
   validate:
-    name: KFE validation and Work Screen integration
+    name: KFE 2.0 mandatory validation gates
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
-      - name: Checkout
+      - name: Checkout exact revision
         uses: actions/checkout@v5
+
       - name: Setup Node 20
         uses: actions/setup-node@v5
         with:
           node-version: 20
+
       - name: Install dependencies
         run: npm install
-      - name: Build application
-        run: GITHUB_ACTIONS=false npm run build
-      - name: Specification and governance gate
-        run: npm run validate:governance
-      - name: Install Chromium
-        run: timeout 180s npx playwright install --with-deps chromium
-      - name: Architecture and foundation
+
+      - name: Specification and architecture gates
         run: |
           npm run validate:architecture
           npm run validate:foundation
           npm run validate:foundation-audit
-      - name: Domain and lifecycle
+          npm run validate:repository-hardening
+
+      - name: Domain and financial lifecycle gates
         run: |
           npm run validate:domain
           npm run validate:phase-i
@@ -49,21 +48,22 @@ jobs:
           npm run validate:phase-l
           npm run validate:phase-m
           npm run validate:phase-n
-      - name: Persistence and recovery
+
+      - name: Persistence and recovery gates
         run: npm run validate:phase-k
-      - name: UI shell contracts
+
+      - name: Application boundary and UI contract gates
         run: |
           npm run validate:phase-1
           npm run validate:phase-2
           npm run validate:phase-3
+          npm run validate:phase-4
           npm run validate:phase-5
           npm run validate:phase-5-replication
           npm run validate:phase-5-module-contracts
           npm run validate:phase-5-completion-integrity
           npm run validate:phase-6-ui-shell
           npm run validate:phase-7-reliability
-      - name: Module application boundaries
-        run: |
           npm run validate:phase-5-vehicle
           npm run validate:phase-5-fuel-application
           npm run validate:phase-5-expenses-application
@@ -73,7 +73,8 @@ jobs:
           npm run validate:phase-5-maintenance-application
           npm run validate:phase-5-profitability-application
           npm run validate:phase-5-dashboard-application
-      - name: Real persistence checks
+
+      - name: Real persistence gates
         run: |
           npm run validate:phase-5-vehicle-real-persistence
           npm run validate:phase-5-fuel-real-persistence
@@ -83,13 +84,15 @@ jobs:
           npm run validate:phase-5-renewals-compliance-real-persistence
           npm run validate:phase-5-maintenance-real-persistence
           npm run validate:phase-5-profitability-real-persistence
-      - name: Runtime syntax and Work Screen domain contract
+
+      - name: Runtime syntax and Work Screen domain gates
         shell: bash
         run: |
           set -euo pipefail
           for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done
-          npm run validate:phase-4
-      - name: Runtime identity and service-worker boundary
+          npm run validate:work-screen-browser
+
+      - name: Financial golden-vector and service-worker gates
         shell: bash
         run: |
           set -euo pipefail
@@ -100,27 +103,61 @@ jobs:
           if(output.value?.netProfitPaise!==600000) process.exit(1);
           console.log('DIRECT_PROFITABILITY_RESULT='+JSON.stringify(output));
           NODE
+          test -f manifest.json
+          test -f icon-192.png
+          test -f icon-512.png
+          test -f service-worker.js
           test -f js/pwa/sw-strategies.js
           grep -q "importScripts('./js/pwa/sw-strategies.js')" service-worker.js
           grep -q "event.request.mode==='navigate'" service-worker.js
           grep -q "kfe-outbox-retry" service-worker.js
-      - name: Start PWA for browser integration
+          grep -q "navigator.serviceWorker.register" src/main.js
+
+      - name: Production build gate
+        run: GITHUB_ACTIONS=false npm run build
+
+      - name: Production artifact integrity gate
         shell: bash
         run: |
           set -euo pipefail
-          nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
-          cat /tmp/kfe-vite.log
+          test -f dist/index.html
+          test -f dist/manifest.webmanifest || test -f dist/manifest.json
+          test -n "$(find dist -type f | head -n 1)"
+          if grep -R "src/main.js" dist/index.html >/dev/null 2>&1; then
+            echo "Unbuilt source entrypoint leaked into dist/index.html"
+            exit 1
+          fi
+
+      - name: Start production artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup npm run preview -- --host 127.0.0.1 --port 4173 >/tmp/kfe-preview.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/kfe-preview.log
           exit 1
-      - name: Work Screen real browser flow
-        run: npm run validate:work-screen-browser
-      - name: Legacy resilience and offline validation
+
+      - name: Production browser smoke gate
+        run: |
+          npx playwright install --with-deps chromium
+          node js/testing/work-screen-browser.mjs
+
+      - name: Offline/resilience gate
         run: node js/testing/app-resilience-reliability-offline.mjs
-      - name: Final build verification
-        run: GITHUB_ACTIONS=false npm run build
+
+      - name: Upload validated production artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kfe-production-dist-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
+          retention-days: 7
 
   deploy:
-    name: Publish PWA to GitHub Pages
+    name: Deploy validated artifact to GitHub Pages
     needs: validate
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -128,20 +165,24 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup Node 20
-        uses: actions/setup-node@v5
+      - name: Download exact validated artifact
+        uses: actions/download-artifact@v4
         with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm install
-      - name: Build PWA for Pages
-        run: npm run build
+          name: kfe-production-dist-${{ github.sha }}
+          path: dist
+
+      - name: Verify deployment artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          test -n "$(find dist -type f | head -n 1)"
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
