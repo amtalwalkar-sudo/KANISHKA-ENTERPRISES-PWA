@@ -105,7 +105,6 @@ async function save() {
       data.location_name = location.location_name
       const record = await application.recordFuel(data)
       lastFuel.value = record
-      // Location is optional background enrichment; it never blocks the Fuel transaction.
       void locationPromise?.then(async captured => {
         if (!captured || captured.latitude == null || captured.longitude == null) return
         await application.updateFuel(record.id, {
@@ -115,11 +114,11 @@ async function save() {
         }).catch(() => {})
       })
     }
+    busy.value = false
     emit('saved')
     emit('close')
   } catch (e) {
     error.value = String(e?.message || e)
-  } finally {
     busy.value = false
   }
 }
