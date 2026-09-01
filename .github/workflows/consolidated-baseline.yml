@@ -32,6 +32,8 @@ jobs:
         run: npm install
       - name: Build application
         run: GITHUB_ACTIONS=false npm run build
+      - name: Specification and governance gate
+        run: npm run validate:governance
       - name: Install Chromium
         run: timeout 180s npx playwright install --with-deps chromium
       - name: Architecture and foundation
