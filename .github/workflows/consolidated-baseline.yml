@@ -17,8 +17,13 @@ permissions:
   id-token: write
 
 jobs:
+  preflight:
+    name: KFE Preflight Gate
+    uses: ./.github/workflows/kfe-preflight-gate.yml
+
   validate:
     name: KFE validation and Work Screen integration
+    needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -129,6 +134,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - name: Install Node 20
         uses: actions/setup-node@v5
         with:
           node-version: 20
