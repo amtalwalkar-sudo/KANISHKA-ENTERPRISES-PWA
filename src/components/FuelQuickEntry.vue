@@ -115,8 +115,8 @@ async function save() {
       })
     }
     busy.value = false
-    emit('saved')
     emit('close')
+    emit('saved')
   } catch (e) {
     error.value = String(e?.message || e)
     busy.value = false
