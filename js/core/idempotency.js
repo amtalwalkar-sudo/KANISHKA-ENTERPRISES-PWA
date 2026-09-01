@@ -1,11 +1,17 @@
 // KFE foundation idempotency contract. No business semantics.
+let fallbackCounter=0;
+function uuidFallback(){
+  const hex=`${Date.now().toString(16).padStart(16,'0')}${(++fallbackCounter>>>0).toString(16).padStart(16,'0')}`.slice(-32).split('');
+  hex[12]='4';hex[16]=['8','9','a','b'][fallbackCounter%4];const value=hex.join('');
+  return `${value.slice(0,8)}-${value.slice(8,12)}-${value.slice(12,16)}-${value.slice(16,20)}-${value.slice(20)}`;
+}
 function generateId(){
   if(typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function')return crypto.randomUUID();
   if(typeof crypto!=='undefined'&&typeof crypto.getRandomValues==='function'){
     const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);bytes[6]=(bytes[6]&0x0f)|0x40;bytes[8]=(bytes[8]&0x3f)|0x80;
     const hex=[...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
   }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+  return uuidFallback();
 }
 export function createOperationId(){return generateId();}
 export function assertOperationId(value){if(typeof value!=='string'||!value.trim())throw new TypeError('operationId is required');return value;}
