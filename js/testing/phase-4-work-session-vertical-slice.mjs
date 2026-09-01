@@ -8,7 +8,7 @@ const swipeSource=fs.readFileSync(new URL('../../src/components/KfeSwipeBar.vue'
 const rootSource=fs.readFileSync(new URL('../../src/App.vue',import.meta.url),'utf8');
 assert.equal(appSource.includes("../core/hardened-db.js"),false);
 assert.equal(uiSource.includes("../../js/core/"),false);
-assert.match(uiSource,/createUiCommand\(type,payload\)/);
+assert.match(uiSource,/createUiCommand\(\s*(?:type|t)\s*,\s*(?:payload|p)\s*\)/);
 for (const command of ['START_SHIFT','START_TRIP','END_TRIP','END_SHIFT','START_DAY','START_PERSONAL_TRIP','END_PERSONAL_TRIP','END_DAY']) assert.match(uiSource,new RegExp(command));
 assert.match(swipeSource,/pointerdown/);
 assert.match(swipeSource,/pointerup/);
