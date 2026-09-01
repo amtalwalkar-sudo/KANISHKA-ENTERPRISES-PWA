@@ -58,27 +58,31 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          npx playwright test --help >/dev/null
           nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true; echo "--- Vite log ---"; cat /tmp/kfe-vite.log' EXIT
-          ready=0
+          cleanup() {
+            kill "$server_pid" 2>/dev/null || true
+            echo "--- Vite log ---"
+            cat /tmp/kfe-vite.log
+          }
+          trap cleanup EXIT
           for i in $(seq 1 60); do
-            if curl --fail --silent --show-error --max-time 2 http://127.0.0.1:4173/ >/dev/null; then
-              ready=1
-              break
-            fi
             if ! kill -0 "$server_pid" 2>/dev/null; then
               echo "Vite exited before becoming ready"
               cat /tmp/kfe-vite.log
               exit 1
             fi
+            if curl --fail --silent --show-error --max-time 2 http://127.0.0.1:4173/ >/dev/null; then
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "Vite did not become ready on http://127.0.0.1:4173"
+              cat /tmp/kfe-vite.log
+              exit 1
+            fi
             sleep 1
           done
-          if [ "$ready" -ne 1 ]; then
-            echo "Vite did not become ready on http://127.0.0.1:4173"
-            cat /tmp/kfe-vite.log
-            exit 1
-          fi
           npm run validate:work-screen-browser
 
       - name: #2 Exact CI-mirror validation
