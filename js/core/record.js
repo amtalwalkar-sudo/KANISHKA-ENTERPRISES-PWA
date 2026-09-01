@@ -1,10 +1,16 @@
 // KFE foundation: authoritative local record contract. No business rules.
 export const RECORD_METADATA_FIELDS=Object.freeze(['id','user_id','created_at','updated_at','synced','is_deleted']);
 const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+let fallbackCounter=0;
+function uuidFallback(){
+  const hex=`${Date.now().toString(16).padStart(16,'0')}${(++fallbackCounter>>>0).toString(16).padStart(16,'0')}`.slice(-32).split('');
+  hex[12]='4';hex[16]=['8','9','a','b'][fallbackCounter%4];const value=hex.join('');
+  return `${value.slice(0,8)}-${value.slice(8,12)}-${value.slice(12,16)}-${value.slice(16,20)}-${value.slice(20)}`;
+}
 function uuid(){
   if(typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function')return crypto.randomUUID();
   if(typeof crypto!=='undefined'&&typeof crypto.getRandomValues==='function'){const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);bytes[6]=(bytes[6]&0x0f)|0x40;bytes[8]=(bytes[8]&0x3f)|0x80;const hex=[...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;}
-  const r=()=>Math.floor(Math.random()*0xffffffff).toString(16).padStart(8,'0');return `${r()}-${r().slice(0,4)}-4${r().slice(0,3)}-8${r().slice(0,3)}-${r()}${r().slice(0,4)}`;
+  return uuidFallback();
 }
 export function utcNow(){return new Date().toISOString();}
 export function assertUuid(value,name='id'){if(typeof value!=='string'||!UUID_RE.test(value))throw new TypeError(`${name} must be a UUID`);return value;}
