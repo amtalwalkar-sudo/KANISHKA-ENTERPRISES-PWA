@@ -39,7 +39,7 @@ export function createWorkApplication({repository,telemetry}){
     const latest=await latestOdometer();return {day,shift,trip,todayBusinessTrips,todayRevenuePaise,latest};
   }
 
-  async function state(){const businessDate=localDate(),context=await currentContext(businessDate);return deriveWorkScreenState({day:context.day,shift:context.shift,trip:context.trip,latestOdometer:context.latest?.odometer,todayBusinessTrips:context.todayBusinessTrips,todayRevenuePaise:context.todayRevenuePaise});}
+  async function state(){const businessDate=localDate(),context=await currentContext(businessDate);return deriveWorkScreenState({day:context.day,shift:context.shift,trip:context.trip,latestOdometer:context.latest?.odometer,todayBusinessTrips:context.todayBusinessTrips,todayRevenuePaise:context.todayRevenuePaise);}
   async function recordTelemetry(eventType,entityType,entityId,{actionMode='SWIPE',direction=null,occurredAt}={}){return telemetry?.recordEvent({eventType,entityType,entityId,actionMode,direction,occurredAt,context:{business_date:localDate()}})||null;}
   async function syncTracking(){const s=await state();telemetry?.setActive(Boolean(s.day.status==='OPEN'||s.shift.active||s.trip.active));return s;}
 
@@ -48,7 +48,7 @@ export function createWorkApplication({repository,telemetry}){
   }
 
   async function startShift({actionMode='SWIPE',direction='RIGHT'}={},operationId=createOperationId()){
-    return withIdempotency(repository,operationId,async()=>{const occurredAt=utcNow(),businessDate=localDate(),context=await currentContext(businessDate);if(!canStartShift(context))throw new Error('Shift can only start from the day-ready state');if(context.latest==null)throw new Error('Start day odometer is required before starting a shift');const shift=createRecord({business_date:businessDate,scope:'BUSINESS',status:'OPEN',started_at:occurredAt,ended_at:null,start_odometer:Number(context.latest.odometer),end_odometer:null,break_minutes:0,trip_count:0,toll_paise:0,parking_paise:0,toll_included_in_fare:false,parking_included_in_fare:false});repository.assertRecord(shift);await repository.atomic(['work_sessions'],stores=>{stores.work_sessions.put(shift);return shift;});await recordTelemetry('START_SHIFT','WORK_SESSION',shift.id,{actionMode,direction,occurredAt});await syncTracking();return shift;});
+    return withIdempotency(repository,operationId,async()=>{const occurredAt=utcNow(),businessDate=localDate(),context=await currentContext(businessDate);if(!canStartShift(context))throw new Error('Shift can only start from the day-ready state');if(context.latest==null)throw new Error('Start day odometer is required before starting a shift');const shift=createRecord({business_date:businessDate,scope:'BUSINESS',status:'OPEN',started_at:occurredAt,ended_at:null,start_odometer:Number(context.latest.odometer),end_odometer:null,trip_count:0,toll_paise:0,parking_paise:0,toll_included_in_fare:false,parking_included_in_fare:false});repository.assertRecord(shift);await repository.atomic(['work_sessions'],stores=>{stores.work_sessions.put(shift);return shift;});await recordTelemetry('START_SHIFT','WORK_SESSION',shift.id,{actionMode,direction,occurredAt});await syncTracking();return shift;});
   }
 
   async function startBusinessTrip({actionMode='SWIPE',direction='RIGHT'}={},operationId=createOperationId()){
