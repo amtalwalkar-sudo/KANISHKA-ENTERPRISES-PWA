@@ -8,7 +8,6 @@ const lastFuel=ref(null),location=ref(null),locationPending=ref(false);
 let observer=null,locationTimer=null;
 
 const canSave=computed(()=>Number.isInteger(Number(odometer.value))&&Number(odometer.value)>=0&&Number(price.value)>0&&Number(amount.value)>0&&!busy.value);
-const locationText=computed(()=>location.value?.name||location.value?.coordinates||'Location optional');
 function syncOtherForm(){otherFormOpen.value=Boolean(document.querySelector('.work-form-overlay'));}
 function clearForm(){odometer.value='';price.value='';amount.value='';error.value='';confirming.value=false;editing.value=false;location.value=null;locationPending.value=false;}
 async function loadLast(){try{const rows=await application.listFuel();lastFuel.value=rows.filter(r=>!r.is_deleted).sort((a,b)=>Date.parse(b.recorded_at||b.created_at||0)-Date.parse(a.recorded_at||a.created_at||0))[0]||null;}catch{lastFuel.value=null;}}
@@ -81,7 +80,7 @@ onUnmounted(()=>{observer?.disconnect();clearTimeout(locationTimer);});
       <label>Odometer *<input v-model="odometer" inputmode="numeric" type="number" min="0" step="1" autofocus /></label>
       <label>Fuel price per litre/kg *<input v-model="price" inputmode="decimal" type="number" min="0" step="0.01" /></label>
       <label>Amount *<input v-model="amount" inputmode="decimal" type="number" min="0" step="0.01" /></label>
-      <div class="fuel-auto"><span>Date &amp; time: automatic</span><span>Location: {{ locationPending?'capturing…':locationText }}</span></div>
+      <div class="fuel-auto"><span>Date &amp; time: automatic</span></div>
       <section v-if="lastFuel && !editing" class="fuel-last-entry"><h3>LAST FUEL ENTRY</h3><p>Odometer: {{ lastFuel.odometer }}</p><p>Price: ₹ {{ Number(lastFuel.price_per_unit??lastFuel.price_per_kg??0).toFixed(2) }}</p><p>Amount: ₹ {{ (Number(lastFuel.amount_paise||0)/100).toFixed(2) }}</p><button type="button" class="secondary-action" :disabled="busy" @click="beginEdit">Edit</button></section>
       <div v-if="confirming" class="fuel-confirm"><p>Confirm this fuel entry?</p><button class="primary-action" type="button" :disabled="busy" @click="editing?saveEdit():saveNew()">Confirm</button><button class="secondary-action" type="button" :disabled="busy" @click="confirming=false">Cancel</button></div>
       <button v-else class="secondary-action" type="button" :disabled="busy" @click="closeFuel">Cancel</button>
