@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { application } from '../../js/app.js'
 import KfeSwipeBar from './KfeSwipeBar.vue'
 
@@ -15,8 +15,6 @@ const notice = ref('')
 const editing = ref(false)
 const editingId = ref(null)
 const lastFuel = ref(null)
-const locationState = ref({ latitude: null, longitude: null, location_name: null })
-let locationPromise = null
 
 const authoritative = computed(() => props.authoritativeOdometer == null || props.authoritativeOdometer === '' ? null : Number(props.authoritativeOdometer))
 const quantity = computed(() => {
@@ -55,24 +53,6 @@ function beginEdit() {
   notice.value = ''
 }
 
-async function captureLocation() {
-  locationState.value = { latitude: null, longitude: null, location_name: null }
-  if (!navigator.geolocation) return locationState.value
-  try {
-    const position = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 2500, maximumAge: 300000 }))
-    const latitude = position.coords.latitude, longitude = position.coords.longitude
-    locationState.value = { latitude, longitude, location_name: null }
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}`, { headers: { Accept: 'application/json' } })
-      if (response.ok) {
-        const data = await response.json()
-        locationState.value.location_name = data.display_name || null
-      }
-    } catch {}
-  } catch {}
-  return locationState.value
-}
-
 function requestSave() {
   if (!fieldsValid.value) {
     error.value = authoritative.value != null && Number(odometer.value) < authoritative.value ? 'Fuel odometer cannot be below the authoritative odometer.' : 'Enter odometer, fuel price, and amount.'
@@ -99,21 +79,8 @@ async function save() {
       await loadLast()
     } else {
       data.recorded_at = now
-      const location = locationState.value
-      data.latitude = location.latitude
-      data.longitude = location.longitude
-      data.location_name = location.location_name
       const record = await application.recordFuel(data)
       lastFuel.value = record
-      // Location is optional background enrichment; it never blocks the Fuel transaction.
-      void locationPromise?.then(async captured => {
-        if (!captured || captured.latitude == null || captured.longitude == null) return
-        await application.updateFuel(record.id, {
-          latitude: captured.latitude,
-          longitude: captured.longitude,
-          ...(captured.location_name ? { location_name: captured.location_name } : {})
-        }).catch(() => {})
-      })
     }
     emit('saved')
     emit('close')
@@ -131,9 +98,7 @@ function cancel() {
 onMounted(() => {
   beginNew()
   void loadLast()
-  locationPromise = captureLocation()
 })
-onUnmounted(() => { locationPromise = null })
 </script>
 
 <template>
