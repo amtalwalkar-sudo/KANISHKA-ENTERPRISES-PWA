@@ -2,18 +2,24 @@ import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 
 const port=4175;
-const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true});
+const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port),'--strictPort'],{stdio:['ignore','pipe','pipe'],detached:true});
 let output='';
+let exitInfo=null;
 server.stdout.on('data',chunk=>{output+=chunk.toString();});
 server.stderr.on('data',chunk=>{output+=chunk.toString();});
+server.on('exit',(code,signal)=>{exitInfo={code,signal};});
 
 async function waitForServer(url,timeoutMs=30000){
   const started=Date.now();
   while(Date.now()-started<timeoutMs){
-    try{const response=await fetch(url);if(response.ok)return;}catch{}
+    if(exitInfo)throw new Error(`Vite preview exited before readiness (code=${exitInfo.code}, signal=${exitInfo.signal}). Output:\n${output}`);
+    try{
+      const response=await fetch(url,{redirect:'manual'});
+      if(response.status>=200&&response.status<500)return;
+    }catch{}
     await new Promise(resolve=>setTimeout(resolve,250));
   }
-  throw new Error(`Vite preview did not start. Output:\n${output}`);
+  throw new Error(`Vite preview did not become reachable within ${timeoutMs}ms. Output:\n${output}`);
 }
 async function withTimeout(promise,label,timeoutMs=30000){
   return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${label} timed out after ${timeoutMs}ms`)),timeoutMs))]);
@@ -21,13 +27,13 @@ async function withTimeout(promise,label,timeoutMs=30000){
 function stopServer(){try{process.kill(-server.pid,'SIGTERM');}catch{try{server.kill('SIGTERM');}catch{}}}
 
 try{
-  await waitForServer(`http://127.0.0.1:${port}/`);
+  await waitForServer(`http://127.0.0.1:${port}/index.html`);
   const browser=await chromium.launch({headless:true});
   try{
     const context=await browser.newContext();
     try{
       const page=await context.newPage();
-      await withTimeout(page.goto(`http://127.0.0.1:${port}/`,{waitUntil:'domcontentloaded'}),'page.goto');
+      await withTimeout(page.goto(`http://127.0.0.1:${port}/index.html`,{waitUntil:'domcontentloaded'}),'page.goto');
       const result=await withTimeout(page.evaluate(async()=>{
         const {createRevenueRepository}=await import('/js/application/revenue-repository.js');
         const {DB_NAME,DB_VERSION,STORES}=await import('/js/core/hardened-db.js');
