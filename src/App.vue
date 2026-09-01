@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import './styles/shell.css';
 import WorkSessionView from './components/WorkSessionView.vue';
+import FuelQuickAction from './components/FuelQuickAction.vue';
 import KfeDestinationView from './components/KfeDestinationView.vue';
 import KfeStatePanel from './components/KfeStatePanel.vue';
 import KfeModuleView from './components/KfeModuleView.vue';
@@ -56,7 +57,7 @@ window.KFE_VUE_RUNTIME={online,activeModule,uiState,capabilities,reducedMotion,h
 <template>
 <div class="kfe-shell" data-framework="vue" @input.capture="enforceDecimalInputs"><header class="kfe-topbar" aria-label="KFE application header"><div class="kfe-brand"><strong>KFE 2.0</strong><span>Kanishka Fleet ERP</span></div><div v-if="workHeader.shiftActive" class="kfe-global-shift-timer" aria-label="Active shift timer"><span>SHIFT</span>{{ formatDuration(headerShiftSeconds) }}</div><div class="kfe-status" aria-label="Application status"><span class="kfe-status-dot" aria-hidden="true"></span><span>{{syncState}} · {{storageState}}</span></div></header>
 <main class="kfe-viewport" aria-label="Main application viewport"><section class="kfe-workspace" aria-live="polite">
-<WorkSessionView v-if="activeModule==='Work'"/><StatusModuleView v-else-if="activeModule==='Status'" :online="online" :status="statusModel"/>
+<WorkSessionView v-if="activeModule==='Work'"/><FuelQuickAction v-if="activeModule==='Work'"/><StatusModuleView v-else-if="activeModule==='Status'" :online="online" :status="statusModel"/>
 <KfeDestinationView v-else-if="activeModule==='Timeline'" title="Timeline" subtitle="Authoritative events projected chronologically across Today, Week, Month and Year."><div class="kfe-segmented" aria-label="Timeline horizon"><button v-for="horizon in TIMELINE_HORIZONS" :key="horizon" type="button" :class="{'is-active':timelineHorizon===horizon}" @click="selectTimelineHorizon(horizon)">{{horizon}}</button></div><KfeTimelineView :horizon="timelineHorizon" :events="timelineEvents"/></KfeDestinationView>
 <KfeDestinationView v-else-if="activeModule==='More'" title="More" subtitle="ERP management modules, grouped by information hierarchy."><div class="kfe-more-groups"><section v-for="group in MORE_GROUPS" :key="group.title" class="kfe-module-group"><h2>{{group.title}}</h2><div class="kfe-module-list"><button v-for="item in group.items" :key="item" type="button" @click="openMoreItem(item)"><span>{{item}}</span><span aria-hidden="true">›</span></button></div></section></div></KfeDestinationView>
 <HistoricalEntriesView v-else-if="activeModule==='Historical Entries'" @back="returnToMore" @save-request="handleHistoricalSave"/>
