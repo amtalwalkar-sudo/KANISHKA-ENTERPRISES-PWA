@@ -1,5 +1,5 @@
 // Persistence boundary. UI/view-models/application/domain code never access storage directly.
-import {openKfeDb,read,write,remove,runAtomicTransaction} from './hardened-db.js';
+import {openKfeDb,read,write,remove,all,runAtomicTransaction} from './hardened-db.js';
 import {createRecord,assertAuthoritativeRecord,updateRecord,softDeleteRecord} from './record.js';
 import {createConfigurationSchema,assertConfigurationSchema} from './schemas.js';
 const KEY='kfe:state:v1';
@@ -12,7 +12,7 @@ export function createEntityRepository(storeName){
   assertStoreName(storeName);
   return Object.freeze({
     async get(id){return read(storeName,id);},
-    async list(){return readAll(storeName);},
+    async list(){return all(storeName);},
     async create(data={},meta={}){const record=createRecord(data,meta);await write(storeName,record);return clone(record);},
     async update(existing,changes={}){const record=updateRecord(existing,changes);await write(storeName,record);return clone(record);},
     async softDelete(existing){const record=softDeleteRecord(existing);await write(storeName,record);return clone(record);},
@@ -26,7 +26,7 @@ export function createConfigurationRepository(storeName){
   assertStoreName(storeName);
   return Object.freeze({
     async get(id){const record=await read(storeName,id);return record?assertConfigurationSchema(record):null;},
-    async list(){return (await readAll(storeName)).map(assertConfigurationSchema);},
+    async list(){return (await all(storeName)).map(assertConfigurationSchema);},
     async create(options={}){const record=createConfigurationSchema(options);await write(storeName,record);return clone(record);},
     async update(existing,changes={}){
       assertConfigurationSchema(existing);
@@ -42,8 +42,6 @@ export function createConfigurationRepository(storeName){
     assert:assertConfigurationSchema
   });
 }
-
-async function readAll(storeName){return (await import('./hardened-db.js')).all(storeName);}
 
 export function createRepository({initial={}}={}){
   let memory=clone(initial);let hydrated=false;
