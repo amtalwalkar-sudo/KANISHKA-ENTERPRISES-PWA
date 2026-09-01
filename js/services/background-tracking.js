@@ -5,13 +5,13 @@ export function createBackgroundTracking({onPosition=()=>{},onError=()=>{},optio
   return {
     start(){
       if(active)return true;
-      if(!navigator.geolocation){onError(new Error('Geolocation unavailable'));return false;}
+      if(typeof navigator==='undefined'||!navigator.geolocation){onError(new Error('Geolocation unavailable'));return false;}
       watchId=navigator.geolocation.watchPosition(onPosition,onError,options);
       active=true;
       return true;
     },
     stop(){
-      if(watchId!==null)navigator.geolocation.clearWatch(watchId);
+      if(watchId!==null&&typeof navigator!=='undefined'&&navigator.geolocation)navigator.geolocation.clearWatch(watchId);
       watchId=null;active=false;
     },
     isActive(){return active;},
