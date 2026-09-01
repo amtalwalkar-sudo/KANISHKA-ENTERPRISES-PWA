@@ -1,6 +1,7 @@
 name: KFE Preflight Gate
 
 on:
+  workflow_call:
   workflow_dispatch:
   pull_request:
     branches: [main]
@@ -28,34 +29,67 @@ jobs:
         run: npm ci
 
       - name: Build PWA
-        run: npm run build
+        run: GITHUB_ACTIONS=false npm run build
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: timeout 180s npx playwright install --with-deps chromium
 
       - name: #8 Frozen-rule drift audit
         run: npm run validate:foundation-audit
 
       - name: #7 Full wiring verification
         run: |
-          npm run validate:module-application-boundaries
-          npm run validate:real-persistence
+          npm run validate:phase-5-vehicle
+          npm run validate:phase-5-fuel-application
+          npm run validate:phase-5-expenses-application
+          npm run validate:phase-5-revenue-application
+          npm run validate:phase-5-loans-application
+          npm run validate:phase-5-renewals-compliance-application
+          npm run validate:phase-5-maintenance-application
+          npm run validate:phase-5-profitability-application
+          npm run validate:phase-5-dashboard-application
+          npm run validate:phase-5-vehicle-real-persistence
+          npm run validate:phase-5-fuel-real-persistence
+          npm run validate:phase-5-expenses-real-persistence
+          npm run validate:phase-5-revenue-real-persistence
+          npm run validate:phase-5-loans-real-persistence
+          npm run validate:phase-5-renewals-compliance-real-persistence
+          npm run validate:phase-5-maintenance-real-persistence
+          npm run validate:phase-5-profitability-real-persistence
 
       - name: #5 Complete browser workflow
-        run: npm run validate:work-screen-browser
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4173/ >/dev/null
+          npm run validate:work-screen-browser
 
       - name: #2 Exact CI-mirror validation
+        shell: bash
         run: |
+          set -euo pipefail
           npm run validate:architecture
           npm run validate:foundation
           npm run validate:domain
-          npm run validate:lifecycle
-          npm run validate:persistence
-          npm run validate:recovery
-          npm run validate:ui-shell
+          npm run validate:phase-i
+          npm run validate:phase-j
+          npm run validate:phase-l
+          npm run validate:phase-m
+          npm run validate:phase-n
+          npm run validate:phase-k
+          npm run validate:phase-1
+          npm run validate:phase-2
+          npm run validate:phase-3
+          npm run validate:phase-5
+          npm run validate:phase-5-replication
+          npm run validate:phase-5-module-contracts
+          npm run validate:phase-5-completion-integrity
+          npm run validate:phase-6-ui-shell
+          npm run validate:phase-7-reliability
           npm run validate:runtime-syntax
-          npm run validate:runtime-identity
-          npm run validate:service-worker
+          npm run validate:phase-4
           npm run validate:offline-resilience
 
       - name: Preflight result
