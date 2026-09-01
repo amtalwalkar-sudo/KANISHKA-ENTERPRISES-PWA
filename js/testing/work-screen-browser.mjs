@@ -49,14 +49,16 @@ try{
  // READY FOR OPERATION -> Start Business Shift -> SHIFT ACTIVE/WAITING -> Business Trip -> SHIFT ACTIVE/WAITING.
  await swipe(page.locator('.kfe-swipe-bar'),'RIGHT');
  await waitState('SHIFT ACTIVE');
- await swipe(page.locator('.kfe-swipe-bar'),'RIGHT');
+ await swipe(page.locator('.kfe-swipe-bar'),'LEFT');
  await waitState('BUSINESS TRIP');
  assert.equal(await page.getByText('Trip active',{exact:true}).isVisible(),true);
  await swipe(page.locator('.kfe-swipe-bar'),'RIGHT');
  await waitState('SHIFT ACTIVE');
- // End Shift -> READY FOR OPERATION.
- await page.getByRole('button',{name:'End shift',exact:true}).click();
- await page.getByLabel('End odometer *').fill('130');
+ // SHIFT ACTIVE/WAITING -> End Shift form -> READY FOR OPERATION.
+ await swipe(page.locator('.kfe-swipe-bar'),'RIGHT');
+ const shiftEnd=page.getByLabel('End odometer *');
+ assert.equal(await shiftEnd.inputValue(),'');
+ await shiftEnd.fill('130');
  await swipe(page.locator('.kfe-swipe-bar'),'RIGHT');
  await waitState('READY FOR OPERATION');
  // End Day is button + confirmation, not a swipe/form.
@@ -68,5 +70,5 @@ try{
  await page.getByRole('button',{name:'End day',exact:true}).click();
  await page.getByRole('button',{name:'Confirm End Day',exact:true}).click();
  await waitState('DAY ENDED');
- const telemetry=await page.evaluate(async()=>{const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('kfe');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});return await new Promise((resolve,reject)=>{const r=db.transaction('operational_events').objectStore('operational_events').getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});});const types=telemetry.map(x=>x.event_type);for(const type of ['START_PERSONAL_TRIP','END_PERSONAL_TRIP','START_DAY','START_SHIFT','START_TRIP','END_TRIP','END_SHIFT','END_DAY'])assert.ok(types.includes(type),`missing ${type}`);assert.ok(telemetry.every(x=>typeof x.occurred_at==='string'));console.log('PASS Work Screen frozen lifecycle and real IndexedDB persistence');console.log('PASS Personal Trip forms from DAY START and READY FOR OPERATION');console.log('PASS editable prefilled odometers and Business/Personal discrepancy allocation');console.log('PASS Personal Trip end odometer + optional toll/parking');console.log('PASS business shift/trip loop and End Shift');console.log('PASS End Day button confirmation and cancellation');
+ const telemetry=await page.evaluate(async()=>{const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('kfe');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});return await new Promise((resolve,reject)=>{const r=db.transaction('operational_events').objectStore('operational_events').getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});});const types=telemetry.map(x=>x.event_type);for(const type of ['START_PERSONAL_TRIP','END_PERSONAL_TRIP','START_DAY','START_SHIFT','START_TRIP','END_TRIP','END_SHIFT','END_DAY'])assert.ok(types.includes(type),`missing ${type}`);assert.ok(telemetry.every(x=>typeof x.occurred_at==='string'));console.log('PASS Work Screen frozen lifecycle and real IndexedDB persistence');console.log('PASS Personal Trip forms from DAY START and READY FOR OPERATION');console.log('PASS editable prefilled odometers and Business/Personal discrepancy allocation');console.log('PASS Personal Trip end odometer + optional toll/parking');console.log('PASS business shift/trip loop with Start Trip left swipe and End Shift right swipe');console.log('PASS End Day button confirmation and cancellation');
 }finally{await context.close();await browser.close();}
