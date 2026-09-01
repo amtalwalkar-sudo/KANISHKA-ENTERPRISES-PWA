@@ -88,7 +88,6 @@ onUnmounted(()=>{clearInterval(timer);window.removeEventListener('keydown',onKey
 <div v-if="endDayConfirm" class="work-form-overlay" role="dialog" aria-modal="true"><div class="work-form-card"><p class="kfe-eyebrow">END DAY</p><h2>Confirm day closure</h2><p>All active work must be closed before ending the day.</p><button class="primary-action" type="button" :disabled="busy" @click="confirmEndDay">Confirm</button><button class="secondary-action" type="button" :disabled="busy" @click="cancelEndDay">Cancel</button></div></div>
 </template>
 </section>
-</template>
 <style scoped>
 /* existing work-session styling remains in work-session.css */
 </style>
