@@ -33,7 +33,7 @@ const shift=await app.startShift({},'phase4-shift');
 const trip=await app.startBusinessTrip({},'phase4-trip');
 assert.equal(stores.get('rides').get(trip.id).start_odometer,undefined);
 await app.endBusinessTrip({id:trip.id},'phase4-trip-end');
-await app.endShift({id:shift.id,endOdometer:120},'phase4-shift-end');
+await app.endShift({id:shift.id,endOdometer:120,revenuePaise:0},'phase4-shift-end');
 await app.endDay({},'phase4-day-end');
 assert.equal((await app.getWorkScreenState()).day.status,'COMPLETED');
 console.log('PASS UI reaches application command boundary');
