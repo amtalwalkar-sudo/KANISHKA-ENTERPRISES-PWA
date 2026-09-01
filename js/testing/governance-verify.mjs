@@ -25,6 +25,20 @@ assert.ok(spec.forbiddenInCurrentScope.includes('multiple drivers'));
 assert.equal(future.capabilities.gps, 'future');
 assert.equal(future.capabilities.kfeAdvisor, 'future');
 
+assert.equal(spec.stateGovernance.invariants.find(i => i.id === 'KFE-GOV-STATE-001')?.id, 'KFE-GOV-STATE-001');
+assert.equal(spec.stateGovernance.invariants.find(i => i.id === 'KFE-GOV-STATE-002')?.id, 'KFE-GOV-STATE-002');
+assert.match(spec.stateGovernance.staleLoopPrevention, /Never iterate on a stale failure/i);
+
+if (process.env.GITHUB_ACTIONS === 'true') {
+  const expectedSha = process.env.KFE_VALIDATED_SHA;
+  const observedSha = process.env.KFE_OBSERVED_CODE_SHA;
+  const ciRunSha = process.env.KFE_CI_RUN_SHA;
+  if (!expectedSha || !observedSha || !ciRunSha) fail('STATE_MISMATCH: required CI state SHAs are missing');
+  if (expectedSha !== observedSha || expectedSha !== ciRunSha) {
+    fail(`STATE_MISMATCH: expected=${expectedSha} observed=${observedSha} ci=${ciRunSha}`);
+  }
+}
+
 for (const [name, dirs] of Object.entries(architecture.layers)) {
   for (const dir of dirs) if (name !== 'futureIntegrations' && !exists(dir)) fail(`architecture path missing: ${dir}`);
 }
@@ -110,4 +124,4 @@ assert.equal(calculations.calculations.loan.version, 1);
 assert.equal(golden.expansionPolicy.includes('approved specification'), true);
 
 console.log('KFE 2.0 Governance Gate: PASS');
-console.log('Specification authority, current-scope UI contracts, architecture contract, Tax Reserve exclusion, PWA integrity, service-worker registration, future-scope markers, and financial golden vector verified.');
+console.log('Specification authority, state synchronization, current-scope UI contracts, architecture contract, Tax Reserve exclusion, PWA integrity, service-worker registration, future-scope markers, and financial golden vector verified.');
