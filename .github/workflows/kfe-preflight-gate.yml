@@ -2,6 +2,11 @@ name: KFE Preflight Gate
 
 on:
   workflow_call:
+    inputs:
+      commit_sha:
+        description: Exact commit SHA the caller requires Preflight to validate
+        required: true
+        type: string
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +22,21 @@ jobs:
       - name: Checkout exact PR head commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.commit_sha || github.sha }}
+
+      - name: Verify checked-out commit
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.commit_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          if [ "$actual_sha" != "$EXPECTED_SHA" ]; then
+            echo "Expected commit: $EXPECTED_SHA"
+            echo "Actual commit:   $actual_sha"
+            exit 1
+          fi
+          echo "PRECHECK_COMMIT=$actual_sha"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
