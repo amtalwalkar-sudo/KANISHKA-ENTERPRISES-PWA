@@ -1,0 +1,1 @@
+Performance foundation implementation branch is based on the designated KFE 2.0 baseline. This note exists only as implementation traceability for the current migration from Status to Performance.
