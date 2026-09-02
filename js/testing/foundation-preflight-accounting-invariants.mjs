@@ -14,6 +14,7 @@ const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 const kfe=read('js/application/kfe.js');
 const app=read('src/App.vue');
 const quickFuel=read('src/components/FuelQuickEntry.vue');
+const workDomain=read('js/domain/work.js');
 
 const mixedExpenses=[
  {id:'business',amount_paise:10000,scope:'BUSINESS',is_deleted:false},
@@ -38,6 +39,7 @@ const businessWork=calculateWorkSession({id:'b',scope:'BUSINESS',start_odometer:
 assert(businessWork.value?.workKm===150,'Business Work Session contributes business KM');
 assert(businessWork.value?.breakMinutes===20,'Work Session break handling is preserved in the calculation');
 try{calculateWorkSession({id:'p',scope:'PERSONAL',start_odometer:100,end_odometer:250});failures.push('Personal Work Session must not enter business calculation');}catch(error){assert(/Personal trips are separate/.test(String(error.message)),'Personal Work Session is excluded from business calculation');}
+assert(workDomain.includes('breakMinutes')&&workDomain.includes('break_minutes'),'Work Session domain explicitly models break handling');
 
 const kmItem={id:'km',expected_cost_paise:200000,expected_km_life:10000,expected_time_life_days:null,baseline_odometer:1000,is_deleted:false};
 assert(maintenanceDimension(kmItem)==='KM','Maintenance allocation has a distinct KM dimension');
@@ -65,7 +67,7 @@ assert(profitability(withoutPersonal).value.netProfitPaise===profitability(withP
 
 assert(kfe.includes('recordVehicleLifecycle'),'Vehicle lifecycle entry point remains in the application boundary');
 assert(kfe.includes('softDelete(existing)'),'Soft deletion remains available through the application boundary');
-assert(kfe.includes('break_minutes'),'Work Session break handling remains represented at application/domain level');
+assert(kfe.includes('break_minutes')||workDomain.includes('break_minutes'),'Work Session break handling remains represented at application/domain level');
 assert(!/tax\s+reserve/i.test(kfe),'Production application boundary contains no Tax Reserve concept');
 assert(!/tax\s+reserve/i.test(app),'Production presentation contains no Tax Reserve concept');
 
