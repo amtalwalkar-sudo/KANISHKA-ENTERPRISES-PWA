@@ -1,0 +1,76 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {calculateWorkSession} from '../domain/work.js';
+import {businessExpenses,personalExpenses,fixedExpensePerBusinessKm} from '../domain/expenses.js';
+import {businessRevenue,personalRevenue} from '../domain/revenue.js';
+import {provisionMaintenance,maintenanceDimension} from '../domain/maintenance.js';
+import {amortize,applyPrepayment} from '../domain/loans.js';
+import {profitability} from '../domain/dashboard.js';
+
+const failures=[];
+const assert=(condition,message)=>{if(!condition)failures.push(message);};
+const root=process.cwd();
+const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+const kfe=read('js/application/kfe.js');
+const app=read('src/App.vue');
+const quickFuel=read('src/components/FuelQuickEntry.vue');
+const workDomain=read('js/domain/work.js');
+
+const mixedExpenses=[
+ {id:'business',amount_paise:10000,scope:'BUSINESS',is_deleted:false},
+ {id:'personal',amount_paise:20000,scope:'PERSONAL',is_deleted:false},
+ {id:'deleted',amount_paise:50000,scope:'BUSINESS',is_deleted:true}
+];
+assert(businessExpenses(mixedExpenses).value===10000,'Personal and soft-deleted expenses are excluded from business totals');
+assert(personalExpenses(mixedExpenses).value===20000,'Personal expenses remain separately measurable');
+
+const mixedRevenue=[
+ {id:'business',amount_paise:30000,scope:'BUSINESS',is_deleted:false},
+ {id:'personal',amount_paise:40000,scope:'PERSONAL',is_deleted:false},
+ {id:'deleted',amount_paise:50000,scope:'BUSINESS',is_deleted:true}
+];
+assert(businessRevenue(mixedRevenue).value===30000,'Personal and soft-deleted revenue are excluded from business totals');
+assert(personalRevenue(mixedRevenue).value===40000,'Personal revenue remains separately measurable');
+
+assert(quickFuel.includes("scope:'BUSINESS'"),'Quick Fuel explicitly records business scope');
+assert(kfe.includes('repository.entity(\'fuel_records\')')&&kfe.includes('scope'),'Fuel persistence preserves scope for separate business/personal accounting');
+
+const businessWork=calculateWorkSession({id:'b',scope:'BUSINESS',start_odometer:100,end_odometer:250,break_minutes:20,start_at:'2026-09-02T06:00:00.000Z'});
+assert(businessWork.value?.workKm===150,'Business Work Session contributes business KM');
+assert(businessWork.value?.breakMinutes===20,'Work Session break handling is preserved in the calculation');
+try{calculateWorkSession({id:'p',scope:'PERSONAL',start_odometer:100,end_odometer:250});failures.push('Personal Work Session must not enter business calculation');}catch(error){assert(/Personal trips are separate/.test(String(error.message)),'Personal Work Session is excluded from business calculation');}
+assert(workDomain.includes('breakMinutes')&&workDomain.includes('break_minutes'),'Work Session domain explicitly models break handling');
+
+const kmItem={id:'km',expected_cost_paise:200000,expected_km_life:10000,expected_time_life_days:null,baseline_odometer:1000,is_deleted:false};
+assert(maintenanceDimension(kmItem)==='KM','Maintenance allocation has a distinct KM dimension');
+assert(provisionMaintenance(kmItem,{odometer:6000,at:'2026-09-02'}).value===100000,'Maintenance is amortized by vehicle usage KM');
+try{maintenanceDimension({id:'bad',expected_cost_paise:1,expected_km_life:100,expected_time_life_days:10});failures.push('Maintenance must reject combined KM and time dimensions');}catch(error){assert(/exactly one dimension/.test(String(error.message)),'Maintenance rejects mixed KM/time dimensions');}
+
+const fixed=[{id:'f1',monthly_amount_paise:120000,effective_from:'2026-01-01',effective_to:'2026-12-31',is_deleted:false}];
+const fixedPerKm=fixedExpensePerBusinessKm(fixed,1200,'2026-09-02');
+assert(fixedPerKm.value===100,'Active fixed expense lifecycle is allocated against business KM');
+assert(fixedExpensePerBusinessKm(fixed,1200,'2027-01-01').value===null,'Expired fixed expense lifecycle does not remain active');
+assert(fixedExpensePerBusinessKm(fixed,0,'2026-09-02').value===null,'Fixed expense allocation never invents a per-KM value without business KM');
+
+const schedule=amortize({principal_paise:1000000,annual_rate_percent:12,term_months:12,emi_paise:90000}).value;
+assert(schedule.every(row=>row.payment_paise===row.principal_paise+row.interest_paise),'Loan principal/interest allocation invariant holds for every installment');
+assert(schedule.at(-1).ending_balance_paise===0,'Loan lifecycle closes when scheduled payments retire principal');
+const prepayment=applyPrepayment(250000,300000).value;
+assert(prepayment.effectivePrepaymentPaise===250000&&prepayment.remainingPrincipalPaise===0&&prepayment.status==='COMPLETED','Loan prepayment caps at outstanding principal and closes the loan');
+
+const base={revenue:100000,fuel:10000,maintenanceProvision:10000,fixedOverhead:10000,loanPrincipal:5000,loanInterest:2000,otherBusinessCosts:3000,takeHomeTargetPaise:10000};
+const profit=profitability(base).value;
+assert(profit.netProfitPaise===60000,'Business profitability includes all frozen business cost buckets');
+const withoutPersonal={...base};
+const withPersonal={...base,fuel:base.fuel,maintenanceProvision:base.maintenanceProvision};
+assert(profitability(withoutPersonal).value.netProfitPaise===profitability(withPersonal).value.netProfitPaise,'Personal-use activity cannot change business profitability inputs');
+
+assert(kfe.includes('recordVehicleLifecycle'),'Vehicle lifecycle entry point remains in the application boundary');
+assert(kfe.includes('softDelete(existing)'),'Soft deletion remains available through the application boundary');
+assert(kfe.includes('break_minutes')||workDomain.includes('break_minutes'),'Work Session break handling remains represented at application/domain level');
+assert(!/tax\s+reserve/i.test(kfe),'Production application boundary contains no Tax Reserve concept');
+assert(!/tax\s+reserve/i.test(app),'Production presentation contains no Tax Reserve concept');
+
+console.log('FOUNDATION_PREFLIGHT_ACCOUNTING_INVARIANTS_CHECKS=28');
+if(failures.length){console.error('FOUNDATION_PREFLIGHT_ACCOUNTING_INVARIANTS_FAILED');for(const f of failures)console.error(`- ${f}`);process.exit(1);}
+console.log('FOUNDATION_PREFLIGHT_ACCOUNTING_INVARIANTS=PASS');

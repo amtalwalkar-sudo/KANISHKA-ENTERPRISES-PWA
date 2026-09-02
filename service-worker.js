@@ -2,7 +2,7 @@
 importScripts('./js/pwa/sw-strategies.js');
 
 const CACHE_NAME='kanishka-fleet-beta-v6-android-runtime';
-const APP_SHELL=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png','./js/app.js','./js/ui-shell.js','./js/core/store.js','./js/core/repository.js','./js/core/idb.js','./js/core/network.js','./js/core/resilience.js','./js/dashboard/aggregator.js','./js/domain/work.js','./js/domain/fuel.js','./js/domain/expenses.js','./js/domain/revenue.js','./js/domain/maintenance.js','./js/domain/loan.js','./js/domain/renewals.js','./js/screens/work.js','./js/screens/fuel.js','./js/screens/expenses.js','./js/screens/revenue.js','./js/screens/maintenance.js','./js/screens/loan.js','./js/screens/renewals.js','./js/services/background-tracking.js','./js/services/wake-lock.js','./js/services/core-loop.js','./js/pwa/sw-strategies.js','./js/pwa/push-notifications.js','./js/pwa/crash-buffer.js','./js/pwa/silent-recovery.js'];
+const APP_SHELL=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png','./js/app.js','./js/ui-shell.js','./js/core/store.js','./js/core/repository.js','./js/core/network.js','./js/core/resilience.js','./js/domain/work.js','./js/domain/fuel.js','./js/domain/expenses.js','./js/domain/revenue.js','./js/domain/maintenance.js','./js/services/background-tracking.js','./js/services/wake-lock.js','./js/services/core-loop.js','./js/pwa/sw-strategies.js','./js/pwa/push-notifications.js','./js/pwa/crash-buffer.js','./js/pwa/silent-recovery.js'];
 const LEGACY_PATH='./js/legacy-runtime.js';
 
 async function transform(html){
