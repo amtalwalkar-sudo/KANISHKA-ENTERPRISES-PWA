@@ -36,7 +36,7 @@ assert(kfe.includes('repository.entity(\'fuel_records\')')&&kfe.includes('scope'
 
 const businessWork=calculateWorkSession({id:'b',scope:'BUSINESS',start_odometer:100,end_odometer:250,break_minutes:20,start_at:'2026-09-02T06:00:00.000Z'});
 assert(businessWork.value?.workKm===150,'Business Work Session contributes business KM');
-assert(()=>true,'placeholder');
+assert(businessWork.value?.breakMinutes===20,'Work Session break handling is preserved in the calculation');
 try{calculateWorkSession({id:'p',scope:'PERSONAL',start_odometer:100,end_odometer:250});failures.push('Personal Work Session must not enter business calculation');}catch(error){assert(/Personal trips are separate/.test(String(error.message)),'Personal Work Session is excluded from business calculation');}
 
 const kmItem={id:'km',expected_cost_paise:200000,expected_km_life:10000,expected_time_life_days:null,baseline_odometer:1000,is_deleted:false};
