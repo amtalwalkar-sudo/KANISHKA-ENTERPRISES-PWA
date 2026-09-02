@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "layers": {
+    "presentation": ["src/"],
+    "application": ["js/application/"],
+    "domain": ["js/domain/"],
+    "repositoryContracts": ["js/core/"],
+    "infrastructure": ["js/services/", "js/pwa/"],
+    "localDatabase": ["js/core/"],
+    "futureIntegrations": []
+  },
+  "allowedImports": {
+    "presentation": ["application", "domain", "repositoryContracts", "infrastructure"],
+    "application": ["domain", "repositoryContracts", "infrastructure"],
+    "domain": [],
+    "repositoryContracts": ["localDatabase"],
+    "infrastructure": ["repositoryContracts", "localDatabase", "futureIntegrations"],
+    "localDatabase": [],
+    "futureIntegrations": []
+  },
+  "forbiddenDependencies": [
+    ["domain", "presentation"],
+    ["domain", "application"],
+    ["domain", "repositoryContracts"],
+    ["domain", "infrastructure"],
+    ["application", "presentation"],
+    ["application", "localDatabase"]
+  ],
+  "directPersistenceForbiddenIn": ["src/", "js/domain/", "js/application/"],
+  "directBusinessCalculationForbiddenIn": ["src/"]
+}
