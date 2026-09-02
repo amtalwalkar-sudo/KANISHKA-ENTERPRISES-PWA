@@ -10,9 +10,7 @@ function amountOf(record){return Number(record?.amount_paise||0);}
 function workSecondsOf(record){if(!record?.start_at&&!record?.started_at)return 0;const start=Date.parse(record.start_at||record.started_at);const end=Date.parse(record.end_at||record.ended_at||record.completed_at||'');if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)return 0;return Math.floor((end-start)/1000);}
 export async function performanceReadModel({repository,asOf=new Date().toISOString()}={}){
  const today=String(asOf).slice(0,10);
- const [revenue,expenses,fuel,work,maintenance]=await Promise.all([
-  repository.entity('revenue_records').list(),repository.entity('expense_records').list(),repository.entity('fuel_records').list(),repository.entity('work_sessions').list(),repository.entity('maintenance_records').list()
- ]);
+ const [revenue,expenses,fuel,work,maintenance]=await Promise.all([repository.entity('revenue_records').list(),repository.entity('expense_records').list(),repository.entity('fuel_records').list(),repository.entity('work_sessions').list(),repository.entity('maintenance_records').list()]);
  const businessRevenue=revenue.filter(r=>dateOf(r)===today&&String(r.scope||'BUSINESS')==='BUSINESS');
  const businessExpenses=expenses.filter(r=>dateOf(r)===today&&String(r.scope||'BUSINESS')==='BUSINESS');
  const businessFuel=fuel.filter(r=>dateOf(r)===today&&String(r.scope||'BUSINESS')==='BUSINESS');
@@ -23,18 +21,18 @@ export async function performanceReadModel({repository,asOf=new Date().toISOStri
  const fuelPaise=businessFuel.reduce((s,r)=>s+amountOf(r),0);
  const businessKm=businessWork.reduce((s,r)=>s+Number(r.business_km||0),0);
  const workSeconds=businessWork.reduce((s,r)=>s+workSecondsOf(r),0);
- const runningCostPaise=businessMaintenance.length?null:fuelPaise;
- const balancePaise=runningCostPaise==null?null:revenuePaise-runningCostPaise;
+ const runningCostPaise=null;
+ const balancePaise=null;
  const revenuePerKmPaise=businessKm>0?revenuePaise/businessKm:null;
- const runningCostPerKmPaise=runningCostPaise!=null&&businessKm>0?runningCostPaise/businessKm:null;
+ const runningCostPerKmPaise=null;
  const history=Array.from(new Set([...revenue,...expenses,...fuel,...work].map(dateOf).filter(Boolean))).sort().reverse().slice(0,31).map(date=>({date,revenuePaise:revenue.filter(r=>dateOf(r)===date).reduce((s,r)=>s+amountOf(r),0),businessKm:work.filter(r=>dateOf(r)===date).reduce((s,r)=>s+Number(r.business_km||0),0)}));
  const confidence=confidenceState([...businessRevenue,...businessExpenses,...businessFuel,...businessWork]);
  let brief='Today’s position is awaiting sufficient authoritative activity.';
  if(revenuePaise>0&&businessKm>0)brief=`${moneyText(revenuePaise)} earned across ${businessKm.toFixed(1)} business KM.`;
  else if(revenuePaise>0)brief=`${moneyText(revenuePaise)} of business revenue recorded today.`;
  else if(businessKm>0)brief=`${businessKm.toFixed(1)} business KM recorded today; revenue is still unavailable.`;
- const why=runningCostPaise==null?'Running cost and balance remain unavailable until all required authoritative allocation inputs are present.':`Revenue ${moneyText(revenuePaise)} less running cost ${moneyText(runningCostPaise)}.`;
- return Object.freeze({version:PRESENTATION_READ_MODEL_VERSION,asOf,dataConfidenceState:confidence,revenuePaise,runningCostPaise,balancePaise,businessKm,revenuePerKmPaise,runningCostPerKmPaise,workSeconds,todayTargetPaise:null,trajectory:null,trajectoryReason:'Trajectory requires the frozen target/forecast calculation chain.',brief,why,history:Object.freeze(history.map(Object.freeze)),personalUseSeparated:true,maintenanceAllocationPending:businessMaintenance.length>0,fuelPaise});
+ const why='Running cost, balance and trajectory remain unavailable until the complete authoritative allocation/target calculation chain is available.';
+ return Object.freeze({version:PRESENTATION_READ_MODEL_VERSION,asOf,dataConfidenceState:confidence,revenuePaise,runningCostPaise,balancePaise,businessKm,revenuePerKmPaise,runningCostPerKmPaise,workSeconds,todayTargetPaise:null,trajectory:null,trajectoryReason:'Trajectory requires the frozen target/forecast calculation chain.',brief,why,history:Object.freeze(history.map(Object.freeze)),personalUseSeparated:true,maintenanceAllocationPending:businessMaintenance.length>0,expensePaise,fuelPaise});
 }
 function moneyText(value){return `₹${(Number(value)/100).toFixed(2)}`;}
 const TIMELINE_SOURCES=[['work_sessions','WORK_SESSION'],['fuel_records','FUEL'],['expense_records','EXPENSE'],['revenue_records','REVENUE'],['maintenance_records','MAINTENANCE'],['renewals_compliance','RENEWAL'],['loan_payments','LOAN_PAYMENT']];
