@@ -14,15 +14,15 @@ const app=read(appPath);
 assert(/import\s*\{\s*application\s*\}\s*from\s*['"]\.\.\/js\/app\.js['"]/.test(app),'Presentation imports the application boundary through js/app.js');
 assert(!/from\s+['"][^'"]*(?:repository|infrastructure|database)[^'"]*['"]/.test(app),'App.vue does not import repository/infrastructure/database modules directly');
 
-const destinations=['Work','Status','Timeline','More'];
+const destinations=['Work','Performance','Timeline','More'];
 for(const name of destinations)assert(app.includes(`'${name}'`),`Primary destination wired: ${name}`);
 const modules=['Vehicle','Driver','Fuel','Expenses','Revenue','Loans','Maintenance','Compliance','Dashboard','Profitability','Historical Entries'];
 for(const name of modules)assert(app.includes(`'${name}'`),`Module destination wired: ${name}`);
 
 const componentFiles=fs.readdirSync(components).filter(name=>name.endsWith('.vue'));
-const displayOnly=new Set(['StatusModuleView.vue','KfeTimelineView.vue']);
+const displayOnly=new Set(['KfeTimelineView.vue']);
 const productionScreens=[
-  'WorkSessionView.vue','StatusModuleView.vue','KfeTimelineView.vue','KfeModuleView.vue',
+  'WorkSessionView.vue','PerformanceModuleView.vue','KfeTimelineView.vue','KfeModuleView.vue',
   'KfeFinancialModuleView.vue','VehicleModuleView.vue','MaintenanceModuleView.vue',
   'ComplianceModuleView.vue','LoanModuleView.vue','MoneyModuleView.vue','HistoricalEntriesView.vue',
   'FuelHistoryView.vue','FuelQuickEntry.vue'
