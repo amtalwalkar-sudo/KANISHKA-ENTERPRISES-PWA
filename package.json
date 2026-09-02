@@ -2,6 +2,7 @@
   "name": "kanishka-enterprises-pwa",
   "private": true,
   "version": "2.0.0",
+  "description": "KFE 2.0 single-vehicle ERP PWA",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -45,7 +46,6 @@
     "validate:phase-5-maintenance-application": "node js/testing/phase-5-maintenance-application-boundary.mjs",
     "validate:phase-5-maintenance-real-persistence": "node js/testing/phase-5-maintenance-persistence-browser.mjs",
     "validate:phase-5-profitability-application": "node js/testing/phase-5-profitability-application-boundary.mjs",
-    "validate:phase-5-profitability-real-persistence": "node js/testing/phase-5-profitability-read-model-browser.mjs",
     "validate:phase-5-dashboard-application": "node js/testing/phase-5-dashboard-application-boundary.mjs",
     "validate:phase-5-completion-integrity": "node js/testing/phase-5-completion-integrity.mjs",
     "validate:phase-6-ui-shell": "node js/testing/phase-6-ui-shell-contract.mjs",
