@@ -2,7 +2,7 @@ import {DATA} from '../domain/shared.js';
 export const PRESENTATION_READ_MODEL_VERSION=2;
 const CONFIDENCE_STATES=new Set(Object.values(DATA));
 function stateOf(value){const state=value?.dataConfidenceState;if(CONFIDENCE_STATES.has(state))return state;return value==null?DATA.UNKNOWN:DATA.ACTUAL;}
-export function confidenceState(values=[]){const states=values.map(stateOf);if(states.includes(DATA.INSUFFICIENT_DATA))return DATA.INSUFFICIENT_DATA;if(states.includes(DATA.UNKNOWN))return DATA.UNKNOWN;if(states.includes(DATA.PROVISION))return DATA.PROVISION;if(states.includes(DATA.PROJECTED))return DATA.PROJECTED;if(states.includes(DATA.BASELINE))return DATA.BASELINE;return DATA.ACTUAL;}
+export function confidenceState(values=[]){if(!values.length)return DATA.UNKNOWN;const states=values.map(stateOf);if(states.includes(DATA.INSUFFICIENT_DATA))return DATA.INSUFFICIENT_DATA;if(states.includes(DATA.UNKNOWN))return DATA.UNKNOWN;if(states.includes(DATA.PROVISION))return DATA.PROVISION;if(states.includes(DATA.PROJECTED))return DATA.PROJECTED;if(states.includes(DATA.BASELINE))return DATA.BASELINE;return DATA.ACTUAL;}
 export function dashboardReadModel({profitabilityResult,tomorrowTargetResult,alerts=[]}={}){return Object.freeze({version:PRESENTATION_READ_MODEL_VERSION,dataConfidenceState:confidenceState([profitabilityResult,tomorrowTargetResult]),profitability:profitabilityResult??null,tomorrowTarget:tomorrowTargetResult??null,alerts:Array.isArray(alerts)?Object.freeze([...alerts]):Object.freeze([])});}
 export function workSessionReadModel(session){if(!session)return Object.freeze({dataConfidenceState:DATA.UNKNOWN,session:null});return Object.freeze({dataConfidenceState:stateOf(session),session:Object.freeze({...session})});}
 function dateOf(record){return String(record?.business_date||record?.date||record?.recorded_at||record?.started_at||record?.created_at||'').slice(0,10);}
@@ -16,21 +16,21 @@ export async function performanceReadModel({repository,asOf=new Date().toISOStri
  const businessFuel=fuel.filter(r=>dateOf(r)===today&&String(r.scope||'BUSINESS')==='BUSINESS');
  const businessWork=work.filter(r=>dateOf(r)===today&&String(r.scope||'BUSINESS')==='BUSINESS');
  const businessMaintenance=maintenance.filter(r=>dateOf(r)===today&&String(r.scope||'BUSINESS')==='BUSINESS');
- const revenuePaise=businessRevenue.reduce((s,r)=>s+amountOf(r),0);
- const expensePaise=businessExpenses.reduce((s,r)=>s+amountOf(r),0);
- const fuelPaise=businessFuel.reduce((s,r)=>s+amountOf(r),0);
- const businessKm=businessWork.reduce((s,r)=>s+Number(r.business_km||0),0);
- const workSeconds=businessWork.reduce((s,r)=>s+workSecondsOf(r),0);
+ const revenuePaise=businessRevenue.length?businessRevenue.reduce((s,r)=>s+amountOf(r),0):null;
+ const expensePaise=businessExpenses.length?businessExpenses.reduce((s,r)=>s+amountOf(r),0):null;
+ const fuelPaise=businessFuel.length?businessFuel.reduce((s,r)=>s+amountOf(r),0):null;
+ const businessKm=businessWork.length?businessWork.reduce((s,r)=>s+Number(r.business_km||0),0):null;
+ const workSeconds=businessWork.length?businessWork.reduce((s,r)=>s+workSecondsOf(r),0):null;
  const runningCostPaise=null;
  const balancePaise=null;
- const revenuePerKmPaise=businessKm>0?revenuePaise/businessKm:null;
+ const revenuePerKmPaise=revenuePaise!=null&&businessKm>0?revenuePaise/businessKm:null;
  const runningCostPerKmPaise=null;
  const history=Array.from(new Set([...revenue,...expenses,...fuel,...work].map(dateOf).filter(Boolean))).sort().reverse().slice(0,31).map(date=>({date,revenuePaise:revenue.filter(r=>dateOf(r)===date).reduce((s,r)=>s+amountOf(r),0),businessKm:work.filter(r=>dateOf(r)===date).reduce((s,r)=>s+Number(r.business_km||0),0)}));
  const confidence=confidenceState([...businessRevenue,...businessExpenses,...businessFuel,...businessWork]);
  let brief='Today’s position is awaiting sufficient authoritative activity.';
- if(revenuePaise>0&&businessKm>0)brief=`${moneyText(revenuePaise)} earned across ${businessKm.toFixed(1)} business KM.`;
- else if(revenuePaise>0)brief=`${moneyText(revenuePaise)} of business revenue recorded today.`;
- else if(businessKm>0)brief=`${businessKm.toFixed(1)} business KM recorded today; revenue is still unavailable.`;
+ if(revenuePaise!=null&&businessKm!=null)brief=`${moneyText(revenuePaise)} earned across ${businessKm.toFixed(1)} business KM.`;
+ else if(revenuePaise!=null)brief=`${moneyText(revenuePaise)} of business revenue recorded today.`;
+ else if(businessKm!=null)brief=`${businessKm.toFixed(1)} business KM recorded today; revenue is still unavailable.`;
  const why='Running cost, balance and trajectory remain unavailable until the complete authoritative allocation/target calculation chain is available.';
  return Object.freeze({version:PRESENTATION_READ_MODEL_VERSION,asOf,dataConfidenceState:confidence,revenuePaise,runningCostPaise,balancePaise,businessKm,revenuePerKmPaise,runningCostPerKmPaise,workSeconds,todayTargetPaise:null,trajectory:null,trajectoryReason:'Trajectory requires the frozen target/forecast calculation chain.',brief,why,history:Object.freeze(history.map(Object.freeze)),personalUseSeparated:true,maintenanceAllocationPending:businessMaintenance.length>0,expensePaise,fuelPaise});
 }
