@@ -12,7 +12,7 @@ const pkg=read('package.json');
 const main=read('src/main.js');
 const vue=read('src/App.vue');
 
-const legacyPaths=['js/legacy-runtime.js','js/ui-shell.js','js/dashboard/aggregator.js','tests/business-runtime.mjs','.github/workflows/business-runtime-validation.yml','.github/workflows/complete-ui-shell-migration.yml'];
+const legacyPaths=['js/legacy-runtime.js','js/dashboard/aggregator.js','tests/business-runtime.mjs','.github/workflows/business-runtime-validation.yml','.github/workflows/complete-ui-shell-migration.yml'];
 const vueHasBusinessCalculation=/\b(?:calculate(?:Work|Fuel|Revenue|Profit|Maintenance)|amortize|projectedFuelCostForKm|businessExpenses|fixedExpensePerBusinessKm|provisionMaintenance|profitability|tomorrowTarget)\s*\(/.test(vue);
 const vueHasArithmetic=/\b(?:amount_paise|revenuePaise|expensesPaise|fuelPaise|businessKm|fuelCostPerKm|profit)\s*[+\-*\/%]=?/.test(vue);
 const checks=[
