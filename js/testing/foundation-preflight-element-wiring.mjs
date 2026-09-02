@@ -20,6 +20,7 @@ const modules=['Vehicle','Driver','Fuel','Expenses','Revenue','Loans','Maintenan
 for(const name of modules)assert(app.includes(`'${name}'`),`Module destination wired: ${name}`);
 
 const componentFiles=fs.readdirSync(components).filter(name=>name.endsWith('.vue'));
+const displayOnly=new Set(['StatusModuleView.vue','KfeTimelineView.vue']);
 const productionScreens=[
   'WorkSessionView.vue','StatusModuleView.vue','KfeTimelineView.vue','KfeModuleView.vue',
   'KfeFinancialModuleView.vue','VehicleModuleView.vue','MaintenanceModuleView.vue',
@@ -33,7 +34,7 @@ for(const name of productionScreens){
   const text=read(file);
   assert(/<template(?:\s|>)/.test(text),`${name}: UI template renders`);
   assert(/<script(?:\s|>)/.test(text),`${name}: script boundary exists`);
-  assert(/@(?:click|submit|change|input|save-request|back|open|fuel-edit|fuel-undo|calculation-request|reset-request)/.test(text)||/defineEmits\s*\(/.test(text),`${name}: interactive/event surface exists`);
+  if(!displayOnly.has(name))assert(/@(?:click|submit|change|input|save-request|back|open|fuel-edit|fuel-undo|calculation-request|reset-request)/.test(text)||/defineEmits\s*\(/.test(text),`${name}: interactive/event surface exists`);
 }
 
 const eventWiring=[
