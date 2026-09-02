@@ -2,7 +2,7 @@
   "name": "kanishka-enterprises-pwa",
   "private": true,
   "version": "2.0.0",
-  "description": "KFE 2.0 single-vehicle ERP PWA",
+  "description": "KFE 2.0 single-vehicle ERP PWA — governed and offline-first",
   "type": "module",
   "scripts": {
     "dev": "vite",
