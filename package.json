@@ -8,6 +8,7 @@
     "dev:https": "vite --host 0.0.0.0 --https",
     "build": "vite build",
     "preview": "vite preview",
+    "validate:governance": "node js/testing/governance-verify.mjs",
     "validate:architecture": "node js/12-step-verify.mjs",
     "validate:foundation": "node js/foundation-hardening-verify.mjs",
     "validate:domain": "node js/testing/domain-calculation-verify.mjs",
