@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, ci/foundation-preflight-3-gates]
   workflow_dispatch:
 
 concurrency:
@@ -26,8 +26,6 @@ jobs:
         uses: actions/checkout@v5
       - name: Setup Node 20
         uses: actions/setup-node@v5
-        with:
-          node-version: 20
       - name: Install dependencies
         run: npm install
       - name: Build application
@@ -80,7 +78,7 @@ jobs:
           npm run validate:phase-5-vehicle-real-persistence
           npm run validate:phase-5-fuel-real-persistence
           npm run validate:phase-5-expenses-real-persistence
-          npm run validate:phase-5-revenue-real-persistence
+          npm run validate:phase-5-revenue-persistence-browser
           npm run validate:phase-5-loans-real-persistence
           npm run validate:phase-5-renewals-compliance-real-persistence
           npm run validate:phase-5-maintenance-real-persistence
