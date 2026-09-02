@@ -36,6 +36,8 @@ jobs:
         run: timeout 180s npx playwright install --with-deps chromium
       - name: KFE Screen Contract gate
         run: npm run validate:kfe-screen-contract
+      - name: Foundation Preflight — frozen 3-gate master CI
+        run: npm run validate:foundation-preflight
       - name: Architecture and foundation
         run: |
           npm run validate:architecture
