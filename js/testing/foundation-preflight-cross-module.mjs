@@ -31,7 +31,7 @@ assert(work.value?.breakMinutes===30,'Work Session carries break handling into t
 
 const fuel=[0,100,200,300].map((odometer,i)=>({id:`fuel-${i}`,odometer,amount_paise:10000,is_full_tank:true,is_deleted:false}));
 const fuelRate=rollingFuelCostPerKm(fuel,3);
-assert(fuelRate.value===100000000,'Fuel Cost/KM flows from full-tank intervals');
+assert(fuelRate.value===100,'Fuel Cost/KM flows from full-tank intervals');
 
 const expenses=businessExpenses([
  {id:'b',amount_paise:5000,scope:'BUSINESS',is_deleted:false},
