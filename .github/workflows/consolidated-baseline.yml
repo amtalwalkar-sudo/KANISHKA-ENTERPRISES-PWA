@@ -34,6 +34,8 @@ jobs:
         run: GITHUB_ACTIONS=false npm run build
       - name: Install Chromium
         run: timeout 180s npx playwright install --with-deps chromium
+      - name: KFE Screen Contract gate
+        run: npm run validate:kfe-screen-contract
       - name: Architecture and foundation
         run: |
           npm run validate:architecture
