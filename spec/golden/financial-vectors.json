@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "vectors": [
+    {
+      "id": "PROFITABILITY-001",
+      "function": "js/domain/dashboard.js#profitability",
+      "input": {"revenue": 1000000, "fuel": 100000, "maintenanceProvision": 50000, "fixedOverhead": 100000, "loanPrincipal": 100000, "loanInterest": 20000, "otherBusinessCosts": 30000, "takeHomeTargetPaise": 200000},
+      "expected": {"revenuePaise": 1000000, "costsPaise": 400000, "netProfitPaise": 600000, "takeHomeTargetPaise": 200000, "aboveTakeHomeTargetPaise": 400000}
+    }
+  ],
+  "expansionPolicy": "Add a golden vector whenever an approved specification changes a financial calculation or an edge case is discovered. Do not invent expected values without an approved rule or verified calculation."
+}
