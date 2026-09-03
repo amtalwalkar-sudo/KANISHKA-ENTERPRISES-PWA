@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import KfeStatePanel from './KfeStatePanel.vue';
 import { projectTimeline } from '../../js/ui/timeline.js';
+import '../styles/timeline-horizons.css';
 
 const props=defineProps({horizon:{type:String,default:'Day'},events:{type:Array,default:()=>[]}});
 const locationFilter=ref('ALL');
