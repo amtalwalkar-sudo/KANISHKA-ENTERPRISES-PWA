@@ -27,7 +27,7 @@ The driver's normal working day must be possible entirely inside exactly these t
 2. **Performance — Know + Decide**: current business position and authoritative operating metrics. Performance is read-only and does not own transaction forms.
 3. **Timeline — See + Review + Correct History**: chronological journey/activity history, horizons, locations, fuel categories, outstation journeys, and contextual entry points for correcting historical records.
 
-**Timeline remains a read-only presentation surface.** Its edit action is only an entry point to the authoritative application form. Timeline itself never validates, calculates, creates, replaces, or persists a business record.
+**Timeline remains a read-only presentation surface.** Its edit action is only an entry point to the authoritative application form. Timeline itself never validates, calculates, creates, replaces, or persists a business record. Timeline distance is derived from the complete authoritative chronology before any presentation filter is applied, so location filters cannot manufacture a false distance between non-adjacent events. Location-area classification is centralized and consumes authoritative `locationArea` metadata when available.
 
 **More is administrative/back-office only.** It may retain owner/admin modules such as Vehicle, Maintenance, Compliance, Loans, configuration, and historical administration, but the driver must not need More for a normal working-day operation.
 
@@ -59,6 +59,21 @@ The initial driver-editable record types covered by this rule are:
 - Fuel
 - Revenue
 - Expense
+
+### Fuel authoritative form
+
+The Fuel form is the single authoritative CNG refuel form for both CREATE and EDIT. It contains:
+
+- **Black odometer** input
+- **Price per kg** input
+- **Amount** input
+- Automatically calculated **refuelled kg** (`amount / price per kg`)
+- Automatically captured human-readable timestamp
+- Automatically captured human-readable GPS/location stamp when permission and browser support are available
+- Success confirmation after save/update
+- GPS watch capture while the form is active, with a fresh position request at entry/save; browser/OS suspension may still limit true background execution
+
+Historical Fuel correction uses the same Fuel form in EDIT mode. Fuel history in More is presentation/admin only and does not contain a second edit form.
 
 Historical correction from Timeline therefore follows this path:
 
