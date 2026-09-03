@@ -26,6 +26,7 @@
     "validate:phase-3": "node js/testing/phase-3-ui-erp-contract.mjs",
     "validate:phase-4": "node js/testing/phase-4-work-session-vertical-slice.mjs",
     "validate:work-screen-browser": "node js/testing/work-screen-browser.mjs",
+    "validate:work-geolocation": "node js/testing/work-geolocation-contract.mjs",
     "validate:foundation-audit": "node js/testing/foundation-audit.mjs",
     "validate:kfe-screen-contract": "node js/testing/kfe-screen-contract.mjs",
     "validate:foundation-preflight": "node js/testing/foundation-preflight.mjs",
