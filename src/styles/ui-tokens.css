@@ -1,0 +1,10 @@
+:root{
+  --kfe-ui-bg:Canvas;
+  --kfe-ui-surface:Canvas;
+  --kfe-ui-text:CanvasText;
+  --kfe-ui-muted:GrayText;
+  --kfe-ui-border:color-mix(in srgb,CanvasText 18%,Canvas);
+  --kfe-ui-accent:AccentColor;
+  --kfe-ui-shadow:0 4px 18px color-mix(in srgb,CanvasText 12%,transparent);
+  --kfe-ui-overlay:color-mix(in srgb,Canvas 94%,transparent);
+}
