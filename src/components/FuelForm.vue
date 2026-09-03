@@ -31,7 +31,8 @@ function stopLocation(){if(watchId!==null&&navigator.geolocation)navigator.geolo
 function validate(){const o=Number(draft.value.odometer),p=Number(draft.value.pricePerKg),a=Number(draft.value.amount);if(!Number.isInteger(o)||o<0)return 'Enter a valid odometer.';if(!isEdit.value&&authoritative.value!=null&&o<authoritative.value)return 'Fuel odometer cannot be below the authoritative odometer.';if(!Number.isFinite(p)||p<=0)return 'Enter a valid price per litre/kg.';if(!Number.isFinite(a)||a<=0)return 'Enter a valid amount.';return '';}
 async function save(){if(busy.value)return;error.value='';const v=validate();if(v){error.value=v;return;}busy.value=true;try{let result;if(isEdit.value){result=await application.saveHistoricalCorrection({entityType:'Fuel',entityId:activeRecord.value?.entityId||activeRecord.value?.id},{recordedAt:new Date(draft.value.recordedAt).toISOString(),odometer:Number(draft.value.odometer),pricePerKg:Number(draft.value.pricePerKg),amount:Number(draft.value.amount),locationName:draft.value.locationName||null,locationArea:draft.value.locationArea||null});success.value='Fuel record updated successfully.';}else{const p=lastPosition.value;const recordedAt=new Date(draft.value.recordedAt).toISOString();result=await application.recordFuel({odometer:Number(draft.value.odometer),price_per_kg:Number(draft.value.pricePerKg),amount_paise:Math.round(Number(draft.value.amount)*100),recorded_at:recordedAt,date:recordedAt.slice(0,10),scope:'BUSINESS',entry_source:'FUEL',latitude:p?.coords?.latitude??null,longitude:p?.coords?.longitude??null,location_name:draft.value.locationName||null,location_area:draft.value.locationArea||null});success.value='Fuel record saved successfully.';}clearFormDraft(formRef.value);emit('saved',result);setTimeout(()=>emit('close'),900);}catch(e){error.value=String(e?.message||e);}finally{busy.value=false;}}
 function cancel(){if(busy.value)return;if(formRef.value&&hasFormDraft(formRef.value)){const ok=globalThis.confirm?.('Discard this unsaved draft?');if(ok===false)return;}clearFormDraft(formRef.value);emit('close');}
-function onKey(event){if(event.key==='Escape')cancel();}
+function closeOverlay(){if(busy.value)return;const ok=globalThis.confirm?.('Close Quick Fuel? Any unsaved entries will be lost.');if(ok===false)return;clearFormDraft(formRef.value);emit('close');}
+function onKey(event){if(event.key==='Escape')closeOverlay();}
 fromRecord();
 onMounted(()=>{window.addEventListener('keydown',onKey);if(!isEdit.value){loadLatestFuel();startLocation();}});
 onUnmounted(()=>{window.removeEventListener('keydown',onKey);stopLocation();});
@@ -39,9 +40,9 @@ onUnmounted(()=>{window.removeEventListener('keydown',onKey);stopLocation();});
 <template>
   <div class="fuel-form-overlay" role="dialog" aria-modal="true" :aria-label="title">
     <form ref="formRef" class="fuel-form-card" data-kfe-draft-form="true" :data-kfe-draft-key="draftKey" @submit.prevent="save">
-      <header class="fuel-form-header"><div><p class="fuel-eyebrow">KFE 2.0 · FUEL</p><h2>{{title}}</h2></div><button type="button" class="kfe-qf-close" :disabled="busy" aria-label="Close" @click="cancel">×</button></header>
+      <header class="fuel-form-header"><div><p class="fuel-eyebrow">KFE 2.0 · FUEL</p><h2>{{title}}</h2></div><button type="button" class="kfe-qf-close" :disabled="busy" aria-label="Close Quick Fuel" @click="closeOverlay">×</button></header>
       <section v-if="!isEdit && latestFuel" class="last-fuel-entry" aria-label="Last fuel entry">
-        <div><p class="fuel-eyebrow">LAST FUEL ENTRY</p><strong>{{Number(latestFuel.quantity_kg||0).toFixed(3)}} kg</strong><span> · ₹{{Number(latestFuel.amount_paise||0)/100}} · ₹{{Number(latestFuel.price_per_kg||0).toFixed(2)}}/kg</span></div>
+        <div><p class="fuel-eyebrow">LAST FUEL ENTRY</p><strong>{{Number(loadingLatestQuantity||0).toFixed(3)}} kg</strong><span> · ₹{{Number(latestFuel.amount_paise||0)/100}} · ₹{{Number(latestFuel.price_per_kg||0).toFixed(2)}}/kg</span></div>
         <div class="last-fuel-meta">Odometer {{latestFuel.odometer}} · {{latestTimestampLabel}}<span v-if="latestFuel.location_name"> · {{latestFuel.location_name}}</span></div>
         <button type="button" class="secondary-action" :disabled="busy" @click="startEditLatest">Edit</button>
       </section>
