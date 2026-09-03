@@ -19,6 +19,18 @@ Every production screen must prove the following before it is considered complet
 - [ ] Browser E2E succeeds
 - [ ] Resilience/offline behavior succeeds
 
+## Three-screen driver rule
+
+The driver's normal working day must be possible entirely inside exactly these three primary screens:
+
+1. **Work — Do + Record**: operational lifecycle, trips, breaks, and fuel entry.
+2. **Performance — Know + Decide**: current business position and authoritative operating metrics.
+3. **Timeline — See + Review**: chronological journey/activity history, horizons, locations, fuel categories, and review/correction entry points as supported.
+
+**More is administrative/back-office only.** It may retain owner/admin modules such as Vehicle, Maintenance, Compliance, Loans, configuration, and historical administration, but the driver must not need More for a normal working-day operation.
+
+Trip planning is intentionally not part of the driver workflow contract.
+
 ## CI enforcement
 
 The KFE Master CI treats this contract as a mandatory production-screen gate. A screen is not complete merely because it renders or because one browser path passes. Its applicable contract evidence must be covered by automated validation before the screen is accepted.
