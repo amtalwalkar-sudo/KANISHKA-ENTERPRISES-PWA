@@ -108,6 +108,8 @@ jobs:
           npm run validate:phase-l
           npm run validate:phase-m
           npm run validate:phase-n
+      - name: Work geolocation contract
+        run: npm run validate:work-geolocation
       - name: Persistence and recovery
         run: npm run validate:phase-k
       - name: UI shell contracts
