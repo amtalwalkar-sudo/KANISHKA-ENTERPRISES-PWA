@@ -5,7 +5,6 @@ import WorkSessionView from './components/WorkSessionView.vue';
 import FuelQuickEntry from './components/FuelQuickEntry.vue';
 import AuthoritativeRecordForm from './components/AuthoritativeRecordForm.vue';
 import KfeDestinationView from './components/KfeDestinationView.vue';
-import KfeStatePanel from './components/KfeStatePanel.vue';
 import KfeModuleView from './components/KfeModuleView.vue';
 import KfeFinancialModuleView from './components/KfeFinancialModuleView.vue';
 import KfeTimelineView from './components/KfeTimelineView.vue';
@@ -42,10 +41,9 @@ async function changeTimelineHorizon(horizon){timelineHorizon.value=horizon;awai
 function openMoreItem(item){navigate(item);}function openModuleAction(action){if(typeof action==='string'){void navigate(action);return;}if(action?.module==='Fuel'&&action?.action==='Fuel history'){fuelHistoryOpen.value=true;void loadFuel();}}
 async function handleSaveRequest(payload){try{const module=payload?.module;const value=payload?.value||{};if(module==='Vehicle'){await application.recordVehicleLifecycle(value);}else if(module==='Expenses'){await application.recordExpense(value);}else if(module==='Revenue'){await application.recordRevenue({amount_paise:Math.round(Number(value.amount)*100),business_date:value.date,recorded_at:new Date().toISOString(),scope:'BUSINESS'});}else if(module==='Maintenance'){await application.recordMaintenance(value);}else if(module==='Compliance'){await application.recordCompliance(value);}else{openModuleAction(payload);return;}await loadPerformance();}catch(error){performanceModel.value={error:String(error?.message||error)};}}
 function handleCalculationRequest(payload){openModuleAction(payload);}
-async function handleFuelEdit(event){try{await application.updateFuel(event.id,event.changes);await loadFuel();await loadPerformance();}catch(error){performanceModel.value={error:String(error?.message||error)};}}
 async function handleFuelUndo(id){try{await application.undoFuel(id);await loadFuel();await loadPerformance();}catch(error){performanceModel.value={error:String(error?.message||error)};}}
 async function handleHistoricalSave(payload){try{if(payload.kind==='HISTORICAL_DAY')await application.recordHistoricalDay(payload.value);else if(payload.kind==='HISTORICAL_FUEL')await application.recordHistoricalFuel(payload.value);else throw new Error('Unknown historical entry');payload.done?.(true,payload.kind==='HISTORICAL_DAY'?'Historical day saved safely.':'Historical fuel entry saved safely.');await loadPerformance();}catch(error){payload.done?.(false,String(error?.message||error));}}
-async function handleTimelineEdit(event){historicalEditEvent.value=event;}
+function handleTimelineEdit(event){historicalEditEvent.value=event;}
 async function handleAuthoritativeSaved(){historicalEditEvent.value=null;await Promise.all([loadTimeline(),loadPerformance(),loadFuel(),loadWorkHeader()]);}
 function closeAuthoritativeForm(){historicalEditEvent.value=null;}
 async function handleResetRequest(){try{await application.resetAllData();window.location.reload();}catch(error){performanceModel.value={error:String(error?.message||error)};}}
@@ -63,7 +61,7 @@ window.KFE_VUE_RUNTIME={online,activeModule,uiState,capabilities,reducedMotion,h
 <KfeDestinationView v-else-if="activeModule==='More'" title="More" subtitle="Administrative/back-office ERP modules. Driver operations remain in Work, Performance and Timeline."><div class="kfe-more-groups"><section v-for="group in MORE_GROUPS" :key="group.title" class="kfe-module-group"><h2>{{group.title}}</h2><div class="kfe-module-list"><button v-for="item in group.items" :key="item" type="button" @click="openMoreItem(item)"><span>{{item}}</span><span aria-hidden="true">›</span></button></div></section></div></KfeDestinationView>
 <HistoricalEntriesView v-else-if="activeModule==='Historical Entries'" @back="navigate('More')" @save-request="handleHistoricalSave"/>
 <VehicleModuleView v-else-if="activeModule==='Vehicle'" @save-request="handleSaveRequest" @back="navigate('More')" @open="openModuleAction"/><MaintenanceModuleView v-else-if="activeModule==='Maintenance'" @save-request="handleSaveRequest"/><ComplianceModuleView v-else-if="activeModule==='Compliance'" @save-request="handleSaveRequest" @back="navigate('More')"/><LoanModuleView v-else-if="activeModule==='Loans'" @save-request="handleSaveRequest" @calculation-request="handleCalculationRequest" @open="openModuleAction" @back="navigate('More')"/>
-<MoneyModuleView v-else-if="MONEY_MODULES.includes(activeModule)" :module="activeModule" :fuel-records="fuelRecords" :fuel-history-open="fuelHistoryOpen" @save-request="handleSaveRequest" @open="openModuleAction" @fuel-history-back="fuelHistoryOpen=false" @fuel-edit="handleFuelEdit" @fuel-undo="handleFuelUndo" @back="navigate('More')"/>
+<MoneyModuleView v-else-if="MONEY_MODULES.includes(activeModule)" :module="activeModule" :fuel-records="fuelRecords" :fuel-history-open="fuelHistoryOpen" @save-request="handleSaveRequest" @open="openModuleAction" @fuel-history-back="fuelHistoryOpen=false" @fuel-undo="handleFuelUndo" @back="navigate('More')"/>
 <KfeFinancialModuleView v-else-if="FINANCIAL_MODULES.includes(activeModule)" :module="activeModule" @open="openModuleAction" @back="navigate('More')"/><KfeModuleView v-else :module="activeModule" @open="openModuleAction" @reset-request="handleResetRequest" @save-request="handleSaveRequest"/>
 </section></main>
 <div v-if="activeModule==='Work'" class="kfe-global-fuel-action"><button type="button" aria-label="Add fuel from any Work state" @click="openGlobalFuel">⛽ FUEL</button></div><FuelQuickEntry v-if="globalFuelOpen" :authoritative-odometer="workHeader.latestOdometer" @close="closeGlobalFuel" />
