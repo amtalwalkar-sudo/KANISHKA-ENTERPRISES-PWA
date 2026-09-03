@@ -15,12 +15,14 @@ const compliance = read('src/components/ComplianceModuleView.vue');
 const loan = read('src/components/LoanModuleView.vue');
 const modules = read('src/components/KfeModuleView.vue');
 const historical = read('src/components/HistoricalEntriesView.vue');
+const performance = read('src/components/PerformanceModuleView.vue');
 const loanBoundary = read('js/application/loan-module.js');
 const loanDomain = read('js/domain/loans.js');
 const loanRepository = read('js/application/loan-repository.js');
 const contracts = read('js/ui/module-contracts.js');
 
-assert.match(navigation, /Work.*Status.*Timeline.*More/s);
+assert.match(navigation, /Work.*Performance.*Timeline.*More/s);
+assert.doesNotMatch(navigation, /Status/);
 assert.match(navigation, /Timeline.*Today.*Week.*Month.*Year/s);
 assert.doesNotMatch(navigation, /Fleet|Reports|Analytics|GPS|OCR|Advisor/);
 assert.match(timeline, /occurredAt/);
@@ -30,6 +32,15 @@ assert.doesNotMatch(shell, /Tax Reserve|tax reserve/i);
 assert.match(forms, /Unsaved draft/);
 assert.match(forms, /localStorage/);
 assert.match(forms, /emit\('save'/);
+
+assert.match(performance, /Today’s Position/);
+assert.match(performance, /Revenue/);
+assert.match(performance, /Running Cost/);
+assert.match(performance, /Balance/);
+assert.match(performance, /History & context/);
+assert.match(performance, /Authoritative/);
+assert.match(performance, /unavailable/);
+assert.doesNotMatch(performance, /Tomorrow target|Status unavailable/i);
 
 assert.match(vehicle, /Acquisition date/);
 assert.match(vehicle, /Retirement date/);
@@ -90,4 +101,4 @@ assert.match(contracts, /driver:/);
 assert.match(contracts, /analytics: false/);
 
 console.log('Phase 6 UI shell contract: PASS');
-console.log('Navigation, module routing, Historical Entries event wiring, timeline chronology, draft boundary, vehicle/driver lifecycle, maintenance, compliance, loan presentation/domain separation, and Tax Reserve exclusion verified.');
+console.log('Navigation, Performance routing, module routing, Historical Entries event wiring, timeline chronology, draft boundary, vehicle/driver lifecycle, maintenance, compliance, loan presentation/domain separation, and Tax Reserve exclusion verified.');

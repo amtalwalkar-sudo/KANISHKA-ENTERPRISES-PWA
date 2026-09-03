@@ -1,6 +1,6 @@
 export const PRIMARY_DESTINATIONS=Object.freeze([
   Object.freeze({id:'Work',label:'Work'}),
-  Object.freeze({id:'Status',label:'Status'}),
+  Object.freeze({id:'Performance',label:'Performance'}),
   Object.freeze({id:'Timeline',label:'Timeline'}),
   Object.freeze({id:'More',label:'More'})
 ]);
