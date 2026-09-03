@@ -5,10 +5,11 @@
   "changePolicy": "Frozen business rules may only change through an explicit specification change and corresponding golden tests.",
   "architecture": "Presentation -> Application -> Domain -> Repository Contracts -> Infrastructure -> Local Database -> Future Integrations",
   "currentScope": "Single vehicle ERP",
-  "forbiddenInCurrentScope": ["GPS", "cloud sync", "Google Drive backup", "multiple vehicles", "multiple drivers", "fleet management", "advanced reporting", "predictive analytics", "machine learning", "KFE Advisor"],
+  "forbiddenInCurrentScope": ["GPS integrations", "cloud sync", "Google Drive backup", "multiple vehicles", "multiple drivers", "fleet management", "advanced reporting", "predictive analytics", "machine learning", "KFE Advisor"],
   "frozenRules": [
     "Vehicle lifecycle history includes activation, sale, retirement, acquisition/sale data, status and odometer endpoints.",
     "Work sessions support business/personal scope and break handling without mixing personal use into business profitability.",
+    "Every Work lifecycle transition is represented by an authoritative timestamped operational event. GPS evidence is supplementary: capture it when available, resolve a human-readable place name when possible, retain coordinates as fallback, and never block the Work save. Unavailable GPS/place resolution is recorded explicitly; locations are never guessed.",
     "Personal vehicle use is excluded from business dashboard calculations for fuel, maintenance, revenue and profit.",
     "Fixed expenses are business-level obligations and continue across active calendar days, including personal-only and non-working days.",
     "Loan EMI is a continuing business obligation and is not reduced by personal-use days.",
@@ -37,6 +38,6 @@
       }
     ],
     "freshnessRule": "CI evidence is valid only for the exact repository revision that the gate inspected.",
-    "staleLoopPrevention": "Never iterate on a stale failure. Re-resolve repository, PR, branch, HEAD SHA, workflow revision and CI run before each governance diagnosis or repair."
+    "staleLoopPrevention": "Never iterate on a stale failure. Re-resolve repository, branch, HEAD SHA, workflow revision and CI run before each governance diagnosis or repair."
   }
 }
