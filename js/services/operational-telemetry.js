@@ -1,5 +1,6 @@
 import {createRecord,utcNow} from '../core/record.js';
 import {createBackgroundTracking} from './background-tracking.js';
+import {reverseGeocode} from './reverse-geocoding.js';
 
 export function createOperationalTelemetry(repository){
   const events=repository.entity('operational_events');
@@ -7,11 +8,21 @@ export function createOperationalTelemetry(repository){
   let tracking=null;
   let active=false;
 
+  async function resolvePlace(eventId,position){
+    const placeName=await reverseGeocode(position.latitude,position.longitude);
+    const existing=await events.get(eventId);
+    if(!existing||existing.is_deleted)return;
+    return events.update(existing,placeName
+      ? {place_name:placeName,place_name_status:'RESOLVED'}
+      : {place_name:null,place_name_status:'UNAVAILABLE'});
+  }
+
   async function applyPosition(eventId,position){
     const existing=await events.get(eventId);
     if(!existing||existing.is_deleted)return;
     const updated=await events.update(existing,{latitude:position.latitude,longitude:position.longitude,accuracy:position.accuracy,location_status:'CAPTURED',location_captured_at:utcNow(),place_name:null,place_name_status:'PENDING'});
     pending.delete(eventId);
+    void resolvePlace(eventId,position).catch(()=>{});
     return updated;
   }
 
