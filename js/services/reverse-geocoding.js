@@ -4,13 +4,14 @@ function validCoordinate(value, min, max) {
 }
 
 export function formatPlaceName(address = {}) {
+  const safeAddress = address && typeof address === 'object' ? address : {}
   const parts = [
-    address.road,
-    address.neighbourhood || address.suburb,
-    address.city || address.town || address.village || address.municipality,
-    address.state,
-    address.postcode,
-    address.country,
+    safeAddress.road,
+    safeAddress.neighbourhood || safeAddress.suburb,
+    safeAddress.city || safeAddress.town || safeAddress.village || safeAddress.municipality,
+    safeAddress.state,
+    safeAddress.postcode,
+    safeAddress.country,
   ].map(value => String(value || '').trim()).filter(Boolean)
   return [...new Set(parts)].join(', ')
 }
