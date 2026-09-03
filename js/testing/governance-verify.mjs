@@ -19,7 +19,7 @@ assert.equal(spec.status, 'authoritative');
 assert.match(spec.traceability, /SPECIFICATION.*CONTRACT.*TEST.*IMPLEMENTATION/);
 assert.ok(spec.frozenRules.length >= 10, 'Frozen KFE rule set is unexpectedly incomplete');
 assert.equal(spec.currentScope, 'Single vehicle ERP');
-assert.ok(spec.forbiddenInCurrentScope.includes('GPS'));
+assert.ok(spec.forbiddenInCurrentScope.includes('GPS integrations'));
 assert.ok(spec.forbiddenInCurrentScope.includes('multiple vehicles'));
 assert.ok(spec.forbiddenInCurrentScope.includes('multiple drivers'));
 assert.equal(future.capabilities.gps, 'future');
