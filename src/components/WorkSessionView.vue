@@ -3,10 +3,10 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { application, actions } from '../../js/app.js'
 import { createUiCommand } from '../../js/application/ui-contract.js'
 import KfeSwipeBar from './KfeSwipeBar.vue'
-import FuelQuickEntry from './FuelQuickEntry.vue'
+import { clearFormDraft, hasFormDraft } from '../../js/ui/form-drafts.js'
 import './work-session.css'
 
-const loading = ref(true), busy = ref(false), error = ref(''), notice = ref(''), model = ref(null), form = ref(null), fuelOpen = ref(false), endDayConfirm = ref(false), now = ref(Date.now())
+const loading = ref(true), busy = ref(false), error = ref(''), notice = ref(''), model = ref(null), form = ref(null), endDayConfirm = ref(false), now = ref(Date.now())
 const dayStartOdometer = ref(''), dayBusinessKm = ref(''), dayPersonalKm = ref('')
 const personalStartOdometer = ref(''), personalBusinessKm = ref(''), personalPersonalKm = ref('')
 const personalEndOdometer = ref(''), personalToll = ref(''), personalParking = ref('')
@@ -33,11 +33,9 @@ const personalEndValid = computed(() => { const n = Number(personalEndOdometer.v
 const shiftRevenueValid = computed(() => String(shiftRevenue.value).trim() !== '' && Number.isFinite(Number(shiftRevenue.value)) && Number(shiftRevenue.value) >= 0)
 const canEndDay = computed(() => screenState.value === 'DAY_READY' && !activeShift.value && !activeTrip.value && dayStatus.value !== 'COMPLETED')
 function openForm(kind) { error.value = ''; notice.value = ''; form.value = kind; if (kind === 'DAY_START') dayStartOdometer.value = latestOdometer.value == null ? '' : String(latestOdometer.value); if (kind === 'PERSONAL_START') personalStartOdometer.value = latestOdometer.value == null ? '' : String(latestOdometer.value); if (kind === 'PERSONAL_END') personalEndOdometer.value = ''; if (kind === 'SHIFT_END') { shiftRevenue.value = ''; shiftEndOdometer.value = ''; shiftToll.value = ''; shiftParking.value = ''; shiftTollIncluded.value = false; shiftParkingIncluded.value = false } }
-function closeForm() { if (!busy.value) { form.value = null; error.value = '' } }
-function openFuel() { if (!busy.value && !form.value) { error.value = ''; notice.value = ''; fuelOpen.value = true } }
-function closeFuel() { fuelOpen.value = false }
+function closeForm() { if (busy.value) return; const root=document.querySelector('.work-form-card'); if(root&&hasFormDraft(root)){const ok=globalThis.confirm?.('Discard this unsaved draft?');if(ok===false)return;clearFormDraft(root);} form.value = null; error.value = '' }
 async function load() { loading.value = true; try { model.value = await application.getWorkScreenState() } catch (e) { error.value = String(e?.message || e) } finally { loading.value = false } }
-async function dispatch(type, payload = {}) { if (busy.value) return null; busy.value = true; error.value = ''; try { const result = await actions.dispatch(createUiCommand(type,payload)); form.value = null; endDayConfirm.value = false; await load(); return result } catch (e) { error.value = String(e?.message || e); return null } finally { busy.value = false } }
+async function dispatch(type, payload = {}) { if (busy.value) return null; busy.value = true; error.value = ''; try { const result = await actions.dispatch(createUiCommand(type,payload)); const root=document.querySelector('.work-form-card'); if(root) clearFormDraft(root); form.value = null; endDayConfirm.value = false; await load(); return result } catch (e) { error.value = String(e?.message || e); return null } finally { busy.value = false } }
 async function confirmDayStart() { const odometer = Number(dayStartOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'Enter the day-start odometer.'); if (!dayDiff.value.valid) return (error.value = 'Odometer cannot decrease.'); if (!dayAllocationValid.value) return (error.value = `Allocate exactly ${dayDiff.value.difference} km between business and personal.`); await dispatch('START_DAY', { odometer, prefilledOdometer: latestOdometer.value, businessKm: dayDiff.value.required ? Number(dayBusinessKm.value) : 0, personalKm: dayDiff.value.required ? Number(dayPersonalKm.value) : 0, actionMode: 'SWIPE', direction: 'RIGHT' }) }
 async function confirmPersonalStart() { const odometer = Number(personalStartOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'Enter the personal-trip start odometer.'); if (!personalDiff.value.valid) return (error.value = 'Odometer cannot decrease.'); if (!personalAllocationValid.value) return (error.value = `Allocate exactly ${personalDiff.value.difference} km between business and personal.`); await dispatch('START_PERSONAL_TRIP', { odometer, prefilledOdometer: latestOdometer.value, businessKm: personalDiff.value.required ? Number(personalBusinessKm.value) : 0, personalKm: personalDiff.value.required ? Number(personalPersonalKm.value) : 0, actionMode: 'SWIPE', direction: 'LEFT' }) }
 async function confirmPersonalEnd() { const odometer = Number(personalEndOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'End odometer is compulsory.'); if (!personalEndValid.value) return (error.value = 'End odometer cannot be below the trip start odometer.'); await dispatch('END_PERSONAL_TRIP', { id: activeTrip.value?.id, endOdometer: odometer, tollPaise: Math.round(Math.max(0, Number(personalToll.value) || 0) * 100), parkingPaise: Math.round(Math.max(0, Number(personalParking.value) || 0) * 100), actionMode: 'SWIPE', direction: 'RIGHT' }) }
@@ -45,7 +43,7 @@ async function confirmShiftEnd() { if (!shiftRevenueValid.value) return (error.v
 function handleSwipe(action) { if (action === 'START_DAY') return openForm('DAY_START'); if (action === 'START_PERSONAL_TRIP') return openForm('PERSONAL_START'); if (action === 'START_SHIFT') return dispatch('START_SHIFT', { actionMode: 'SWIPE', direction: 'RIGHT' }); if (action === 'START_TRIP') return dispatch('START_TRIP', { actionMode: 'SWIPE', direction: 'RIGHT' }); if (action === 'END_TRIP') return dispatch('END_TRIP', { id: activeTrip.value?.id, actionMode: 'SWIPE', direction: 'RIGHT' }); if (action === 'END_PERSONAL_TRIP') return openForm('PERSONAL_END'); if (action === 'END_SHIFT') return openForm('SHIFT_END'); if (action === 'START_DAY_CONFIRM') return confirmDayStart(); if (action === 'START_PERSONAL_TRIP_CONFIRM') return confirmPersonalStart(); if (action === 'CLOSE_PERSONAL_TRIP') return confirmPersonalEnd(); if (action === 'CLOSE_SHIFT') return confirmShiftEnd() }
 function requestEndDay() { if (canEndDay.value) endDayConfirm.value = true }
 async function confirmEndDay() { if (canEndDay.value) await dispatch('END_DAY', { actionMode: 'BUTTON' }) }
-function onKey(event) { if (event.key === 'Escape') { if (endDayConfirm.value) endDayConfirm.value = false; else if (fuelOpen.value) closeFuel(); else if (form.value) closeForm() } }
+function onKey(event) { if (event.key === 'Escape') { if (endDayConfirm.value) endDayConfirm.value = false; else if (form.value) closeForm() } }
 onMounted(() => { timer = setInterval(() => { now.value = Date.now() }, 1000); window.addEventListener('keydown', onKey); load() })
 onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', onKey) })
 </script>
@@ -63,7 +61,6 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
         <section v-else-if="screenState === 'BUSINESS_TRIP'" class="work-state-panel trip-panel"><p class="kfe-eyebrow">BUSINESS TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Trip active</p></section>
         <section v-else-if="screenState === 'PERSONAL_TRIP'" class="work-state-panel trip-panel"><p class="kfe-eyebrow">PERSONAL TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Personal trip active</p></section>
       </main>
-      <div v-if="!form && !fuelOpen" class="fuel-tab-wrap"><button class="fuel-tab" type="button" aria-label="Quick fuel" @click="openFuel">⛽ FUEL</button></div>
       <div class="bottom-action" aria-label="Work action">
         <KfeSwipeBar v-if="!form && screenState === 'DAY_START'" left-label="START PERSONAL TRIP" right-label="START DAY" left-action="START_PERSONAL_TRIP" right-action="START_DAY" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="!form && screenState === 'DAY_READY'" left-label="START PERSONAL TRIP" right-label="START BUSINESS SHIFT" left-action="START_PERSONAL_TRIP" right-action="START_SHIFT" :disabled="busy" @swipe="handleSwipe" />
@@ -75,8 +72,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
         <KfeSwipeBar v-else-if="form === 'PERSONAL_END'" right-label="CLOSE PERSONAL TRIP" right-action="CLOSE_PERSONAL_TRIP" :disabled="busy || !personalEndValid" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="form === 'SHIFT_END'" left-label="CLOSE SHIFT" left-action="CLOSE_SHIFT" :disabled="busy || !shiftEndValid || !shiftRevenueValid" @swipe="handleSwipe" />
       </div>
-      <FuelQuickEntry v-if="fuelOpen" :authoritative-odometer="latestOdometer" @close="closeFuel" @saved="load" />
-      <div v-if="form" class="work-form-overlay" role="dialog" aria-modal="true"><div class="work-form-card"><p class="kfe-eyebrow">{{ form === 'DAY_START' ? 'START OF DAY' : form === 'PERSONAL_START' ? 'START PERSONAL TRIP' : form === 'PERSONAL_END' ? 'END PERSONAL TRIP' : 'END SHIFT' }}</p>
+      <div v-if="form" class="work-form-overlay" role="dialog" aria-modal="true"><div class="work-form-card" data-kfe-draft-form="true" :data-kfe-draft-key="`work:${form}`"><p class="kfe-eyebrow">{{ form === 'DAY_START' ? 'START OF DAY' : form === 'PERSONAL_START' ? 'START PERSONAL TRIP' : form === 'PERSONAL_END' ? 'END PERSONAL TRIP' : 'END SHIFT' }}</p>
         <div v-if="form === 'DAY_START'" class="work-form-fields"><label>Start odometer *<input v-model="dayStartOdometer" inputmode="numeric" type="number" min="0" step="1"></label><div v-if="dayDiff.required" class="allocation-block"><p>Allocate {{ dayDiff.difference }} km</p><label>Business KM *<input v-model="dayBusinessKm" inputmode="numeric" type="number" min="0" step="1"></label><label>Personal KM *<input v-model="dayPersonalKm" inputmode="numeric" type="number" min="0" step="1"></label></div><p class="muted">Prefilled from the latest authoritative odometer when available; editable.</p></div>
         <div v-else-if="form === 'PERSONAL_START'" class="work-form-fields"><label>Start odometer *<input v-model="personalStartOdometer" inputmode="numeric" type="number" min="0" step="1"></label><div v-if="personalDiff.required" class="allocation-block"><p>Allocate {{ personalDiff.difference }} km</p><label>Business KM *<input v-model="personalBusinessKm" inputmode="numeric" type="number" min="0" step="1"></label><label>Personal KM *<input v-model="personalPersonalKm" inputmode="numeric" type="number" min="0" step="1"></label></div><p class="muted">Prefilled from the latest authoritative odometer; editable.</p></div>
         <div v-else-if="form === 'PERSONAL_END'" class="work-form-fields"><label>End odometer *<input v-model="personalEndOdometer" inputmode="numeric" type="number" min="0" step="1"></label><label>Toll <span class="muted">Optional</span><input v-model="personalToll" inputmode="decimal" type="number" min="0" step="0.01"></label><label>Parking <span class="muted">Optional</span><input v-model="personalParking" inputmode="decimal" type="number" min="0" step="0.01"></label><p class="muted">End odometer is required and starts empty. Complete the form, then use the Close Personal Trip swipe.</p></div>
@@ -89,6 +85,4 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
 </template>
 
 <style scoped>
-.fuel-tab-wrap{position:fixed;right:1rem;bottom:5.25rem;z-index:40;pointer-events:none}
-.fuel-tab{pointer-events:auto;border:0;border-radius:999px;padding:.65rem .9rem;font:inherit;font-weight:700;box-shadow:0 .25rem 1rem rgba(0,0,0,.18);cursor:pointer}
 </style>
