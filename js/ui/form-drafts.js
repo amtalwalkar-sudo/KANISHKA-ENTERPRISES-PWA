@@ -1,0 +1,23 @@
+const PREFIX='kfe:form-draft:v1:';
+const timers=new WeakMap();
+const submitted=new WeakSet();
+
+function keyFor(root){
+  if(root.dataset.kfeDraftKey)return PREFIX+root.dataset.kfeDraftKey;
+  const route=globalThis.location?.pathname||'/';
+  const explicit=root.getAttribute('aria-label')||root.getAttribute('id')||root.className||'form';
+  return PREFIX+route+'|'+String(explicit).replace(/\s+/g,' ').trim();
+}
+function controls(root){return [...root.querySelectorAll('input,textarea,select')].filter(x=>x.type!=='file'&&x.type!=='submit'&&x.type!=='button');}
+function snapshot(root){const values={};controls(root).forEach((el,i)=>{const id=el.name||el.id||`${el.tagName}:${i}`;if(el.type==='checkbox'||el.type==='radio')values[id]={type:el.type,checked:el.checked,value:el.value};else values[id]={type:el.type,value:el.value};});return values;}
+function restore(root){try{const raw=localStorage.getItem(keyFor(root));if(!raw)return false;const parsed=JSON.parse(raw);if(!parsed||parsed.version!==1||!parsed.values)return false;const list=controls(root);Object.entries(parsed.values).forEach(([id,v])=>{const el=list.find((x,i)=>(x.name||x.id||`${x.tagName}:${i}`)===id);if(!el)return;if(el.type==='checkbox'||el.type==='radio')el.checked=!!v.checked;else el.value=v.value;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));});root.dataset.kfeDraftRestored='true';return true;}catch{return false;}}
+function persist(root){try{localStorage.setItem(keyFor(root),JSON.stringify({version:1,savedAt:new Date().toISOString(),values:snapshot(root)}));root.dataset.kfeDraftPresent='true';}catch{}}
+function clear(root){try{localStorage.removeItem(keyFor(root));}catch{};delete root.dataset.kfeDraftPresent;delete root.dataset.kfeDraftRestored;}
+function schedule(root){clearTimeout(timers.get(root));timers.set(root,setTimeout(()=>persist(root),150));}
+function bind(root){if(root.dataset.kfeDraftBound==='true')return;root.dataset.kfeDraftBound='true';restore(root);root.addEventListener('input',()=>schedule(root));root.addEventListener('change',()=>schedule(root));root.addEventListener('submit',()=>{submitted.add(root);});}
+function scan(){document.querySelectorAll('form,[data-kfe-draft-form="true"],.work-form-card').forEach(bind);}
+let observer=null;
+export function installFormDraftRecovery(){scan();if(observer)return;observer=new MutationObserver(scan);observer.observe(document.body,{childList:true,subtree:true});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')document.querySelectorAll('form,[data-kfe-draft-form="true"],.work-form-card').forEach(root=>{if(root.dataset.kfeDraftBound==='true')persist(root);});});}
+export function clearFormDraft(root){if(!root)return;clear(root);}
+export function clearFormDraftsIn(root){if(!root)return;root.querySelectorAll('form,[data-kfe-draft-form="true"],.work-form-card').forEach(clear);}
+export function draftKey(root){return root?keyFor(root):null;}
