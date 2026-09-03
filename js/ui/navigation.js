@@ -13,7 +13,7 @@ export const MORE_GROUPS=Object.freeze([
   Object.freeze({title:'System',items:Object.freeze(['Settings'])})
 ]);
 
-export const TIMELINE_HORIZONS=Object.freeze(['Today','Week','Month','Year']);
+export const TIMELINE_HORIZONS=Object.freeze(['Day','Week','Long-term']);
 
 export function isPrimaryDestination(path){
   return PRIMARY_DESTINATIONS.some(destination=>destination.id===path);

@@ -23,10 +23,12 @@ const contracts = read('js/ui/module-contracts.js');
 
 assert.match(navigation, /Work.*Performance.*Timeline.*More/s);
 assert.doesNotMatch(navigation, /Status/);
-assert.match(navigation, /Timeline.*Today.*Week.*Month.*Year/s);
+assert.match(navigation, /TIMELINE_HORIZONS=Object\.freeze\(\['Day','Week','Long-term'\]\)/);
+assert.doesNotMatch(navigation, /Today.*Month.*Year/s);
 assert.doesNotMatch(navigation, /Fleet|Reports|Analytics|GPS|OCR|Advisor/);
 assert.match(timeline, /occurredAt/);
-assert.match(timeline, /sort\(\(a, b\)/);
+assert.match(timeline, /sort\(\(a,b\)/);
+assert.match(timeline, /filter\(e=>\{if\(!e\.occurredAt\)return false/);
 assert.doesNotMatch(app, /Tax Reserve|tax reserve/i);
 assert.doesNotMatch(shell, /Tax Reserve|tax reserve/i);
 assert.match(forms, /Unsaved draft/);

@@ -1,37 +1,8 @@
-/** KFE 2.0 Phase 6 — timeline presentation helpers.
- * Presentation-only: preserves authoritative event identity and chronology.
- */
-
-export const TIMELINE_EVENT_TYPES = Object.freeze([
-  'Day Start', 'Shift Start', 'Ride Start', 'Pause', 'Resume', 'Ride End',
-  'Shift End', 'Personal Trip Start', 'Personal Trip End', 'Fuel', 'Maintenance',
-  'Toll', 'Parking', 'Other', 'Day End',
-  'Revenue', 'Compliance Renewal', 'Loan Payment',
-]);
-
-export function normalizeTimelineEvent(event = {}) {
-  return Object.freeze({
-    id: event.id ?? null,
-    type: event.type ?? 'Other',
-    occurredAt: event.occurredAt ?? null,
-    recordedAt: event.recordedAt ?? null,
-    description: event.description ?? '',
-    amount: event.amount ?? null,
-    odometer: event.odometer ?? null,
-    workDayId: event.workDayId ?? null,
-    shiftId: event.shiftId ?? null,
-    rideId: event.rideId ?? null,
-    locationName: event.locationName ?? null,
-    gpsAvailable: Boolean(event.gpsAvailable),
-  });
-}
-
-export function projectTimeline(events = []) {
-  return events
-    .map(normalizeTimelineEvent)
-    .sort((a, b) => {
-      const left = a.occurredAt ? Date.parse(a.occurredAt) : Number.POSITIVE_INFINITY;
-      const right = b.occurredAt ? Date.parse(b.occurredAt) : Number.POSITIVE_INFINITY;
-      return left - right;
-    });
-}
+/** KFE 2.0 Timeline presentation contract. Work/domain records remain authoritative. */
+export const TIMELINE_EVENT_CONTRACT='KFE_TIMELINE_EVENT_V1';
+export const TIMELINE_HORIZONS=Object.freeze(['Day','Week','Long-term']);
+export function normalizeTimelineEvent(event={}){const occurredAt=event.occurredAt??event.occurred_at??event.timestamp??event.recordedAt??event.recorded_at??null;return Object.freeze({id:event.id??null,type:event.type??event.event_type??'Other',occurredAt,recordedAt:event.recordedAt??event.recorded_at??null,description:event.description??event.notes??event.category??'',amount:event.amount??(event.amount_paise!=null?Number(event.amount_paise)/100:null),odometer:event.odometer!=null?Number(event.odometer):null,workDayId:event.workDayId??event.work_day_id??null,shiftId:event.shiftId??event.shift_id??null,rideId:event.rideId??event.ride_id??null,entityType:event.entityType??event.entity_type??null,entityId:event.entityId??event.entity_id??null,scope:event.scope??event.context?.scope??null,source:event.source??'AUTHORITATIVE',locationName:event.locationName??event.location_name??event.place_name??null,latitude:event.latitude??null,longitude:event.longitude??null,accuracy:event.accuracy??null,gpsAvailable:Boolean(event.gpsAvailable||event.location_status==='CAPTURED'||(event.latitude!=null&&event.longitude!=null)),dataConfidenceState:event.dataConfidenceState??'UNKNOWN'});}
+export function projectTimeline(events=[]){return events.map(normalizeTimelineEvent).sort((a,b)=>{const at=a.occurredAt?Date.parse(a.occurredAt):Number.POSITIVE_INFINITY;const bt=b.occurredAt?Date.parse(b.occurredAt):Number.POSITIVE_INFINITY;if(at!==bt)return at-bt;return String(a.id??'').localeCompare(String(b.id??''));});}
+function startOfDay(d){const x=new Date(d);x.setHours(0,0,0,0);return x;}
+export function timelineWindow(horizon='Day',asOf=new Date()){const end=new Date(asOf);if(!Number.isFinite(end.getTime()))throw new TypeError('Invalid Timeline date');if(horizon==='Long-term')return {start:null,end};if(horizon==='Week'){const start=startOfDay(end);start.setDate(start.getDate()-start.getDay());const weekEnd=new Date(start);weekEnd.setDate(weekEnd.getDate()+7);return {start,end:weekEnd};}const start=startOfDay(end);const dayEnd=new Date(start);dayEnd.setDate(dayEnd.getDate()+1);return {start,end:dayEnd};}
+export function filterTimelineByHorizon(events=[],horizon='Day',asOf=new Date()){const {start,end}=timelineWindow(horizon,asOf);return projectTimeline(events).filter(e=>{if(!e.occurredAt)return false;const at=Date.parse(e.occurredAt);return Number.isFinite(at)&&(!start||at>=start.getTime())&&at<end.getTime();});}
