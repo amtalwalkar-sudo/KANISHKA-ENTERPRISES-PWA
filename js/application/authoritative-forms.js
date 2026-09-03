@@ -2,6 +2,7 @@
  * KFE 2.0 authoritative form contract.
  * Every driver-editable record type has ONE authoritative form definition.
  * The same form is used in CREATE and EDIT mode; edit mode is never a second form.
+ * Fuel is a focused authoritative form; it is intentionally not routed through the generic multi-record presentation component.
  */
 export const FORM_MODES=Object.freeze(['CREATE','EDIT']);
 export const AUTHORITATIVE_FORM_TYPES=Object.freeze(['WORK_SESSION','BUSINESS_TRIP','PERSONAL_TRIP','BREAK','FUEL','REVENUE','EXPENSE']);
@@ -17,7 +18,7 @@ export const AUTHORITATIVE_FORM_CONTRACT=Object.freeze({
   timeline:'Timeline may open an EDIT form for a historical record, but Timeline remains read-only and never persists changes itself.',
   work:'Work owns current operational entry flow and must not become a historical record-management screen.',
   more:'More remains administrative/back-office and is not required for normal driver operations.',
-  fuel:'FUEL has one authoritative form with odometer, price per kg, amount, derived refuelled kg, automatic timestamp/location capture, success confirmation, and GPS watch capture while the form is active.'
+  fuel:'FUEL uses the focused FuelForm authoritative UI. It provides blank CREATE odometer, price per kg, amount, derived refuelled kg, automatic timestamp/location capture, success confirmation, recoverable drafts, and EDIT updates to the same record.'
  })
 });
 export function assertFormMode(mode){if(!FORM_MODES.includes(mode))throw new RangeError(`Unsupported KFE form mode: ${mode}`);return mode;}
