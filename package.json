@@ -10,6 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "validate:administrator-foundation": "node js/testing/administrator-foundation-contract.mjs",
+    "validate:admin-screen": "node js/testing/admin-screen-contract.mjs",
     "validate:timeline-foundation": "node js/testing/timeline-foundation-contract.mjs",
     "validate:performance-foundation": "node js/testing/performance-foundation-contract.mjs",
     "validate:governance": "node js/testing/governance-verify.mjs",
