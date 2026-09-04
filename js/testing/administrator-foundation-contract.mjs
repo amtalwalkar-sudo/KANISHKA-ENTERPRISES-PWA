@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {createAdministratorApplication,ADMINISTRATOR_VEHICLE_SOURCES} from '../application/administrator.js';
+
+const schema=readFileSync(new URL('../core/hardened-db.js',import.meta.url),'utf8');
+assert.match(schema,/DB_VERSION\s*=\s*8\s*;/);
+for(const store of ['vehicles','drivers','vehicle_driver_assignments','vehicle_odometer_readings','vehicle_disposal_records','vehicle_lifecycle_events'])assert.match(schema,new RegExp(`${store}\\s*:`));
 
 const data=new Map();
 function entity(name){
@@ -89,6 +94,11 @@ const a5=await app.assignDriver({vehicle_id:vehicle5.id,driver_id:inactiveDriver
 await assert.rejects(()=>app.deactivateDriver(inactiveDriver.id,{date:'2026-09-03'}),/cannot be before Start Date/);
 assert.equal((await app.getVehicle(vehicle5.id)).lifecycle_status,'ACTIVE');
 assert.equal((await app.listVehicleAssignments(vehicle5.id)).find(x=>x.id===a5.id).status,'ACTIVE');
+await app.deactivateDriver(inactiveDriver.id,{date:'2026-09-10',reason:'Left'});
+const deactivatedAssignment=(await app.listVehicleAssignments(vehicle5.id)).find(x=>x.id===a5.id);
+assert.equal(deactivatedAssignment.status,'INACTIVE');
+assert.equal(deactivatedAssignment.end_date,'2026-09-10');
+assert.equal((await app.getDriver(inactiveDriver.id)).status,'INACTIVE');
 
 assert.equal(ADMINISTRATOR_VEHICLE_SOURCES.HISTORICAL_CORRECTION>ADMINISTRATOR_VEHICLE_SOURCES.WORK_SESSION,true);
 console.log('Administrator vehicle/driver comprehensive contract: PASS');
