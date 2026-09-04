@@ -40,13 +40,14 @@ export function overlapsFixedExpense(a,b){
   return String(a.effective_from)<String(b.effective_to||'9999-12-31T23:59:59.999Z')&&String(b.effective_from)<String(a.effective_to||'9999-12-31T23:59:59.999Z');
 }
 export function assertNoFixedExpenseOverlap(rows,candidate,ignoreId=null){
-  const activeRows=(rows||[]).filter(row=>!row.is_deleted&&row.status===FIXED_EXPENSE_STATUS.ACTIVE&&row.id!==ignoreId);
+  const activeRows=(rows||[]).filter(row=>!row.is_deleted&&(row.status??FIXED_EXPENSE_STATUS.ACTIVE)===FIXED_EXPENSE_STATUS.ACTIVE&&row.id!==ignoreId);
   if(activeRows.some(row=>String(row.category||row.name).trim().toUpperCase()===candidate.category.trim().toUpperCase()&&overlapsFixedExpense(row,candidate)))throw new RangeError('Fixed expense configuration dates overlap for this category');
   return candidate;
 }
 export function isFixedExpenseEffectiveAt(record,at){
-  assertFixedExpenseLifecycle(record); if(!isIsoUtcTimestamp(at))throw new TypeError('Fixed expense evaluation date must be an ISO/UTC timestamp');
-  return record.status===FIXED_EXPENSE_STATUS.ACTIVE&&!record.is_deleted&&record.effective_from<=at&&(record.effective_to===null||at<record.effective_to);
+  assertFixedExpenseLifecycle({...record,status:record.status??FIXED_EXPENSE_STATUS.ACTIVE});
+  if(!isIsoUtcTimestamp(at))throw new TypeError('Fixed expense evaluation date must be an ISO/UTC timestamp');
+  return (record.status??FIXED_EXPENSE_STATUS.ACTIVE)===FIXED_EXPENSE_STATUS.ACTIVE&&!record.is_deleted&&record.effective_from<=at&&(record.effective_to===null||at<record.effective_to);
 }
 export function effectiveFixedExpenses(rows,at){return (rows||[]).filter(row=>isFixedExpenseEffectiveAt(row,at));}
 export function fixedExpenseMonthlyAmount(rows,at){return effectiveFixedExpenses(rows,at).reduce((total,row)=>total+paise(row.monthly_amount_paise),0);}
