@@ -76,8 +76,10 @@ assert.equal((await app.getVehicle(vehicle4.id)).lifecycle_status,'TRANSFERRED')
 assert.equal((await app.listVehicleLifecycleHistory(vehicle4.id)).at(-1).event_type,'TRANSFER');
 await assert.rejects(()=>app.recordOdometer({vehicle_id:vehicle4.id,odometer:311,source:'FUEL'}),/left active use/);
 
+data.clear();
 const inactiveDriver=await app.createDriver({name:'Driver Three',licence_number:'DL-789'});
 const vehicle5=await makeVehicle('MH 05 IJ 7890',400);
+assert.equal((await app.listDriverAssignments(inactiveDriver.id)).length,0);
 const a5=await app.assignDriver({vehicle_id:vehicle5.id,driver_id:inactiveDriver.id,start_date:'2026-09-04'});
 await assert.rejects(()=>app.deactivateDriver(inactiveDriver.id,{date:'2026-09-03'}),/cannot be before Start Date/);
 assert.equal((await app.getVehicle(vehicle5.id)).lifecycle_status,'ACTIVE');
