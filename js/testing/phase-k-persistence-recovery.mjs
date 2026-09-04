@@ -30,9 +30,14 @@ const fakeDb=new FakeDb();
 globalThis.indexedDB={open(){const r=new FakeRequest();queueMicrotask(()=>{r.result=fakeDb;r.onupgradeneeded?.();r.onsuccess?.();});return r;}};
 
 assert.equal(DB_NAME,'kfe');
-assert.equal(DB_VERSION,6);
+assert.equal(DB_VERSION,8);
 assert.equal(STORE_NAMES.length,Object.keys(STORES).length);
 assert.ok(STORE_NAMES.includes('vehicles'));
+assert.ok(STORE_NAMES.includes('vehicle_lifecycle_events'));
+assert.ok(STORE_NAMES.includes('drivers'));
+assert.ok(STORE_NAMES.includes('vehicle_driver_assignments'));
+assert.ok(STORE_NAMES.includes('vehicle_odometer_readings'));
+assert.ok(STORE_NAMES.includes('vehicle_disposal_records'));
 assert.ok(STORE_NAMES.includes('work_sessions'));
 assert.ok(STORE_NAMES.includes('work_days'));
 assert.ok(STORE_NAMES.includes('odometer_allocations'));
