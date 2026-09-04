@@ -16,7 +16,7 @@ try{
    const {createLoanRepository}=await import('/js/application/loan-repository.js');
    const {DB_NAME,DB_VERSION,STORES}=await import('/js/core/hardened-db.js');
    if(DB_NAME!=='kfe')throw new Error(`Unexpected DB name: ${DB_NAME}`);
-   if(DB_VERSION!==7)throw new Error(`Unexpected DB version: ${DB_VERSION}`);
+   if(DB_VERSION!==8)throw new Error(`Unexpected DB version: ${DB_VERSION}`);
    if(STORES.loans?.keyPath!=='id'||STORES.loan_payments?.keyPath!=='id')throw new Error('Canonical loan stores are missing or have the wrong keyPath');
    const repository=createLoanRepository();
    const suffix=crypto.randomUUID();
