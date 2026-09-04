@@ -83,11 +83,18 @@ for (const file of walk('js/application')) {
 }
 
 const app = read('src/App.vue');
+const admin = read('src/components/AdminModuleView.vue');
 const requiredModules = Object.entries(contracts.currentScope)
   .filter(([, contract]) => contract?.required === true)
-  .map(([module]) => module);
-for (const module of requiredModules) {
-  if (!app.includes(module)) fail(`required current-scope UI module is not represented in src/App.vue: ${module}`);
+  .map(([module, contract]) => ({ module, contract }));
+for (const { module, contract } of requiredModules) {
+  if (contract.surface === 'admin-child') {
+    if (contract.parent !== 'Admin') fail(`admin-child UI module has unsupported parent: ${module}`);
+    if (!/AdminModuleView/.test(app)) fail(`required Admin parent is not wired into App.vue for admin child: ${module}`);
+    if (!admin.includes(module)) fail(`required Admin child UI module is not represented in AdminModuleView.vue: ${module}`);
+  } else if (!app.includes(module)) {
+    fail(`required current-scope UI module is not represented in src/App.vue: ${module}`);
+  }
 }
 if (contracts.currentScope.Driver?.required === true) {
   if (!/DriverModuleView/.test(app)) fail('DriverModuleView is required by the UI contract but is not wired into App.vue');
