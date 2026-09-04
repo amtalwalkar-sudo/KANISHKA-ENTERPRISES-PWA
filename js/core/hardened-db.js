@@ -1,8 +1,8 @@
-// KFE canonical IndexedDB schema. Version 8 adds the complete Vehicle/Driver persistence foundation.
+// KFE canonical IndexedDB schema. Version 9 adds the Fixed Expense lifecycle persistence foundation.
 import {runAtomicTransaction} from './transaction.js';
 export const DB_NAME='kfe';
-export const DB_VERSION=8;
-export const STORES=Object.freeze({state:{keyPath:'id'},rides:{keyPath:'id'},logs:{keyPath:'id'},settings:{keyPath:'id'},outbox:{keyPath:'id'},config:{keyPath:'id'},audit:{keyPath:'id'},idempotency:{keyPath:'id'},vehicles:{keyPath:'id'},drivers:{keyPath:'id'},vehicle_driver_assignments:{keyPath:'id'},vehicle_odometer_readings:{keyPath:'id'},vehicle_disposal_records:{keyPath:'id'},vehicle_lifecycle_events:{keyPath:'id'},work_sessions:{keyPath:'id'},work_days:{keyPath:'id'},odometer_allocations:{keyPath:'id'},operational_events:{keyPath:'id'},fuel_records:{keyPath:'id'},expense_records:{keyPath:'id'},maintenance_items:{keyPath:'id'},maintenance_records:{keyPath:'id'},revenue_records:{keyPath:'id'},loans:{keyPath:'id'},loan_payments:{keyPath:'id'},renewals_compliance:{keyPath:'id'},calculation_results:{keyPath:'id'},alerts:{keyPath:'id'}});
+export const DB_VERSION=9;
+export const STORES=Object.freeze({state:{keyPath:'id'},rides:{keyPath:'id'},logs:{keyPath:'id'},settings:{keyPath:'id'},outbox:{keyPath:'id'},config:{keyPath:'id'},audit:{keyPath:'id'},idempotency:{keyPath:'id'},vehicles:{keyPath:'id'},drivers:{keyPath:'id'},vehicle_driver_assignments:{keyPath:'id'},vehicle_odometer_readings:{keyPath:'id'},vehicle_disposal_records:{keyPath:'id'},vehicle_lifecycle_events:{keyPath:'id'},work_sessions:{keyPath:'id'},work_days:{keyPath:'id'},odometer_allocations:{keyPath:'id'},operational_events:{keyPath:'id'},fuel_records:{keyPath:'id'},expense_records:{keyPath:'id'},fixed_expenses:{keyPath:'id'},maintenance_items:{keyPath:'id'},maintenance_records:{keyPath:'id'},revenue_records:{keyPath:'id'},loans:{keyPath:'id'},loan_payments:{keyPath:'id'},renewals_compliance:{keyPath:'id'},calculation_results:{keyPath:'id'},alerts:{keyPath:'id'}});
 export const STORE_NAMES=Object.freeze(Object.keys(STORES));
 export {runAtomicTransaction};
 let dbPromise=null;

@@ -12,7 +12,6 @@ try{
   try{
     const context=await browser.newContext({serviceWorkers:'block'});
     try{
-      // Legacy setup uses a static page so the application bootstrap cannot open/migrate KFE first.
       const setupPage=await context.newPage();
       const manifestResponse=await setupPage.goto(`http://127.0.0.1:${port}/manifest.json`,{waitUntil:'load'});
       if(manifestResponse?.headers()['content-type']?.split(';')[0]!=='application/manifest+json')throw new Error(`Legacy IndexedDB setup did not receive manifest.json; content-type=${manifestResponse?.headers()['content-type']||'unknown'}`);
@@ -28,7 +27,7 @@ try{
         const legacyStores=['state','rides','logs','settings','outbox','config','audit','idempotency','vehicles','work_sessions','work_days','odometer_allocations','operational_events','fuel_records','expense_records','maintenance_items','maintenance_records','revenue_records','loans','loan_payments','renewals_compliance','calculation_results','alerts'];
         const db=await new Promise((resolve,reject)=>{const request=indexedDB.open('kfe',6);request.onupgradeneeded=()=>{const upgradeDb=request.result;for(const name of legacyStores)if(!upgradeDb.objectStoreNames.contains(name))upgradeDb.createObjectStore(name,{keyPath:'id'});};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('Legacy IndexedDB setup failed'));});
         if(db.version!==6)throw new Error(`Legacy IndexedDB setup expected v6, got ${db.version}`);
-        await new Promise((resolve,reject)=>{const tx=db.transaction('vehicles','readwrite');tx.objectStore('vehicles').put({id:'legacy-vehicle',marker:'must-survive-v6-to-v8'});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Legacy sentinel write failed'));});
+        await new Promise((resolve,reject)=>{const tx=db.transaction('vehicles','readwrite');tx.objectStore('vehicles').put({id:'legacy-vehicle',marker:'must-survive-v6-to-v9'});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Legacy sentinel write failed'));});
         db.close();
       });
       await setupPage.close();
@@ -40,13 +39,13 @@ try{
         const openDb=(name,version)=>new Promise((resolve,reject)=>{const request=indexedDB.open(name,version);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB open failed'));});
         const requestResult=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB request failed'));});
         const db=await openDb('kfe');
-        const required=['state','rides','logs','settings','outbox','config','audit','idempotency','vehicles','drivers','vehicle_driver_assignments','vehicle_odometer_readings','vehicle_disposal_records','vehicle_lifecycle_events','work_sessions','work_days','odometer_allocations','operational_events','fuel_records','expense_records','maintenance_items','maintenance_records','revenue_records','loans','loan_payments','renewals_compliance','calculation_results','alerts'];
+        const required=['state','rides','logs','settings','outbox','config','audit','idempotency','vehicles','drivers','vehicle_driver_assignments','vehicle_odometer_readings','vehicle_disposal_records','vehicle_lifecycle_events','work_sessions','work_days','odometer_allocations','operational_events','fuel_records','expense_records','fixed_expenses','maintenance_items','maintenance_records','revenue_records','loans','loan_payments','renewals_compliance','calculation_results','alerts'];
         const names=[...db.objectStoreNames];
-        if(db.version!==8)throw new Error(`Expected migrated IndexedDB version 8, got ${db.version}`);
+        if(db.version!==9)throw new Error(`Expected migrated IndexedDB version 9, got ${db.version}`);
         for(const name of required)if(!names.includes(name))throw new Error(`Missing migrated store ${name}`);
         const legacy=new Promise((resolve,reject)=>{const tx=db.transaction('vehicles','readonly');const request=tx.objectStore('vehicles').get('legacy-vehicle');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('Legacy sentinel read failed'));});
         const sentinel=await legacy;
-        if(sentinel?.marker!=='must-survive-v6-to-v8')throw new Error('Existing v6 vehicle data was not preserved during migration');
+        if(sentinel?.marker!=='must-survive-v6-to-v9')throw new Error('Existing v6 vehicle data was not preserved during migration');
         const suffix=crypto.randomUUID();
         const record={id:`vehicle-browser-${suffix}`,marker:'real-indexeddb'};
         const updated={...record,marker:'real-indexeddb-updated'};
@@ -57,7 +56,7 @@ try{
         await put(updated);if(JSON.stringify(await get(record.id))!==JSON.stringify(updated))throw new Error('UPDATE/GET round-trip failed');
         await del(record.id);if(await get(record.id)!==undefined)throw new Error('REMOVE/GET round-trip failed');
         db.close();
-        return {database:'kfe',version:8,requiredStores:required.length,legacyDataPreserved:true,operations:['migration v6→v8','create/get','update/get','remove/get'],result:'PASS'};
+        return {database:'kfe',version:9,requiredStores:required.length,legacyDataPreserved:true,operations:['migration v6→v9','create/get','update/get','remove/get'],result:'PASS'};
       });
       const missingStoreErrors=pageErrors.filter(error=>/object stores? was not found|object store.*not found/i.test(error));
       if(missingStoreErrors.length)throw new Error(`Runtime IndexedDB object-store error: ${missingStoreErrors.join(' | ')}`);

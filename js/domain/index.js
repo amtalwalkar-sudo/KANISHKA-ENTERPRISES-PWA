@@ -4,6 +4,7 @@ export * from './trips.js';
 export * from './vehicle.js';
 export * from './fuel.js';
 export * from './expenses.js';
+export * from './fixed-expense.js';
 export * from './maintenance.js';
 export * from './revenue.js';
 export * from './loans.js';
