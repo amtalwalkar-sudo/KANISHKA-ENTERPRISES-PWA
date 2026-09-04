@@ -55,4 +55,4 @@ export function isFixedExpenseEffectiveAt(record,at){
   return (record.status??FIXED_EXPENSE_STATUS.ACTIVE)===FIXED_EXPENSE_STATUS.ACTIVE&&!record.is_deleted&&from<=effectiveAt&&(to===null||effectiveAt<to);
 }
 export function effectiveFixedExpenses(rows,at){return (rows||[]).filter(row=>isFixedExpenseEffectiveAt(row,at));}
-export function fixedExpenseMonthlyAmount(rows,at){return effectiveFixedExpenses(rows,at).reduce((total,row)=>total+paise(row.monthly_amount_paise),0);}
+export function fixedExpenseMonthlyAmount(rows,at){return effectiveFixedExpenses(rows,at).reduce((total,row)=>total+paise(row.monthly_amount_paise??row.amount_paise),0);}
