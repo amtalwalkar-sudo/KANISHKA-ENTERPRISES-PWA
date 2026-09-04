@@ -1,8 +1,8 @@
-// KFE canonical IndexedDB schema. Version 6 adds operational day, odometer allocation, and lifecycle telemetry persistence.
+// KFE canonical IndexedDB schema. Version 7 adds immutable vehicle lifecycle history persistence.
 import {runAtomicTransaction} from './transaction.js';
 export const DB_NAME='kfe';
-export const DB_VERSION=6;
-export const STORES=Object.freeze({state:{keyPath:'id'},rides:{keyPath:'id'},logs:{keyPath:'id'},settings:{keyPath:'id'},outbox:{keyPath:'id'},config:{keyPath:'id'},audit:{keyPath:'id'},idempotency:{keyPath:'id'},vehicles:{keyPath:'id'},work_sessions:{keyPath:'id'},work_days:{keyPath:'id'},odometer_allocations:{keyPath:'id'},operational_events:{keyPath:'id'},fuel_records:{keyPath:'id'},expense_records:{keyPath:'id'},maintenance_items:{keyPath:'id'},maintenance_records:{keyPath:'id'},revenue_records:{keyPath:'id'},loans:{keyPath:'id'},loan_payments:{keyPath:'id'},renewals_compliance:{keyPath:'id'},calculation_results:{keyPath:'id'},alerts:{keyPath:'id'}});
+export const DB_VERSION=7;
+export const STORES=Object.freeze({state:{keyPath:'id'},rides:{keyPath:'id'},logs:{keyPath:'id'},settings:{keyPath:'id'},outbox:{keyPath:'id'},config:{keyPath:'id'},audit:{keyPath:'id'},idempotency:{keyPath:'id'},vehicles:{keyPath:'id'},vehicle_lifecycle_events:{keyPath:'id'},work_sessions:{keyPath:'id'},work_days:{keyPath:'id'},odometer_allocations:{keyPath:'id'},operational_events:{keyPath:'id'},fuel_records:{keyPath:'id'},expense_records:{keyPath:'id'},maintenance_items:{keyPath:'id'},maintenance_records:{keyPath:'id'},revenue_records:{keyPath:'id'},loans:{keyPath:'id'},loan_payments:{keyPath:'id'},renewals_compliance:{keyPath:'id'},calculation_results:{keyPath:'id'},alerts:{keyPath:'id'}});
 export const STORE_NAMES=Object.freeze(Object.keys(STORES));
 export {runAtomicTransaction};
 let dbPromise=null;
