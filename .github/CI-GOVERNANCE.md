@@ -13,6 +13,14 @@ Incremental CI may skip only **upstream boundaries proven unaffected by the chan
 
 If changed files cannot be safely classified, Incremental CI must fall back to Full CI.
 
+## Domain-scoped CI principle
+
+**CI runs are domain-scoped by default.** The active CI run must remain within the currently active/frozen domain and its required downstream validation boundaries. CI must not expand implementation scope into unrelated domains merely because an unrelated check fails.
+
+**“Run CI” means run the active-domain incremental CI path. “Run holistic CI” means run validation across all domains / the complete PWA together.** Holistic CI must only be initiated when the user explicitly requests it, except where the governance rules independently require Full CI (for example, an uncertain change classification, shared infrastructure/architecture change, CI governance change, domain freeze, merge, or final release/deployment verification). When Full CI is required by governance, it is a validation requirement, not permission to implement unrelated domain changes.
+
+Unrelated-domain failures must be classified and recorded; they do not authorize scope expansion or changes to unrelated domains.
+
 ## Engineering speed principle
 
 KFE must be developed as quickly as technically possible **without weakening correctness, data integrity, architecture, testing, CI, or deployment verification**.
