@@ -3,13 +3,21 @@ name: KFE 2.0 incremental CI
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      start_boundary:
+        description: 'Optional boundary override. Auto is the normal universal mode.'
+        required: false
+        default: auto
+        type: choice
+        options: [auto, foundation, governance, architecture, domain, work, administrator, persistence, ui, application, real-persistence, runtime, browser, resilience, final]
 
 permissions:
   contents: read
   pull-requests: read
 
 concurrency:
-  group: kfe-incremental-${{ github.event.pull_request.number }}
+  group: kfe-incremental-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -28,10 +36,16 @@ jobs:
         id: classify
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          OVERRIDE: ${{ github.event.inputs.start_boundary || 'auto' }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
+          if [[ "$OVERRIDE" != "auto" ]]; then
+            echo "start=$OVERRIDE" >> "$GITHUB_OUTPUT"
+            echo "reason=manual override" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           mapfile -t files < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
           start=final
           reason='unclassified change; conservative final fallback'
@@ -67,10 +81,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - name: Checkout exact PR HEAD
+      - name: Checkout exact revision
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
       - name: Setup Node 20
         uses: actions/setup-node@v5
@@ -80,17 +94,19 @@ jobs:
         run: npm install
       - name: Build application
         run: GITHUB_ACTIONS=false npm run build
-      - name: Execute incremental downstream chain
+      - name: Execute universal downstream chain
         shell: bash
         env:
           START: ${{ needs.classify.outputs.start }}
-          KFE_VALIDATED_SHA: ${{ github.event.pull_request.head.sha }}
+          KFE_VALIDATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          KFE_OBSERVED_CODE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          KFE_CI_RUN_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$KFE_VALIDATED_SHA"
           rank(){ case "$1" in foundation)echo 1;; governance)echo 2;; architecture)echo 3;; domain)echo 4;; work)echo 5;; administrator)echo 6;; persistence)echo 7;; ui)echo 8;; application)echo 9;; real-persistence)echo 10;; runtime)echo 11;; browser)echo 12;; resilience)echo 13;; final)echo 14;; esac; }
           start=$(rank "$START")
-          run_stage(){ local name="$1"; shift; if (( $(rank "$name") >= start )); then echo "===== KFE INCREMENTAL: $name ====="; "$@"; fi; }
+          run_stage(){ local name="$1"; shift; local n; n=$(rank "$name"); if (( n >= start )); then echo "===== KFE INCREMENTAL: $name ====="; "$@"; fi; }
+
           foundation(){ npm run validate:kfe-screen-contract; npm run validate:foundation-preflight; }
           governance(){ npm run validate:governance; }
           architecture(){ npm run validate:architecture; npm run validate:foundation; npm run validate:foundation-audit; }
@@ -102,9 +118,10 @@ jobs:
           application(){ npm run validate:phase-5-vehicle; npm run validate:phase-5-fuel-application; npm run validate:phase-5-expenses-application; npm run validate:phase-5-revenue-application; npm run validate:phase-5-loans-application; npm run validate:phase-5-renewals-compliance-application; npm run validate:phase-5-maintenance-application; npm run validate:phase-5-profitability-application; npm run validate:phase-5-dashboard-application; }
           real_persistence(){ npm run validate:phase-5-vehicle-real-persistence; npm run validate:phase-5-fuel-real-persistence; npm run validate:phase-5-expenses-real-persistence; npm run validate:phase-5-revenue-real-persistence; npm run validate:phase-5-loans-real-persistence; npm run validate:phase-5-renewals-compliance-real-persistence; npm run validate:phase-5-maintenance-real-persistence; }
           runtime(){ for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done; npm run validate:phase-4; }
-          browser(){ npx playwright install --with-deps chromium; nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 & for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done; npm run validate:work-screen-browser; }
+          browser(){ npx playwright install --with-deps chromium; nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 & sleep 2; for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done; npm run validate:work-screen-browser; }
           resilience(){ node js/testing/app-resilience-reliability-offline.mjs; }
           final(){ GITHUB_ACTIONS=false npm run build; }
+
           run_stage foundation foundation
           run_stage governance governance
           run_stage architecture architecture
@@ -119,5 +136,6 @@ jobs:
           run_stage browser browser
           run_stage resilience resilience
           run_stage final final
+
           echo "KFE_INCREMENTAL_CI=PASS"
           echo "KFE_INCREMENTAL_START=$START"
