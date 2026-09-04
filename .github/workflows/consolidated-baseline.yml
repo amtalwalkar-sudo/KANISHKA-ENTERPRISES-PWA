@@ -111,7 +111,9 @@ jobs:
       - name: Work geolocation contract
         run: npm run validate:work-geolocation
       - name: Administrator Vehicle/Driver foundation
-        run: npm run validate:administrator-foundation
+        run: |
+          npm run validate:administrator-foundation
+          npm run validate:vehicle-driver-ui-decoupling
       - name: Persistence and recovery
         run: npm run validate:phase-k
       - name: UI shell contracts
