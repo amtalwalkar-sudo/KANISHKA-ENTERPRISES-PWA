@@ -1,54 +1,25 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import KfeFormShell from './KfeFormShell.vue';
 import KfeFormField from './KfeFormField.vue';
 import KfeStatePanel from './KfeStatePanel.vue';
-
-const props = defineProps({ calculation: { type: Object, default: null } });
-const emit = defineEmits(['back', 'save-request', 'calculation-request', 'open']);
-const detail = ref('');
-const activeForm = ref('');
-const initialPrepayment = { outstanding_principal: '', amount: '', date: '' };
-const localCalculation = ref(null);
-
-const details = {
-  'Payment history': { title: 'Payment history', message: 'Historical payments remain tied to the authoritative loan records, including after loan completion or vehicle retirement.' },
-  'Amortization schedule': { title: 'Amortization schedule', message: 'Principal and interest components are supplied by the application/domain calculation layer.' },
-  'Prepayment calculator': { title: 'Prepayment calculator', message: 'Enter the early-payment inputs below. The authoritative effect is calculated outside presentation.' },
-};
-const detailDefinition = computed(() => details[detail.value] ?? null);
-const calculation = computed(() => localCalculation.value || props.calculation);
-watch(() => props.calculation, value => { localCalculation.value = value; });
-function openDetail(name) { detail.value = name; activeForm.value = ''; emit('open', { module: 'Loans', detail: name }); }
-function closeDetail() { detail.value = ''; }
-function openPrepayment() { activeForm.value = 'Prepayment calculator'; detail.value = ''; localCalculation.value = null; }
-function save(value) { localCalculation.value = null; emit('calculation-request', { module: 'Loans', action: 'PREPAYMENT_CALCULATE', value: { outstanding_principal: value.outstanding_principal, amount: value.amount, date: value.date } }); }
+const props=defineProps({application:{type:Object,required:true},calculation:{type:Object,default:null}});
+const emit=defineEmits(['back','calculation-request','open']);
+const detail=ref(''),activeForm=ref(''),localCalculation=ref(null),model=ref({loans:[],payments:[]}),error=ref('');
+const loan=ref({principal:'',annual_rate_percent:'',term_months:'',emi:'',start_date:'',vehicle_id:''});
+const payment=ref({loan_id:'',amount:'',date:new Date().toISOString().slice(0,10)});
+const calculation=computed(()=>localCalculation.value||props.calculation);
+const activeLoan=computed(()=>model.value.loans.find(r=>!r.is_deleted&&r.id===payment.value.loan_id)||model.value.loans.find(r=>!r.is_deleted));
+const schedules=computed(()=>model.value.payments.filter(r=>r.month!=null));
+const actualPayments=computed(()=>model.value.payments.filter(r=>r.month==null));
+async function load(){try{model.value=await props.application.getLoanReadModel();if(!payment.value.loan_id&&model.value.loans[0])payment.value.loan_id=model.value.loans[0].id}catch(e){error.value=String(e?.message||e)}}
+function openDetail(name){detail.value=name;activeForm.value='';if(name==='Payment history'||name==='Amortization schedule')void load();}
+function openPrepayment(){activeForm.value='Prepayment calculator';detail.value='';localCalculation.value=null;}
+function openCreate(){activeForm.value='Create loan';detail.value='';}
+function openPayment(){activeForm.value='Record payment';detail.value='';void load();}
+async function createLoan(){error.value='';try{await props.application.createLoan(loan.value);activeForm.value='';loan.value={principal:'',annual_rate_percent:'',term_months:'',emi:'',start_date:'',vehicle_id:''};await load()}catch(e){error.value=String(e?.message||e)}}
+async function recordPayment(){error.value='';try{await props.application.recordLoanPayment(payment.value);activeForm.value='';await load()}catch(e){error.value=String(e?.message||e)}}
+function calculate(value){localCalculation.value=null;emit('calculation-request',{module:'Loans',action:'PREPAYMENT_CALCULATE',value:{outstanding_principal:value.outstanding_principal,amount:value.amount,date:value.date}})}
+onMounted(load);
 </script>
-
-<template>
-  <section class="kfe-module-view" aria-labelledby="loan-title">
-    <div v-if="!detail && !activeForm">
-      <button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('back')">‹ More</button>
-      <p class="kfe-eyebrow">Money</p>
-      <h1 id="loan-title">Loans</h1>
-      <p class="kfe-destination-subtitle">Understand current obligations without exposing unnecessary accounting complexity.</p>
-      <article class="kfe-detail-card">
-        <div class="kfe-detail-card__top"><div><span class="kfe-card-label">Loan status</span><strong>Authoritative loan status</strong></div><span class="kfe-state-badge">Current</span></div>
-        <dl class="kfe-detail-list"><div><dt>EMI</dt><dd>Authoritative result</dd></div><div><dt>Outstanding balance</dt><dd>Authoritative result</dd></div><div><dt>Vehicle association</dt><dd>Authoritative vehicle</dd></div></dl>
-      </article>
-      <section class="kfe-module-section"><h2>Payment</h2><button class="kfe-list-action" type="button" @click="openDetail('Payment history')"><span>Payment history</span><span aria-hidden="true">›</span></button></section>
-      <section class="kfe-module-section"><h2>Financial tools</h2><div class="kfe-module-list"><button type="button" @click="openDetail('Amortization schedule')"><span>Amortization schedule</span><span aria-hidden="true">›</span></button><button type="button" @click="openPrepayment"><span>Prepayment calculator</span><span aria-hidden="true">›</span></button></div><p class="kfe-form-boundary-note">Prepayment charges: <strong>Zero</strong>. Calculation remains authoritative outside presentation.</p></section>
-    </div>
-    <KfeFormShell v-else-if="activeForm === 'Prepayment calculator'" draft-key="loan-prepayment" title="Prepayment calculator" subtitle="Zero prepayment charges. Enter the inputs; authoritative results come from the application/domain layer." :initial-value="initialPrepayment" @save="save">
-      <template #default="{ value }">
-        <KfeFormField id="loan-outstanding-principal" label="Outstanding principal" v-model="value.outstanding_principal" type="number" required placeholder="0.00" />
-        <KfeFormField id="loan-prepayment-amount" label="Prepayment amount" v-model="value.amount" type="number" required placeholder="0.00" />
-        <KfeFormField id="loan-prepayment-date" label="Effective date" v-model="value.date" type="date" required />
-        <KfeStatePanel v-if="!calculation" state="normal" title="Calculation boundary" message="This screen collects inputs only. The application/domain layer calculates the effective prepayment and remaining principal." />
-        <KfeStatePanel v-else-if="calculation.error" state="error" title="Calculation failed" :message="calculation.error" />
-        <div v-else class="kfe-financial-breakdown" aria-live="polite"><div><span>Requested prepayment</span><strong>₹{{ (calculation.requestedPrepaymentPaise / 100).toFixed(2) }}</strong></div><div><span>Effective prepayment</span><strong>₹{{ (calculation.effectivePrepaymentPaise / 100).toFixed(2) }}</strong></div><div><span>Remaining principal</span><strong>₹{{ (calculation.remainingPrincipalPaise / 100).toFixed(2) }}</strong></div><div><span>Status</span><strong>{{ calculation.status }}</strong></div></div>
-      </template>
-    </KfeFormShell>
-    <article v-else class="kfe-financial-detail"><button class="kfe-secondary-action" type="button" @click="closeDetail">‹ Loans</button><p class="kfe-eyebrow">DETAIL</p><h2>{{ detailDefinition.title }}</h2><p>{{ detailDefinition.message }}</p><div v-if="detail === 'Amortization schedule'" class="kfe-financial-breakdown"><div><span>Payment date</span><strong>Application read model</strong></div><div><span>Principal component</span><strong>Application result</strong></div><div><span>Interest component</span><strong>Application result</strong></div><div><span>Remaining balance</span><strong>Application result</strong></div></div><div v-else class="kfe-financial-breakdown"><div><span>Records</span><strong>Authoritative payment history</strong></div><div><span>Vehicle</span><strong>Authoritative association</strong></div></div></article>
-  </section>
-</template>
+<template><section class="kfe-module-view" aria-labelledby="loan-title"><button class="kfe-secondary-action kfe-back-action" type="button" @click="detail||activeForm?(detail='',activeForm=''):emit('back')">‹ {{detail||activeForm?'Loans':'More'}}</button><p v-if="error" class="kfe-error-note" role="alert">{{error}}</p><template v-if="!detail&&!activeForm"><p class="kfe-eyebrow">Money</p><h1 id="loan-title">Loans</h1><p class="kfe-destination-subtitle">Loan obligations, payments, amortization and prepayment.</p><article v-for="item in model.loans" :key="item.id" class="kfe-detail-card"><div class="kfe-detail-card__top"><strong>Loan · {{item.status}}</strong><span>{{(Number(item.remaining_balance_paise||0)/100).toFixed(2)}}</span></div><p>Principal ₹{{(Number(item.principal_paise||0)/100).toFixed(2)}} · EMI ₹{{(Number(item.emi_paise||0)/100).toFixed(2)}} · {{item.annual_rate_percent}}% · {{item.term_months}} months</p></article><article v-if="!model.loans.length" class="kfe-detail-card"><strong>No loan recorded</strong><p>Create the authoritative loan record to enable payment and amortization tracking.</p></article><div class="kfe-module-section"><h2>Loan lifecycle</h2><div class="kfe-module-list"><button type="button" @click="openCreate">Create loan ›</button><button type="button" @click="openPayment">Record payment ›</button><button type="button" @click="openDetail('Payment history')">Payment history ›</button><button type="button" @click="openDetail('Amortization schedule')">Amortization schedule ›</button><button type="button" @click="openPrepayment">Prepayment calculator ›</button></div></div><p class="kfe-form-boundary-note">Prepayment charges: <strong>Zero</strong>. Calculations are performed by the application/domain layer.</p></template><KfeFormShell v-else-if="activeForm==='Create loan'" draft-key="loan-create" title="Create loan" subtitle="Store the authoritative loan terms and generate its amortization schedule." :initial-value="loan" @save="createLoan"><template #default="{value}"><KfeFormField id="loan-principal" label="Principal" v-model="value.principal" type="number" required placeholder="0.00"/><KfeFormField id="loan-rate" label="Annual interest rate %" v-model="value.annual_rate_percent" type="number" min="0" step="0.01" required/><KfeFormField id="loan-term" label="Term (months)" v-model="value.term_months" type="number" min="1" step="1" required/><KfeFormField id="loan-emi" label="EMI" v-model="value.emi" type="number" min="0.01" step="0.01" required/><KfeFormField id="loan-start" label="Start date" v-model="value.start_date" type="date" required/><KfeFormField id="loan-vehicle" label="Vehicle ID" v-model="value.vehicle_id" optional placeholder="Optional association"/></template></KfeFormShell><KfeFormShell v-else-if="activeForm==='Record payment'" draft-key="loan-payment" title="Record loan payment" subtitle="Payment updates the authoritative outstanding balance." :initial-value="payment" @save="recordPayment"><template #default="{value}"><KfeFormField id="loan-payment-loan" label="Loan" v-model="value.loan_id" required/><KfeFormField id="loan-payment-amount" label="Payment amount" v-model="value.amount" type="number" min="0.01" step="0.01" required/><KfeFormField id="loan-payment-date" label="Payment date" v-model="value.date" type="date" required/><KfeStatePanel v-if="activeLoan" state="normal" title="Current balance" :message="`₹${(Number(activeLoan.remaining_balance_paise||0)/100).toFixed(2)} before this payment.`"/></template></KfeFormShell><KfeFormShell v-else-if="activeForm==='Prepayment calculator'" draft-key="loan-prepayment" title="Prepayment calculator" subtitle="Zero prepayment charges. Enter the inputs; authoritative results come from the application/domain layer." :initial-value="{outstanding_principal:'',amount:'',date:''}" @save="calculate"><template #default="{value}"><KfeFormField id="loan-outstanding-principal" label="Outstanding principal" v-model="value.outstanding_principal" type="number" required/><KfeFormField id="loan-prepayment-amount" label="Prepayment amount" v-model="value.amount" type="number" required/><KfeFormField id="loan-prepayment-date" label="Effective date" v-model="value.date" type="date" required/><KfeStatePanel v-if="!calculation" state="normal" title="Calculation boundary" message="Authoritative calculation is outside presentation."/><KfeStatePanel v-else-if="calculation.error" state="error" title="Calculation failed" :message="calculation.error"/><div v-else class="kfe-financial-breakdown"><div><span>Requested prepayment</span><strong>₹{{(calculation.requestedPrepaymentPaise/100).toFixed(2)}}</strong></div><div><span>Effective prepayment</span><strong>₹{{(calculation.effectivePrepaymentPaise/100).toFixed(2)}}</strong></div><div><span>Remaining principal</span><strong>₹{{(calculation.remainingPrincipalPaise/100).toFixed(2)}}</strong></div><div><span>Status</span><strong>{{calculation.status}}</strong></div></div></template></KfeFormShell><article v-else class="kfe-financial-detail"><p class="kfe-eyebrow">DETAIL</p><h2>{{detail}}</h2><template v-if="detail==='Amortization schedule'"><div v-for="row in schedules" :key="row.id" class="kfe-detail-card"><strong>Month {{row.month}}</strong><p>Payment ₹{{(row.payment_paise/100).toFixed(2)}} · Principal ₹{{(row.principal_paise/100).toFixed(2)}} · Interest ₹{{(row.interest_paise/100).toFixed(2)}} · Balance ₹{{(row.ending_balance_paise/100).toFixed(2)}}</p></div><p v-if="!schedules.length" class="kfe-boundary-note">No amortization schedule available.</p></template><template v-else><div v-for="row in actualPayments" :key="row.id" class="kfe-detail-card"><strong>{{row.date}} · ₹{{(row.amount_paise/100).toFixed(2)}}</strong><p>Principal ₹{{(row.principal_paise/100).toFixed(2)}} · Interest ₹{{(row.interest_paise/100).toFixed(2)}} · Remaining ₹{{(row.remaining_balance_paise/100).toFixed(2)}}</p></div><p v-if="!actualPayments.length" class="kfe-boundary-note">No payments recorded yet.</p></template></article></section></template>
