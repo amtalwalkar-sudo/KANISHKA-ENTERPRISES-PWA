@@ -10,20 +10,9 @@ const data=new Map();
 function entity(name){
   if(!data.has(name))data.set(name,new Map());
   const map=data.get(name);
-  return {
-    async list(){return [...map.values()]},
-    async get(id){return map.get(id)||null},
-    async create(value){map.set(value.id,value);return value},
-    async update(existing,changes){const next={...existing,...changes,updated_at:new Date().toISOString()};map.set(existing.id,next);return next}
-  };
+  return {async list(){return [...map.values()]},async get(id){return map.get(id)||null},async create(value){map.set(value.id,value);return value},async update(existing,changes){const next={...existing,...changes,updated_at:new Date().toISOString()};map.set(existing.id,next);return next}};
 }
-const repository={
-  entity,
-  async atomic(names,fn){
-    const stores=Object.fromEntries(names.map(name=>[name,{put(value){if(!data.has(name))data.set(name,new Map());data.get(name).set(value.id,value)}}]));
-    return fn(stores);
-  }
-};
+const repository={entity,async atomic(names,fn){const stores=Object.fromEntries(names.map(name=>[name,{put(value){if(!data.has(name))data.set(name,new Map());data.get(name).set(value.id,value)}}]));return fn(stores);}};
 const app=createAdministratorApplication({repository});
 const makeVehicle=async(registration,odometer=100)=>app.createVehicle({registration_number:registration,make:'Test',model:'Van',variant:'Diesel',fuel_type:'CNG',acquisition_date:'2026-09-04',acquisition_type:'USED',acquisition_odometer:odometer,acquisition_cost:500000});
 
@@ -31,7 +20,6 @@ const vehicle=await makeVehicle('MH 01 AB 1234',82450);
 assert.equal(vehicle.current_odometer,82450);
 assert.equal((await app.listOdometerHistory(vehicle.id))[0].source,'ACQUISITION');
 assert.equal((await app.listVehicleLifecycleHistory(vehicle.id))[0].event_type,'ACQUISITION');
-
 await assert.rejects(()=>app.createVehicle({registration_number:'mh 01 ab 1234',make:'Other',model:'Van',fuel_type:'CNG',acquisition_date:'2026-09-04',acquisition_type:'USED',acquisition_odometer:1}),/already exists/);
 await assert.rejects(()=>app.recordOdometer({vehicle_id:vehicle.id,odometer:82000,source:'FUEL'}),/backwards/);
 await app.recordOdometer({vehicle_id:vehicle.id,odometer:83000,source:'FUEL'});
@@ -41,13 +29,13 @@ await assert.rejects(()=>app.recordOdometer({vehicle_id:vehicle.id,odometer:8300
 const driver=await app.createDriver({name:'Driver One',licence_number:'DL-123',licence_expiry:'2027-09-04'});
 const assignment=await app.assignDriver({vehicle_id:vehicle.id,driver_id:driver.id,start_date:'2026-09-04'});
 assert.equal(assignment.status,'ACTIVE');
-await assert.rejects(()=>app.assignDriver({vehicle_id:vehicle.id,driver_id:driver.id,start_date:'2026-09-05'}),/Driver assignment dates overlap/);
+const vehicle2=await makeVehicle('MH 02 CD 5678',100);
+await assert.rejects(()=>app.assignDriver({vehicle_id:vehicle2.id,driver_id:driver.id,start_date:'2026-09-05'}),/Driver assignment dates overlap/);
 
 const driver2=await app.createDriver({name:'Driver Two',licence_number:'DL-456'});
 await assert.rejects(()=>app.assignDriver({vehicle_id:vehicle.id,driver_id:driver2.id,start_date:'2026-09-05'}),/Vehicle already has an active assignment/);
 await assert.rejects(()=>app.closeAssignment(assignment.id,{end_date:'2026-09-03'}),/cannot be before Start Date/);
 
-const vehicle2=await makeVehicle('MH 02 CD 5678',100);
 await app.reassignDriver({driver_id:driver.id,new_vehicle_id:vehicle2.id,start_date:'2026-09-10'});
 const assignments=await app.listDriverAssignments(driver.id);
 assert.equal(assignments.length,2);
