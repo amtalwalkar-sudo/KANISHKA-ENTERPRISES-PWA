@@ -9,6 +9,7 @@
     "dev:https": "vite --host 0.0.0.0 --https",
     "build": "vite build",
     "preview": "vite preview",
+    "validate:e2e": "playwright test",
     "validate:settings": "node js/testing/settings-contract.mjs",
     "validate:vehicle-domain": "node js/testing/vehicle-domain-contract.mjs",
     "validate:fixed-expense-lifecycle": "node js/testing/fixed-expense-lifecycle-contract.mjs",
@@ -62,5 +63,5 @@
     "validate:phase-7-reliability": "node js/testing/phase-7-reliability-contract.mjs"
   },
   "dependencies": {"vue": "^3.5.18"},
-  "devDependencies": {"@playwright/test": "^1.55.0", "@vitejs/plugin-vue": "^6.0.1", "vite": "^7.1.3", "vite-plugin-pwa": "^1.0.2"}
+  "devDependencies": {"@playwright/test": "^1.55.0", "@playwright/test": "^1.55.0", "@vitejs/plugin-vue": "^6.0.1", "vite": "^7.1.3", "vite-plugin-pwa": "^1.0.2"}
 }
