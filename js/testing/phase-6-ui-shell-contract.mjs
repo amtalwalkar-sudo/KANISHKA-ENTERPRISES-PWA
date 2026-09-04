@@ -11,7 +11,7 @@ const forms = read('src/components/KfeFormShell.vue');
 const fuel = read('src/components/FuelForm.vue');
 const drafts = read('js/ui/form-drafts.js');
 const work = read('src/components/WorkSessionView.vue');
-const vehicle = read('src/components/VehicleModuleView.vue');
+const vehicle = read('src/components/VehicleDomainView.vue');
 const driver = read('src/components/DriverModuleView.vue');
 const maintenance = read('src/components/MaintenanceModuleView.vue');
 const compliance = read('src/components/ComplianceModuleView.vue');
@@ -68,17 +68,23 @@ assert.match(performance, /Authoritative/);
 assert.match(performance, /unavailable/);
 assert.doesNotMatch(performance, /Tomorrow target|Status unavailable/i);
 
+// Vehicle administration was rebuilt as the authoritative Vehicle + Driver domain view.
+// Keep Phase 6 aligned with the new UI rather than the retired legacy wrapper contract.
+assert.match(vehicle, /Vehicle & Driver/);
 assert.match(vehicle, /Acquisition date/);
-assert.match(vehicle, /Retirement date/);
-assert.match(vehicle, /save-request/);
-assert.match(vehicle, /emit\('open', 'Driver'\)/);
+assert.match(vehicle, /acquisition_date/);
+assert.match(vehicle, /Retire/);
+assert.match(vehicle, /Sell/);
+assert.match(vehicle, /Transfer/);
+assert.match(vehicle, /History/);
+assert.match(vehicle, /Driver/);
+assert.match(vehicle, /Assignment/);
+assert.match(vehicle, /vehicleUsage/);
 assert.doesNotMatch(vehicle, /Activated|activation tab/i);
 assert.doesNotMatch(vehicle, /Fleet|fleet management/i);
 assert.doesNotMatch(vehicle, /Promise\.resolve|saved\.value\s*=\s*true/);
 
-assert.match(driver, /Driver attached to the current vehicle/);
-assert.match(driver, /analytics are not part of the current KFE scope/i);
-assert.match(driver, /save-request/);
+assert.match(driver, /VehicleDomainView/);
 assert.doesNotMatch(driver, /Online time|Number of rides|Revenue generated/i);
 
 assert.match(maintenance, /Category/);
@@ -94,9 +100,9 @@ assert.match(compliance, /save-request/);
 assert.doesNotMatch(compliance, /renewedButUnpaid|renewed-but-unpaid|renewed_unpaid|paymentStatus\s*[:=]\s*['\"]?renewed/i);
 
 assert.match(app, /LoanModuleView/);
-assert.match(app, /activeModule\s*===\s*['"]Loans['"]/);
+assert.match(app, /activeModule\s*===\s*['\"]Loans['\"]/);
 assert.match(app, /HistoricalEntriesView/);
-assert.match(app, /activeModule\s*===\s*['"]Historical Entries['"]/);
+assert.match(app, /activeModule\s*===\s*['\"]Historical Entries['\"]/);
 assert.match(app, /HistoricalEntriesView[\s\S]*@save-request="handleHistoricalSave"/);
 assert.match(historical, /Historical Day/);
 assert.match(historical, /Historical Fuel/);
