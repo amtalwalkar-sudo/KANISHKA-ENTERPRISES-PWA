@@ -1,33 +1,14 @@
 :root{
-  --kfe-ui-bg:Canvas;
-  --kfe-ui-surface:Canvas;
-  --kfe-ui-text:CanvasText;
-  --kfe-ui-muted:GrayText;
-  --kfe-ui-border:color-mix(in srgb,CanvasText 18%,Canvas);
-  --kfe-ui-accent:AccentColor;
-  --kfe-ui-shadow:0 4px 18px color-mix(in srgb,CanvasText 12%,transparent);
-  --kfe-ui-overlay:color-mix(in srgb,Canvas 94%,transparent);
+  --kfe-ui-bg:Canvas;--kfe-ui-surface:Canvas;--kfe-ui-text:CanvasText;--kfe-ui-muted:GrayText;--kfe-ui-border:color-mix(in srgb,CanvasText 18%,Canvas);--kfe-ui-accent:AccentColor;--kfe-ui-shadow:0 4px 18px color-mix(in srgb,CanvasText 12%,transparent);--kfe-ui-overlay:color-mix(in srgb,Canvas 94%,transparent);
+  --kfe-ui-space-1:4px;--kfe-ui-space-2:8px;--kfe-ui-space-3:12px;--kfe-ui-space-4:16px;--kfe-ui-space-5:20px;--kfe-ui-space-6:24px;
+  --kfe-ui-radius-sm:8px;--kfe-ui-radius-md:12px;--kfe-ui-radius-lg:14px;--kfe-ui-radius-pill:999px;--kfe-ui-control-min:44px;--kfe-ui-focus:2px solid var(--kfe-ui-accent);
+  --kfe-ui-font-body:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--kfe-ui-font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
   color-scheme:light dark;
 }
-:root[data-kfe-theme="light"]{
-  --kfe-ui-bg:#fff;
-  --kfe-ui-surface:#fff;
-  --kfe-ui-text:#111;
-  --kfe-ui-muted:#666;
-  --kfe-ui-border:#d6d6d6;
-  --kfe-ui-accent:#111;
-  --kfe-ui-shadow:0 4px 18px rgba(0,0,0,.12);
-  --kfe-ui-overlay:rgba(255,255,255,.94);
-  color-scheme:light;
-}
-:root[data-kfe-theme="dark"]{
-  --kfe-ui-bg:#111;
-  --kfe-ui-surface:#1a1a1a;
-  --kfe-ui-text:#f4f4f4;
-  --kfe-ui-muted:#aaa;
-  --kfe-ui-border:#3a3a3a;
-  --kfe-ui-accent:#fff;
-  --kfe-ui-shadow:0 4px 18px rgba(0,0,0,.4);
-  --kfe-ui-overlay:rgba(17,17,17,.94);
-  color-scheme:dark;
-}
+:root[data-kfe-theme="light"]{--kfe-ui-bg:#fff;--kfe-ui-surface:#fff;--kfe-ui-text:#111;--kfe-ui-muted:#666;--kfe-ui-border:#d6d6d6;--kfe-ui-accent:#111;--kfe-ui-shadow:0 4px 18px rgba(0,0,0,.12);--kfe-ui-overlay:rgba(255,255,255,.94);color-scheme:light}
+:root[data-kfe-theme="dark"]{--kfe-ui-bg:#111;--kfe-ui-surface:#1a1a1a;--kfe-ui-text:#f4f4f4;--kfe-ui-muted:#aaa;--kfe-ui-border:#3a3a3a;--kfe-ui-accent:#fff;--kfe-ui-shadow:0 4px 18px rgba(0,0,0,.4);--kfe-ui-overlay:rgba(17,17,17,.94);color-scheme:dark}
+.kfe-shell{font-family:var(--kfe-ui-font-body);background:var(--kfe-ui-bg);color:var(--kfe-ui-text)}
+.kfe-shell button,.kfe-shell input,.kfe-shell select,.kfe-shell textarea{font:inherit}
+.kfe-shell button,input,select,textarea{accent-color:var(--kfe-ui-accent)}
+.kfe-shell button:focus-visible,.kfe-shell input:focus-visible,.kfe-shell select:focus-visible,.kfe-shell textarea:focus-visible{outline:var(--kfe-ui-focus);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.kfe-shell *,.kfe-shell *::before,.kfe-shell *::after{scroll-behavior:auto!important;transition-duration:0.01ms!important;animation-duration:0.01ms!important;animation-iteration-count:1!important}}
