@@ -15,7 +15,7 @@ assert.deepEqual(usageKmByScope([{start_odometer:10000,end_odometer:12000,scope:
 const driver={status:'ACTIVE',licence_expiry:'2025-12-31'};
 assert.throws(()=>assertAssignmentTargets({vehicle,driver,vehicleAssignments:[],driverAssignments:[],startDate:'2026-01-01'}),/licence is expired/);
 assert.equal(assertAssignmentTargets({vehicle,driver:{status:'ACTIVE',licence_expiry:'2026-12-31'},vehicleAssignments:[],driverAssignments:[],startDate:'2025-01-01'}),'2025-01-01');
-assert.throws(()=>assertAssignmentTargets({vehicle,driver:{status:'ACTIVE'},vehicleAssignments:[{id:'other',start_date:'2024-01-01',end_date:null}],driverAssignments:[],startDate:'2025-01-02'}),/Vehicle already has an active assignment/);
+assert.throws(()=>assertAssignmentTargets({vehicle,driver:{status:'ACTIVE'},vehicleAssignments:[{id:'other',start_date:'2024-01-01',end_date:null}],driverAssignments:[],startDate:'2025-01-02'}),/Vehicle already has an active vehicle assignment/);
 assert.throws(()=>assertAssignmentTargets({vehicle,driver:{status:'ACTIVE'},vehicleAssignments:[],driverAssignments:[{id:'other',start_date:'2024-01-01',end_date:null}],startDate:'2025-01-02'}),/Driver assignment dates overlap/);
 assert.equal(assertAssignmentEnd('2025-01-01','2025-01-10'),'2025-01-10');
 assert.throws(()=>assertAssignmentEnd('2025-01-10','2025-01-01'),/cannot be before/);

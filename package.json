@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "validate:settings": "node js/testing/settings-contract.mjs",
     "validate:vehicle-domain": "node js/testing/vehicle-domain-contract.mjs",
+    "validate:fixed-expense-lifecycle": "node js/testing/fixed-expense-lifecycle-contract.mjs",
+    "validate:fixed-expense-real-persistence": "node js/testing/fixed-expense-persistence-browser.mjs",
     "validate:administrator-foundation": "node js/testing/administrator-foundation-contract.mjs",
     "validate:vehicle-driver-ui-decoupling": "node js/testing/vehicle-driver-ui-decoupling.mjs",
     "validate:admin-screen": "node js/testing/admin-screen-contract.mjs",
