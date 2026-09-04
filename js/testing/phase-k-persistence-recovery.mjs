@@ -30,9 +30,9 @@ const fakeDb=new FakeDb();
 globalThis.indexedDB={open(){const r=new FakeRequest();queueMicrotask(()=>{r.result=fakeDb;r.onupgradeneeded?.();r.onsuccess?.();});return r;}};
 
 assert.equal(DB_NAME,'kfe');
-assert.equal(DB_VERSION,6);
+assert.equal(DB_VERSION,7);
 assert.equal(STORE_NAMES.length,Object.keys(STORES).length);
-assert.ok(STORE_NAMES.includes('vehicles'));
+for(const name of ['vehicles','drivers','vehicle_driver_assignments','vehicle_odometer_readings','vehicle_disposal_records'])assert.ok(STORE_NAMES.includes(name),`Missing canonical store: ${name}`);
 assert.ok(STORE_NAMES.includes('work_sessions'));
 assert.ok(STORE_NAMES.includes('work_days'));
 assert.ok(STORE_NAMES.includes('odometer_allocations'));
