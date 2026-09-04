@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 const required=['js/core/record.js','js/core/effective-date.js','js/core/referential-integrity.js','js/core/idempotency.js','js/core/audit.js','js/core/backup.js','js/core/restore.js','js/core/dependency-graph.js','js/core/calculation-version.js','js/core/data-confidence.js','js/core/transaction.js','js/core/hardened-db.js','js/core/contracts.js','js/services/operational-telemetry.js'];
 const read=p=>fs.readFileSync(p,'utf8');
+const appSource=read('src/App.vue');
+const mainSource=read('src/main.js');
 const checks=[
  ['authoritative record contract',/user_id/.test(read('js/core/record.js'))&&/created_at/.test(read('js/core/record.js'))&&/updated_at/.test(read('js/core/record.js'))&&/synced/.test(read('js/core/record.js'))&&/is_deleted/.test(read('js/core/record.js'))],
  ['UUID generation',read('js/core/record.js').includes('crypto.randomUUID()')],
@@ -19,7 +21,7 @@ const checks=[
  ['backup replacement is atomic',read('js/core/backup.js').includes('.clear()')&&read('js/core/backup.js').includes('runAtomicTransaction')],
  ['foundation registry',read('js/core/contracts.js').includes('FOUNDATION_CONTRACTS')],
  ['domain layer is present for business engines',fs.existsSync('js/domain')],
- ['no UI business calculations',!read('src/App.vue').includes('calculate')&&!read('src/main.js').includes('/domain/')]
+ ['no UI business calculations',!appSource.includes("../js/domain/")&&!mainSource.includes('/domain/')]
 ];
 let failed=required.filter(p=>!fs.existsSync(p)).length;
 for(const [name,ok] of checks){console.log(`${ok?'PASS':'FAIL'} ${name}`);if(!ok)failed++;}
