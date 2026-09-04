@@ -9,10 +9,11 @@ const dateString=(year,month,day)=>`${year}-${String(month).padStart(2,'0')}-${S
 export async function adminReadModel({repository,asOf=new Date().toISOString()}={}){
   if(!repository?.entity)throw new TypeError('Admin read model requires repository');
   const today=String(asOf).slice(0,10),month=today.slice(0,7);
-  const [vehicles,drivers,assignments,revenue,fuel,maintenance,compliance,loans,calculations]=await Promise.all([
+  const [vehicles,drivers,assignments,revenue,fuel,maintenance,compliance,loans,calculations,expenses,fixedExpenses]=await Promise.all([
     repository.entity('vehicles').list(),repository.entity('drivers').list(),repository.entity('vehicle_driver_assignments').list(),
     repository.entity('revenue_records').list(),repository.entity('fuel_records').list(),repository.entity('maintenance_records').list(),
-    repository.entity('renewals_compliance').list(),repository.entity('loans').list(),repository.entity('calculation_results').list()
+    repository.entity('renewals_compliance').list(),repository.entity('loans').list(),repository.entity('calculation_results').list(),
+    repository.entity('expense_records').list(),repository.entity('fixed_expenses').list()
   ]);
   const activeVehicles=live(vehicles).filter(v=>v.lifecycle_status==='ACTIVE');
   const vehicle=activeVehicles[0]||live(vehicles)[0]||null;
@@ -24,6 +25,8 @@ export async function adminReadModel({repository,asOf=new Date().toISOString()}=
   const monthFuel=live(fuel).filter(r=>monthOf(r)===month&&String(r.scope||'BUSINESS')==='BUSINESS');
   const monthMaintenance=live(maintenance).filter(r=>monthOf(r)===month&&String(r.scope||'BUSINESS')==='BUSINESS');
   const monthCompliance=live(compliance).filter(r=>monthOf(r)===month&&String(r.scope||'BUSINESS')==='BUSINESS');
+  const monthExpenses=live(expenses).filter(r=>monthOf(r)===month&&String(r.scope||'BUSINESS')==='BUSINESS');
+  const monthFixedExpenses=live(fixedExpenses).filter(r=>monthOf(r)===month);
   const financial=latestCalculation?.result||latestCalculation?.value||null;
   const revenuePaise=financial?.revenuePaise??financial?.revenue_paise??(monthRevenue.length?sum(monthRevenue):null);
   const businessKm=monthRevenue.length?live(await repository.entity('work_sessions').list()).filter(r=>monthOf(r)===month&&String(r.scope||'BUSINESS')==='BUSINESS').reduce((n,r)=>n+Number(r.business_km||0),0):null;
@@ -35,15 +38,17 @@ export async function adminReadModel({repository,asOf=new Date().toISOString()}=
   const remainingPaise=breakEvenPaise!=null&&currentPaise!=null?breakEvenPaise-currentPaise:null;
   const year=Number(month.slice(0,4)),monthNumber=Number(month.slice(5,7));
   const weekly=Array.from({length:5},(_,i)=>{const startDay=i*7+1;const endDay=Math.min(days,startDay+6);return {week:i+1,startDate:dateString(year,monthNumber,startDay),endDate:dateString(year,monthNumber,endDay),days:Array.from({length:endDay-startDay+1},(_,j)=>dateString(year,monthNumber,startDay+j)),revenuePaise:null,businessCostPaise:null,profitPaise:null};});
+  const currentValidity=live(compliance).filter(r=>String(r.validity_start||'')<=today&&String(r.validity_end||'')>=today).sort((a,b)=>String(a.validity_end).localeCompare(String(b.validity_end)));
   return Object.freeze({
-    version:1,asOf,month,today,
+    version:2,asOf,month,today,
     currentState:Object.freeze({vehicle,driver,online:null,odometer:vehicle?.current_odometer??null,businessKm:businessKm??null}),
     attention:Object.freeze([]),
     insight:vehicle?'Vehicle and driver state are available from authoritative records.':'Vehicle state is not yet available from authoritative records.',
     profitability:Object.freeze({status:profitPaise==null?'UNAVAILABLE':profitPaise>=0?'PROFITABLE':'LOSS',profitPaise,costPerKmPaise:costsPaise!=null&&businessKm>0?costsPaise/businessKm:null,profitPerKmPaise:profitPaise!=null&&businessKm>0?profitPaise/businessKm:null,marginPaise:profitPaise!=null&&revenuePaise>0?profitPaise/revenuePaise:null}),
     breakEven:Object.freeze({status:breakEvenPaise==null?'UNAVAILABLE':currentPaise>=breakEvenPaise?'ABOVE BREAK-EVEN':'BELOW BREAK-EVEN',breakEvenPaise,currentPaise,remainingPaise}),
-    month:Object.freeze({revenuePaise,costsPaise,profitPaise,fuelPaise:monthFuel.length?sum(monthFuel):null,maintenancePaise:monthMaintenance.length?sum(monthMaintenance):null,compliancePaise:monthCompliance.length?sum(monthCompliance):null,businessKm}),
+    month:Object.freeze({revenuePaise,costsPaise,profitPaise,fuelPaise:monthFuel.length?sum(monthFuel):null,maintenancePaise:monthMaintenance.length?sum(monthMaintenance):null,compliancePaise:monthCompliance.length?sum(monthCompliance):null,expensePaise:monthExpenses.length?sum(monthExpenses):null,businessKm}),
     weekly:Object.freeze(weekly.map(Object.freeze)),
+    history:Object.freeze({maintenance:Object.freeze(monthMaintenance),compliance:Object.freeze(live(compliance)),expenses:Object.freeze(monthExpenses),revenue:Object.freeze(monthRevenue),fixedExpenses:Object.freeze(monthFixedExpenses),currentCompliance:Object.freeze(currentValidity)}),
     financialAvailable:Boolean(financial),
     allocationInputs:Object.freeze({maintenanceSourceRecords:monthMaintenance.length,complianceSourceRecords:monthCompliance.length,loanSourceRecords:loans.filter(r=>!r?.is_deleted).length,calendarDays:days})
   });
