@@ -6,7 +6,6 @@ let output='';server.stdout.on('data',c=>output+=c.toString());server.stderr.on(
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function waitForServer(){for(let i=0;i<120;i++){try{if((await fetch(`http://127.0.0.1:${port}/`)).ok)return;}catch{}await sleep(250)}throw new Error(`Vite preview did not start: ${output}`)}
 function stop(){try{process.kill(-server.pid,'SIGTERM')}catch{try{server.kill('SIGTERM')}catch{}}}
-const requestResult=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB request failed'));});
 try{
   await waitForServer();
   const browser=await chromium.launch({headless:true});
@@ -29,6 +28,7 @@ try{
       await page.waitForTimeout(250);
       const result=await page.evaluate(async()=>{
         const openDb=(name,version)=>new Promise((resolve,reject)=>{const request=indexedDB.open(name,version);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB open failed'));});
+        const requestResult=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB request failed'));});
         const db=await openDb('kfe');
         const required=['state','rides','logs','settings','outbox','config','audit','idempotency','vehicles','drivers','vehicle_driver_assignments','vehicle_odometer_readings','vehicle_disposal_records','work_sessions','work_days','odometer_allocations','operational_events','fuel_records','expense_records','maintenance_items','maintenance_records','revenue_records','loans','loan_payments','renewals_compliance','calculation_results','alerts'];
         const names=[...db.objectStoreNames];
