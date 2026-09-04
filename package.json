@@ -9,7 +9,7 @@
     "dev:https": "vite --host 0.0.0.0 --https",
     "build": "vite build",
     "preview": "vite preview",
-    "validate:administrator-foundation": "node js/testing/administrator-foundation-contract.mjs",
+    "validate:administrator-foundation": "node js/testing/administrator-foundation-contract.mjs && node js/testing/vehicle-domain-contract.mjs",
     "validate:vehicle-domain": "node js/testing/vehicle-domain-contract.mjs",
     "validate:vehicle-driver-ui-decoupling": "node js/testing/vehicle-driver-ui-decoupling-contract.mjs",
     "validate:timeline-foundation": "node js/testing/timeline-foundation-contract.mjs",
