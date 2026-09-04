@@ -56,9 +56,9 @@ jobs:
               .github/*|package.json|package-lock.json|vite.config.*|index.html|service-worker.js|src/main.*|js/app.js) set_start foundation 'shared/build/CI infrastructure changed';;
               js/testing/governance-*|js/testing/*governance*) set_start governance 'governance contract changed';;
               js/core/*|js/services/*|js/testing/architecture-*|js/testing/clean-architecture-*) set_start architecture 'shared architecture changed';;
+              js/domain/vehicle.*|js/application/administrator.js|js/application/vehicle*|src/components/Vehicle*|src/components/Driver*|js/testing/vehicle-*|js/testing/phase-5-vehicle*|js/testing/phase-6-ui-shell-contract.mjs) set_start administrator 'Vehicle/Driver boundary changed';;
               js/domain/*|js/testing/domain-*|js/testing/*lifecycle*|js/testing/phase-i*|js/testing/phase-j*|js/testing/phase-l*|js/testing/phase-m*|js/testing/phase-n*) set_start domain 'domain/lifecycle changed';;
               js/ui/*|src/components/WorkSessionView.vue|js/testing/*work*|js/testing/*timeline*) set_start work 'Work/timeline boundary changed';;
-              js/domain/vehicle.*|js/application/administrator.js|js/application/vehicle*|src/components/Vehicle*|src/components/Driver*|js/testing/vehicle-*|js/testing/phase-5-vehicle*|js/testing/phase-6-ui-shell-contract.mjs) set_start administrator 'Vehicle/Driver boundary changed';;
               js/persistence/*|js/application/*repository*|js/testing/*persistence*|js/testing/phase-k*) set_start persistence 'persistence boundary changed';;
               src/components/*|src/App.vue|src/styles/*|js/testing/phase-1*|js/testing/phase-2*|js/testing/phase-3*|js/testing/phase-5-module*|js/testing/phase-6*) set_start ui 'UI shell/module contract changed';;
               js/application/*|js/testing/*application*) set_start application 'application boundary changed';;
@@ -115,7 +115,7 @@ jobs:
           application(){ npm run validate:phase-5-vehicle; npm run validate:phase-5-fuel-application; npm run validate:phase-5-expenses-application; npm run validate:phase-5-revenue-application; npm run validate:phase-5-loans-application; npm run validate:phase-5-renewals-compliance-application; npm run validate:phase-5-maintenance-application; npm run validate:phase-5-profitability-application; npm run validate:phase-5-dashboard-application; }
           real_persistence(){ npm run validate:phase-5-vehicle-real-persistence; npm run validate:phase-5-fuel-real-persistence; npm run validate:phase-5-expenses-real-persistence; npm run validate:phase-5-revenue-real-persistence; npm run validate:phase-5-loans-real-persistence; npm run validate:phase-5-renewals-compliance-real-persistence; npm run validate:phase-5-maintenance-real-persistence; }
           runtime(){ for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done; npm run validate:phase-4; }
-          browser(){ npx playwright install --with-deps chromium; nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &; for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done; npm run validate:work-screen-browser; }
+          browser(){ npx playwright install --with-deps chromium; nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 & sleep 2; for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done; npm run validate:work-screen-browser; }
           resilience(){ node js/testing/app-resilience-reliability-offline.mjs; }
           final(){ GITHUB_ACTIONS=false npm run build; }
 
