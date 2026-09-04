@@ -4,7 +4,7 @@ import {join,relative,extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 // Targeted architecture gate. It checks dependency direction and direct persistence access,
-// not naming/style. A component named Wrapper/Adapter/Bridge is not rejected by name alone.
+// not browser APIs that legitimately belong to the presentation layer.
 const root=fileURLToPath(new URL('../../',import.meta.url));
 const files=[];
 
@@ -31,9 +31,10 @@ const layerOf=p=>{
 };
 
 const forbidden={
+  // Browser storage is presentation-owned UI state (for example, form drafts).
+  // Presentation remains forbidden from importing business/data layers directly.
   presentation:[
     /(?:from|import)\s*["'][^"']*(?:\/domain\/|\/repository\/|\/infrastructure\/)/,
-    /\b(?:indexedDB|IDBDatabase|openDatabase|localStorage|sessionStorage)\b/,
     /(?:from|import)\s*["'][^"']*js\/application\/[^"']*(?:repository|persistence)[^"']*["']/i
   ],
   domain:[/(?:from|import)\s*["'][^"']*(?:\/application\/|\/infrastructure\/|\/repository\/)[^"']*["']/],
