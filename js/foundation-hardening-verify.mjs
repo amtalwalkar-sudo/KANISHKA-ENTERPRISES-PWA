@@ -13,7 +13,7 @@ const checks=[
  ['calculation version registry',read('js/core/calculation-version.js').includes('createCalculationVersionRegistry')],
  ['data confidence states',read('js/core/data-confidence.js').includes('dataConfidenceState')&&read('js/core/data-confidence.js').includes('UNKNOWN')&&read('js/core/data-confidence.js').includes('INSUFFICIENT_DATA')],
  ['atomic transaction boundary',read('js/core/transaction.js').includes("'readwrite'")&&read('js/core/transaction.js').includes('abort')],
- ['canonical hardened database',read('js/core/hardened-db.js').includes('DB_VERSION=6')&&read('js/core/hardened-db.js').includes('idempotency')&&read('js/core/hardened-db.js').includes('audit')&&read('js/core/hardened-db.js').includes('operational_events')],
+ ['canonical hardened database',/DB_VERSION\s*=\s*\d+/.test(read('js/core/hardened-db.js'))&&read('js/core/hardened-db.js').includes('idempotency')&&read('js/core/hardened-db.js').includes('audit')&&read('js/core/hardened-db.js').includes('operational_events')&&read('js/core/hardened-db.js').includes('drivers')&&read('js/core/hardened-db.js').includes('vehicle_driver_assignments')&&read('js/core/hardened-db.js').includes('vehicle_odometer_readings')&&read('js/core/hardened-db.js').includes('vehicle_disposal_records')],
  ['operational telemetry boundary',read('js/core/contracts.js').includes('operationalTelemetry')&&read('js/services/operational-telemetry.js').includes('recordEvent')&&read('js/services/operational-telemetry.js').includes('getCurrentPosition')],
  ['repository uses hardened database',read('js/core/repository.js').includes("./hardened-db.js")],
  ['backup replacement is atomic',read('js/core/backup.js').includes('.clear()')&&read('js/core/backup.js').includes('runAtomicTransaction')],

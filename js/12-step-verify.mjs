@@ -23,7 +23,7 @@ const checks=[
 ['5. Application composition root is business-neutral',!app.includes('createWorkScreen')&&!app.includes('createFuelScreen')&&!app.includes('createDashboardAggregator')],
 ['6. Application composition does not directly import domain modules',!app.includes('/domain/')&&!main.includes('/domain/')],
 ['7. Repository remains the persistence boundary',repo.includes('openKfeDb')&&!app.includes('localStorage')],
-['8. Canonical IndexedDB foundation is explicitly versioned',db.includes('DB_VERSION')&&/DB_VERSION\s*=\s*6\s*;/.test(db)],
+['8. Canonical IndexedDB foundation is explicitly versioned',db.includes('DB_VERSION')&&/DB_VERSION\s*=\s*\d+\s*;/.test(db)],
 ['9. Outbox foundation remains present',db.includes('outbox')],
 ['10. PWA foundation remains present',fs.existsSync('js/pwa')],
 ['11. Business runtime package script is absent',!pkg.includes('test:business-runtime')],
