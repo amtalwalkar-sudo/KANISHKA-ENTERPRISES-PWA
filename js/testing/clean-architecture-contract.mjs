@@ -30,16 +30,18 @@ const layerOf=p=>{
   return 'other';
 };
 
+// Match only actual import declarations. The previous patterns could scan across
+// unrelated source text and falsely classify legitimate presentation code.
 const forbidden={
   // Browser storage is presentation-owned UI state (for example, form drafts).
   // Presentation remains forbidden from importing business/data layers directly.
   presentation:[
-    /(?:from|import)\s*["'][^"']*(?:\/domain\/|\/repository\/|\/infrastructure\/)/,
-    /(?:from|import)\s*["'][^"']*js\/application\/[^"']*(?:repository|persistence)[^"']*["']/i
+    /(?:^|\n)\s*import\s+(?:[^;\n]*?\sfrom\s*)?["'][^"']*(?:\/domain\/|\/repository\/|\/infrastructure\/)[^"']*["']/,
+    /(?:^|\n)\s*import\s+(?:[^;\n]*?\sfrom\s*)?["'][^"']*js\/application\/[^"']*(?:repository|persistence)[^"']*["']/i
   ],
-  domain:[/(?:from|import)\s*["'][^"']*(?:\/application\/|\/infrastructure\/|\/repository\/)[^"']*["']/],
-  repository:[/(?:from|import)\s*["'][^"']*src\/[^"']*["']/],
-  infrastructure:[/(?:from|import)\s*["'][^"']*src\/[^"']*["']/]
+  domain:[/(?:^|\n)\s*import\s+(?:[^;\n]*?\sfrom\s*)?["'][^"']*(?:\/application\/|\/infrastructure\/|\/repository\/)[^"']*["']/],
+  repository:[/(?:^|\n)\s*import\s+(?:[^;\n]*?\sfrom\s*)?["'][^"']*src\/[^"']*["']/],
+  infrastructure:[/(?:^|\n)\s*import\s+(?:[^;\n]*?\sfrom\s*)?["'][^"']*src\/[^"']*["']/]
 };
 
 const violations=[];
