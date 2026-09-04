@@ -1,22 +1,12 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-const props=defineProps({draftKey:{type:String,required:true},title:{type:String,required:true},subtitle:{type:String,default:''},initialValue:{type:Object,default:()=>({})},saving:{type:Boolean,default:false},valid:{type:Boolean,default:true}});
-const emit=defineEmits(['save','discard','change','close']);
-const value=ref({...props.initialValue});const hasDraft=ref(false);const dirty=ref(false);let timer=null;let submitTimer=null;const SUBMIT_COOLDOWN_MS=750;
-const storageKey=computed(()=>`kfe:draft:${props.draftKey}`);
-function loadDraft(){try{const raw=globalThis.localStorage?.getItem(storageKey.value);if(!raw)return;const parsed=JSON.parse(raw);if(parsed&&typeof parsed==='object'){value.value={...props.initialValue,...parsed};hasDraft.value=true;dirty.value=true;}}catch(_) {}}
+import {computed,onBeforeUnmount,onMounted,ref,watch} from 'vue';
+const props=defineProps({draftKey:{type:String,required:true},title:{type:String,required:true},subtitle:{type:String,default:''},initialValue:{type:Object,default:()=>({})},saving:{type:Boolean,default:false},valid:{type:Boolean,default:true}});const emit=defineEmits(['save','discard','change','close']);const value=ref({...props.initialValue}),hasDraft=ref(false),dirty=ref(false);let timer=null,submitTimer=null;const SUBMIT_COOLDOWN_MS=750;const storageKey=computed(()=>`kfe:draft:${props.draftKey}`);
+function loadDraft(){try{const raw=globalThis.localStorage?.getItem(storageKey.value);if(!raw)return;const parsed=JSON.parse(raw);if(parsed&&typeof parsed==='object'){value.value={...props.initialValue,...parsed};hasDraft.value=true;dirty.value=true;}}catch(_){}}
 function persistDraft(){try{globalThis.localStorage?.setItem(storageKey.value,JSON.stringify(value.value));hasDraft.value=true;}catch(_) {}}
 function clearDraft(){try{globalThis.localStorage?.removeItem(storageKey.value);}catch(_){}hasDraft.value=false;dirty.value=false;}
 function onSubmit(){if(props.saving||!props.valid||submitTimer)return;emit('save',{...value.value});submitTimer=setTimeout(()=>{submitTimer=null;},SUBMIT_COOLDOWN_MS);}
 function discard(){clearDraft();value.value={...props.initialValue};emit('discard');}
-function requestClose(){if(props.saving)return;if(dirty.value||hasDraft.value){const confirmed=globalThis.confirm?.('Discard your unsaved changes?')??true;if(!confirmed)return;}emit('close');}
-watch(value,next=>{dirty.value=true;emit('change',{...next});clearTimeout(timer);timer=setTimeout(persistDraft,250);},{deep:true});
-onMounted(loadDraft);onBeforeUnmount(()=>{clearTimeout(timer);clearTimeout(submitTimer);});
+function requestClose(){if(props.saving)return;if(dirty.value||hasDraft.value){const confirmed=globalThis.confirm?.('Discard your unsaved changes?')??true;if(!confirmed)return;}emit('discard');emit('close');}
+watch(value,next=>{dirty.value=true;emit('change',{...next});clearTimeout(timer);timer=setTimeout(persistDraft,250);},{deep:true});onMounted(loadDraft);onBeforeUnmount(()=>{clearTimeout(timer);clearTimeout(submitTimer);});
 </script>
-<template>
-<form class="kfe-form-shell" @submit.prevent="onSubmit">
-<header class="kfe-form-heading"><div><p class="kfe-eyebrow">KFE 2.0</p><h1>{{title}}</h1><p v-if="subtitle" class="kfe-destination-subtitle">{{subtitle}}</p></div><div class="kfe-form-heading-actions"><span v-if="hasDraft" class="kfe-draft-badge">Unsaved draft</span><button type="button" class="kfe-secondary-action" :disabled="saving" @click="requestClose">Close</button></div></header>
-<div class="kfe-form-body"><slot :value="value" /></div>
-<footer class="kfe-form-actions"><button v-if="hasDraft" type="button" class="kfe-secondary-action" :disabled="saving" @click="discard">Discard draft</button><button type="submit" class="kfe-primary-action" :disabled="saving||!valid"><span v-if="saving">Saving…</span><span v-else>Save</span></button></footer>
-</form>
-</template>
+<template><form class="kfe-form-shell" @submit.prevent="onSubmit"><header class="kfe-form-heading"><div><p class="kfe-eyebrow">KFE 2.0</p><h1>{{title}}</h1><p v-if="subtitle" class="kfe-destination-subtitle">{{subtitle}}</p></div><div class="kfe-form-heading-actions"><span v-if="hasDraft" class="kfe-draft-badge">Unsaved draft</span><button type="button" class="kfe-secondary-action" :disabled="saving" @click="requestClose">Close</button></div></header><div class="kfe-form-body"><slot :value="value" /></div><footer class="kfe-form-actions"><button v-if="hasDraft" type="button" class="kfe-secondary-action" :disabled="saving" @click="discard">Discard draft</button><button type="submit" class="kfe-primary-action" :disabled="saving||!valid"><span v-if="saving">Saving…</span><span v-else>Save</span></button></footer></form></template>
