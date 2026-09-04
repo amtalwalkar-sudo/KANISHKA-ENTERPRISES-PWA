@@ -8,21 +8,22 @@ async function waitForServer(){for(let i=0;i<120;i++){try{if((await fetch(`http:
 function stop(){try{process.kill(-server.pid,'SIGTERM')}catch{try{server.kill('SIGTERM')}catch{}}}
 try{
   await waitForServer();
-  const browser=await chromium.launch({headless:true});
+  const browser=await chromium.launch();
   try{
-    const context=await browser.newContext();
+    const context=await browser.newContext({serviceWorkers:'block'});
     try{
       // Legacy setup uses a static page so the application bootstrap cannot open/migrate KFE first.
       const setupPage=await context.newPage();
-      await setupPage.goto(`http://127.0.0.1:${port}/manifest.json`,{waitUntil:'load'});
+      const manifestResponse=await setupPage.goto(`http://127.0.0.1:${port}/manifest.json`,{waitUntil:'load'});
+      if(manifestResponse?.headers()['content-type']?.split(';')[0]!=='application/manifest+json')throw new Error(`Legacy IndexedDB setup did not receive manifest.json; content-type=${manifestResponse?.headers()['content-type']||'unknown'}`);
       await setupPage.evaluate(async()=>{
         const deleteDb=()=>new Promise((resolve,reject)=>{const request=indexedDB.deleteDatabase('kfe');request.onsuccess=resolve;request.onerror=()=>reject(request.error||new Error('Legacy IndexedDB reset failed'));request.onblocked=()=>reject(new Error('Legacy IndexedDB reset was blocked'));});
-        await deleteDb();
-        for(let i=0;i<20;i++){
+        for(let attempt=1;attempt<=5;attempt++){
+          await deleteDb();
+          await new Promise(resolve=>setTimeout(resolve,100));
           const databases=await indexedDB.databases();
           if(!databases.some(database=>database.name==='kfe'))break;
-          await new Promise(resolve=>setTimeout(resolve,25));
-          if(i===19)throw new Error('Legacy IndexedDB reset did not complete');
+          if(attempt===5)throw new Error('Legacy IndexedDB reset did not complete after 5 attempts');
         }
         const legacyStores=['state','rides','logs','settings','outbox','config','audit','idempotency','vehicles','work_sessions','work_days','odometer_allocations','operational_events','fuel_records','expense_records','maintenance_items','maintenance_records','revenue_records','loans','loan_payments','renewals_compliance','calculation_results','alerts'];
         const db=await new Promise((resolve,reject)=>{const request=indexedDB.open('kfe',6);request.onupgradeneeded=()=>{const upgradeDb=request.result;for(const name of legacyStores)if(!upgradeDb.objectStoreNames.contains(name))upgradeDb.createObjectStore(name,{keyPath:'id'});};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('Legacy IndexedDB setup failed'));});
