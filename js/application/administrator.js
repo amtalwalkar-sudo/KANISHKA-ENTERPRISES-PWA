@@ -181,10 +181,10 @@ export function createAdministratorApplication({repository}){
     if(v.lifecycle_status!==ACTIVE)throw new Error('Driver cannot be assigned to an inactive or retired vehicle');
     if(d.status!==ACTIVE)throw new Error('Inactive driver cannot receive a new assignment');
     if(d.licence_expiry&&d.licence_expiry<start)throw new Error('Driver licence is expired for the assignment start date');
-    const driverRows=(await listDriverAssignments(d.id)).filter(a=>a.id!==current?.id);
-    if(driverRows.some(a=>overlaps(a,{start_date:start,end_date:null})))throw new Error('Driver assignment dates overlap');
     const vehicleRows=(await listVehicleAssignments(v.id)).filter(a=>a.id!==current?.id);
     if(vehicleRows.some(a=>overlaps(a,{start_date:start,end_date:null})))throw new Error('Vehicle already has an active assignment');
+    const driverRows=(await listDriverAssignments(d.id)).filter(a=>a.id!==current?.id);
+    if(driverRows.some(a=>overlaps(a,{start_date:start,end_date:null})))throw new Error('Driver assignment dates overlap');
     return {v,d};
   }
 
