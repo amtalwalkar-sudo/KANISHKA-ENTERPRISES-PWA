@@ -28,12 +28,13 @@
     "Dashboard": {"required": true},
     "Profitability": {"required": true},
     "Historical Entries": {"required": true},
-    "Settings": {"required": true}
+    "Settings": {"required": true, "surface": "admin-child", "parent": "Admin"}
   },
   "presentationRules": [
     "Business calculations belong outside Vue presentation components.",
     "Loan calculations belong in the domain/application layers, not loan presentation.",
     "Future-scope modules must not be treated as required current-scope UI capabilities.",
-    "Historical Entries must expose its save-request contract."
+    "Historical Entries must expose its save-request contract.",
+    "Required admin-child modules must be represented under their declared Admin parent and are not primary driver navigation destinations."
   ]
 }
