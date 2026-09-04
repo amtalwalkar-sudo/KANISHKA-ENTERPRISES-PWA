@@ -14,9 +14,9 @@ assert.deepEqual(contract.currentScope.Settings.features,['theme','localBackup',
 assert.deepEqual(contract.settingsContract.theme.options,['system','light','dark']);
 assert.equal(contract.settingsContract.futureFeatures.uiControls,false);
 assert.equal(contract.settingsContract.futureFeatures.businessBehavior,false);
-for(const token of ['Theme','Backup','Restore','Reset ERP Data','KFE 2.0','Version 2.0.0'])assert.match(component,new RegExp(token.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')));
-for(const future of ['GPS','Cloud Sync','Google Drive Backup','Multiple Vehicles','Multiple Drivers','Fleet Management','Advanced Reporting','Predictive Analytics','Machine Learning','KFE Advisor'])assert.doesNotMatch(component,new RegExp(future.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')));
-for(const method of ['getSettings','setTheme','exportBackup','restoreBackup'])assert.match(application,new RegExp(`\\b${method}\\b`));
-assert.match(repository, /async function exportSnapshot\(\)/);
-assert.match(repository, /async function importSnapshot\(snapshot\)/);
+for(const token of ['Theme','Backup','Restore','Reset ERP Data','KFE 2.0','Version 2.0.0'])assert.ok(component.includes(token),`Settings must expose ${token}`);
+for(const future of ['GPS','Cloud Sync','Google Drive Backup','Multiple Vehicles','Multiple Drivers','Fleet Management','Advanced Reporting','Predictive Analytics','Machine Learning','KFE Advisor'])assert.equal(component.includes(future),false,`Future capability must stay out of current Settings UI: ${future}`);
+for(const method of ['getSettings','setTheme','exportBackup','restoreBackup'])assert.ok(application.includes(method),`Application boundary missing ${method}`);
+assert.match(repository,/async function exportSnapshot\(\)/);
+assert.match(repository,/async function importSnapshot\(snapshot\)/);
 console.log('Settings contract: PASS');
