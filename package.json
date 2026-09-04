@@ -13,7 +13,7 @@
     "validate:timeline-foundation": "node js/testing/timeline-foundation-contract.mjs",
     "validate:performance-foundation": "node js/testing/performance-foundation-contract.mjs",
     "validate:governance": "node js/testing/governance-verify.mjs",
-    "validate:architecture": "node js/12-step-verify.mjs",
+    "validate:architecture": "node js/12-step-verify.mjs && node js/testing/clean-architecture-contract.mjs",
     "validate:foundation": "node js/foundation-hardening-verify.mjs",
     "validate:domain": "node js/testing/domain-calculation-verify.mjs",
     "validate:phase-i": "node js/testing/phase-i-operational-lifecycle.mjs",
