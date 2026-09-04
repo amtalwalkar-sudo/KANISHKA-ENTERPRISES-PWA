@@ -1,5 +1,5 @@
 // Persistence boundary. UI/view-models/application/domain code never access storage directly.
-import {openKfeDb,read,write,remove,all,runAtomicTransaction} from './hardened-db.js';
+import {openKfeDb,read,write,remove,all,runAtomicTransaction,STORE_NAMES,DB_NAME,DB_VERSION} from './hardened-db.js';
 import {createRecord,assertAuthoritativeRecord,updateRecord,softDeleteRecord} from './record.js';
 import {createConfigurationSchema,assertConfigurationSchema} from './schemas.js';
 const KEY='kfe:state:v1';
@@ -51,5 +51,24 @@ export function createRepository({initial={}}={}){
   async function save(next){memory=clone(next);const now=new Date().toISOString();await write('state',{id:KEY,value:memory,created_at:now,updated_at:now,synced:false,is_deleted:false});return clone(memory);}
   async function clear(){memory=clone(initial);await remove('state',KEY);return clone(memory);}
   async function atomic(storeNames,operation){const db=await openKfeDb();return runAtomicTransaction(db,storeNames,operation);}
-  return {load,save,clear,atomic,createRecord:(data,meta)=>createRecord(data,meta),updateRecord:(existing,changes)=>updateRecord(existing,changes),softDeleteRecord,assertRecord:assertAuthoritativeRecord,entity:(store)=>createEntityRepository(store),configuration:(store)=>createConfigurationRepository(store),async getIdempotency(id){return read('idempotency',id);},async saveIdempotency(entry){return write('idempotency',entry);}};
+  async function exportSnapshot(){
+    await openKfeDb();
+    const stores={};
+    for(const name of STORE_NAMES)stores[name]=await all(name);
+    return clone({schemaVersion:1,dbName:DB_NAME,dbVersion:DB_VERSION,createdAt:new Date().toISOString(),stores});
+  }
+  async function importSnapshot(snapshot){
+    if(!snapshot||typeof snapshot!=='object'||snapshot.schemaVersion!==1||snapshot.dbName!==DB_NAME||!Number.isInteger(snapshot.dbVersion)||snapshot.dbVersion>DB_VERSION||!snapshot.stores||typeof snapshot.stores!=='object')throw new TypeError('Invalid KFE backup file');
+    const names=Object.keys(snapshot.stores);
+    if(names.some(name=>!STORE_NAMES.includes(name)))throw new TypeError('Backup contains an unknown KFE data store');
+    for(const name of names)if(!Array.isArray(snapshot.stores[name]))throw new TypeError(`Backup store ${name} is invalid`);
+    for(const name of names)for(const record of snapshot.stores[name])if(!record||typeof record!=='object'||typeof record.id!=='string')throw new TypeError(`Backup record in ${name} is invalid`);
+    const db=await openKfeDb();
+    return runAtomicTransaction(db,STORE_NAMES,(stores)=>{
+      for(const name of STORE_NAMES)stores[name].clear();
+      for(const name of names)for(const record of snapshot.stores[name])stores[name].put(record);
+      return true;
+    }).then(()=>{memory=clone(initial);hydrated=false;return true;});
+  }
+  return {load,save,clear,atomic,exportSnapshot,importSnapshot,createRecord:(data,meta)=>createRecord(data,meta),updateRecord:(existing,changes)=>updateRecord(existing,changes),softDeleteRecord,assertRecord:assertAuthoritativeRecord,entity:(store)=>createEntityRepository(store),configuration:(store)=>createConfigurationRepository(store),async getIdempotency(id){return read('idempotency',id);},async saveIdempotency(entry){return write('idempotency',entry);}};
 }
