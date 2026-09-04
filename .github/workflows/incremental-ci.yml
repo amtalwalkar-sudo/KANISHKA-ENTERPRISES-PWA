@@ -98,6 +98,9 @@ jobs:
         shell: bash
         env:
           START: ${{ needs.classify.outputs.start }}
+          KFE_VALIDATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          KFE_OBSERVED_CODE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          KFE_CI_RUN_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           rank(){ case "$1" in foundation)echo 1;; governance)echo 2;; architecture)echo 3;; domain)echo 4;; work)echo 5;; administrator)echo 6;; persistence)echo 7;; ui)echo 8;; application)echo 9;; real-persistence)echo 10;; runtime)echo 11;; browser)echo 12;; resilience)echo 13;; final)echo 14;; esac; }
