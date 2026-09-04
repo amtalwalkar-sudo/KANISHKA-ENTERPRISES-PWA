@@ -4,6 +4,7 @@ const monthOf=row=>dateOf(row).slice(0,7);
 const paiseOf=row=>Number(row?.amount_paise??row?.cost_paise??0);
 const sum=rows=>rows.reduce((total,row)=>total+paiseOf(row),0);
 const monthDays=(year,month)=>new Date(Date.UTC(year,month,0)).getUTCDate();
+const dateString=(year,month,day)=>`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 
 export async function adminReadModel({repository,asOf=new Date().toISOString()}={}){
   if(!repository?.entity)throw new TypeError('Admin read model requires repository');
@@ -32,7 +33,8 @@ export async function adminReadModel({repository,asOf=new Date().toISOString()}=
   const breakEvenPaise=financial?.breakEvenPaise??financial?.break_even_paise??null;
   const currentPaise=financial?.currentRevenuePaise??revenuePaise;
   const remainingPaise=breakEvenPaise!=null&&currentPaise!=null?breakEvenPaise-currentPaise:null;
-  const weeks=Array.from({length:5},(_,i)=>({week:i+1,revenuePaise:null,businessCostPaise:null,profitPaise:null}));
+  const year=Number(month.slice(0,4)),monthNumber=Number(month.slice(5,7));
+  const weekly=Array.from({length:5},(_,i)=>{const startDay=i*7+1;const endDay=Math.min(days,startDay+6);return {week:i+1,startDate:dateString(year,monthNumber,startDay),endDate:dateString(year,monthNumber,endDay),days:Array.from({length:endDay-startDay+1},(_,j)=>dateString(year,monthNumber,startDay+j)),revenuePaise:null,businessCostPaise:null,profitPaise:null};});
   return Object.freeze({
     version:1,asOf,month,today,
     currentState:Object.freeze({vehicle,driver,online:null,odometer:vehicle?.current_odometer??null,businessKm:businessKm??null}),
@@ -41,7 +43,7 @@ export async function adminReadModel({repository,asOf=new Date().toISOString()}=
     profitability:Object.freeze({status:profitPaise==null?'UNAVAILABLE':profitPaise>=0?'PROFITABLE':'LOSS',profitPaise,costPerKmPaise:costsPaise!=null&&businessKm>0?costsPaise/businessKm:null,profitPerKmPaise:profitPaise!=null&&businessKm>0?profitPaise/businessKm:null,marginPaise:profitPaise!=null&&revenuePaise>0?profitPaise/revenuePaise:null}),
     breakEven:Object.freeze({status:breakEvenPaise==null?'UNAVAILABLE':currentPaise>=breakEvenPaise?'ABOVE BREAK-EVEN':'BELOW BREAK-EVEN',breakEvenPaise,currentPaise,remainingPaise}),
     month:Object.freeze({revenuePaise,costsPaise,profitPaise,fuelPaise:monthFuel.length?sum(monthFuel):null,maintenancePaise:monthMaintenance.length?sum(monthMaintenance):null,compliancePaise:monthCompliance.length?sum(monthCompliance):null,businessKm}),
-    weekly:Object.freeze(weeks.map(Object.freeze)),
+    weekly:Object.freeze(weekly.map(Object.freeze)),
     financialAvailable:Boolean(financial),
     allocationInputs:Object.freeze({maintenanceSourceRecords:monthMaintenance.length,complianceSourceRecords:monthCompliance.length,loanSourceRecords:loans.filter(r=>!r?.is_deleted).length,calendarDays:days})
   });
