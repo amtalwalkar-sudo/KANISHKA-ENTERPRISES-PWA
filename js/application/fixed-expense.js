@@ -1,4 +1,4 @@
-import {createRecord,updateRecord} from '../core/record.js';
+import {updateRecord} from '../core/record.js';
 import {FIXED_EXPENSE_STATUS,normalizeFixedExpenseInput,assertNoFixedExpenseOverlap,assertFixedExpenseAmountPaise,assertFixedExpenseFrequency,assertFixedExpenseLifecycle} from '../domain/fixed-expense.js';
 
 const live=rows=>(rows||[]).filter(row=>!row.is_deleted);
@@ -11,9 +11,7 @@ export function createFixedExpenseApplication({repository}){
   async function create(input){
     const normalized=normalizeFixedExpenseInput(input);
     assertNoFixedExpenseOverlap(await E().list(),normalized);
-    const record=createRecord(normalized,{});
-    repository.assertRecord(record);
-    return E().create(record,{});
+    return E().create(normalized,{});
   }
   async function update(id,input){
     const existing=await E().get(id);if(!existing||existing.is_deleted)throw new Error('Fixed expense not found');
