@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import {FIXED_EXPENSE_FREQUENCIES,FIXED_EXPENSE_STATUS,normalizeFixedExpenseInput,assertFixedExpenseAmountPaise,assertFixedExpenseFrequency,assertFixedExpenseLifecycle,assertNoFixedExpenseOverlap,isFixedExpenseEffectiveAt,fixedExpenseMonthlyAmount} from '../domain/fixed-expense.js';
+import {createFixedExpenseApplication} from '../application/fixed-expense.js';
+
+const base={name:'Vehicle EMI',category:'VEHICLE_EMI',amount_paise:2500000,frequency:'MONTHLY',effective_from:'2026-09-01T00:00:00.000Z',effective_to:null,status:'ACTIVE'};
+assert.equal(FIXED_EXPENSE_FREQUENCIES.MONTHLY,'MONTHLY');
+assert.deepEqual(FIXED_EXPENSE_STATUS,{ACTIVE:'ACTIVE',INACTIVE:'INACTIVE'});
+assert.equal(normalizeFixedExpenseInput(base).monthly_amount_paise,2500000);
+assert.equal(assertFixedExpenseAmountPaise(1),1);
+assert.throws(()=>assertFixedExpenseAmountPaise(0),/positive/);
+assert.equal(assertFixedExpenseFrequency('monthly'),'MONTHLY');
+assert.throws(()=>assertFixedExpenseFrequency('YEARLY'),/must be MONTHLY/);
+assert.equal(assertFixedExpenseLifecycle(base).effective_to,null);
+assert.throws(()=>assertFixedExpenseLifecycle({...base,effective_to:'2026-08-31T00:00:00.000Z'}),/later than/);
+assert.throws(()=>normalizeFixedExpenseInput({...base,amount_paise:-1}),/positive/);
+const next={...base,effective_from:'2027-01-01T00:00:00.000Z',effective_to:null};
+assert.equal(assertNoFixedExpenseOverlap([base],next),next);
+assert.throws(()=>assertNoFixedExpenseOverlap([base],{...base,effective_from:'2026-10-01T00:00:00.000Z'}),/overlap/);
+assert.equal(isFixedExpenseEffectiveAt(base,'2026-12-01T00:00:00.000Z'),true);
+assert.equal(isFixedExpenseEffectiveAt({...base,status:'INACTIVE'},'2026-12-01T00:00:00.000Z'),false);
+assert.equal(isFixedExpenseEffectiveAt({...base,effective_to:'2026-12-01T00:00:00.000Z'},'2026-12-01T00:00:00.000Z'),false);
+assert.equal(fixedExpenseMonthlyAmount([base],'2026-09-20T12:00:00.000Z'),2500000);
+
+const data=new Map();
+function entity(name){if(!data.has(name))data.set(name,new Map());const map=data.get(name);return {async list(){return [...map.values()]},async get(id){return map.get(id)||null},async create(value){const record={...value,id:value.id||`id-${map.size+1}`,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),user_id:null,synced:false,is_deleted:false};map.set(record.id,record);return record},async update(existing,changes){const next={...existing,...changes,updated_at:new Date().toISOString()};map.set(existing.id,next);return next},async softDelete(existing){const next={...existing,is_deleted:true,updated_at:new Date().toISOString()};map.set(existing.id,next);return next}}}
+const repository={entity};
+repository.assertRecord=()=>true;
+const app=createFixedExpenseApplication({repository});
+const created=await app.create(base);
+assert.equal(created.category,'VEHICLE_EMI');
+assert.equal((await app.list()).length,1);
+await assert.rejects(()=>app.create({...base,name:'Vehicle EMI 2'}),/overlap/);
+await app.deactivate(created.id);assert.equal((await app.get(created.id)).status,'INACTIVE');
+const second=await app.create({...base,name:'Vehicle EMI 2',effective_from:'2027-01-01T00:00:00.000Z'});assert.equal(second.status,'ACTIVE');
+await app.update(second.id,{amount_paise:3000000});assert.equal((await app.get(second.id)).amount_paise,3000000);
+await app.deactivate(second.id);await app.activate(second.id);assert.equal((await app.get(second.id)).status,'ACTIVE');
+assert.equal(isFixedExpenseEffectiveAt((await app.get(second.id)),'2027-02-01T00:00:00.000Z'),true);
+console.log('KFE Fixed Expense lifecycle contract: PASS');
