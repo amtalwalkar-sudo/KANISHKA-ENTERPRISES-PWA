@@ -22,11 +22,14 @@ assert.equal(isFixedExpenseEffectiveAt(base,'2026-12-01T00:00:00.000Z'),true);
 assert.equal(isFixedExpenseEffectiveAt({...base,status:'INACTIVE'},'2026-12-01T00:00:00.000Z'),false);
 assert.equal(isFixedExpenseEffectiveAt({...base,effective_to:'2026-12-01T00:00:00.000Z'},'2026-12-01T00:00:00.000Z'),false);
 assert.equal(fixedExpenseMonthlyAmount([base],'2026-09-20T12:00:00.000Z'),2500000);
-const activeResult=fixedExpensePerBusinessKm([base],1000,'2026-09-20T12:00:00.000Z');
+assert.equal(fixedExpenseMonthlyAmount([{...base,monthly_amount_paise:undefined}],'2026-09-20T12:00:00.000Z'),2500000);
+const activeResult=fixedExpensePerBusinessKm([base],1000,'2026-09-20T00:00:00.000Z');
 assert.equal(activeResult.value,2500);
-const inactiveResult=fixedExpensePerBusinessKm([{...base,status:'INACTIVE'}],1000,'2026-09-20T12:00:00.000Z');
+const legacyResult=fixedExpensePerBusinessKm([{id:'legacy',name:'Legacy Fixed Cost',category:'LEGACY_FIXED',amount_paise:120000,effective_from:'2026-01-01',effective_to:null,is_deleted:false}],1200,'2026-09-02');
+assert.equal(legacyResult.value,100);
+const inactiveResult=fixedExpensePerBusinessKm([{...base,status:'INACTIVE'}],1000,'2026-09-20T00:00:00.000Z');
 assert.equal(inactiveResult.value,null);
-assert.equal(fixedExpensePerBusinessKm([base],1000,'2026-09-20T12:00:00.000Z').value,fixedExpensePerBusinessKm([base],1000,'2026-09-20T12:00:00.000Z').value);
+assert.equal(fixedExpensePerBusinessKm([base],1000,'2026-09-20T00:00:00.000Z').value,fixedExpensePerBusinessKm([base],1000,'2026-09-20T00:00:00.000Z').value);
 
 const data=new Map();
 function entity(name){if(!data.has(name))data.set(name,new Map());const map=data.get(name);return {async list(){return [...map.values()]},async get(id){return map.get(id)||null},async create(value){const record={...value,id:value.id||`id-${map.size+1}`,created_at:new Date().toISOString(),updated_at:new Date().toISOString(),user_id:null,synced:false,is_deleted:false};map.set(record.id,record);return record},async update(existing,changes){const next={...existing,...changes,updated_at:new Date().toISOString()};map.set(existing.id,next);return next},async softDelete(existing){const next={...existing,is_deleted:true,updated_at:new Date().toISOString()};map.set(existing.id,next);return next}}}
