@@ -1,0 +1,85 @@
+name: KFE 2.0 E2E Certification
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: kfe-e2e-certification-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-certification:
+    name: E2E certification gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build production PWA
+        run: GITHUB_ACTIONS=false npm run build
+
+      - name: Install Chromium
+        run: timeout 180s npx playwright install --with-deps chromium
+
+      - name: Start PWA server
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-e2e-vite.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/kfe-e2e-vite.log
+          exit 1
+
+      - name: Run browser certification suite
+        run: npm run validate:e2e
+        env:
+          CI: true
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:4173
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: kfe-e2e-playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload E2E test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: kfe-e2e-test-results
+          path: test-results/
+          retention-days: 30
+
+      - name: Upload browser diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: kfe-e2e-diagnostics
+          path: |
+            /tmp/kfe-e2e-vite.log
+            test-results/
+          retention-days: 14
