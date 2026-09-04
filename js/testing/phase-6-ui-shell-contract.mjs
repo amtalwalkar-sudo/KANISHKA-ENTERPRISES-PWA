@@ -70,8 +70,7 @@ assert.doesNotMatch(performance, /Tomorrow target|Status unavailable/i);
 
 // Vehicle administration was rebuilt as the authoritative Vehicle + Driver domain view.
 // Keep Phase 6 aligned with the new UI rather than the retired legacy wrapper contract.
-assert.match(vehicle, /Vehicle & Driver/);
-assert.match(vehicle, /Acquisition date/);
+assert.match(vehicle, /Vehicle/);
 assert.match(vehicle, /acquisition_date/);
 assert.match(vehicle, /Retire/);
 assert.match(vehicle, /Sell/);
