@@ -23,13 +23,13 @@ Every production screen must prove the following before it is considered complet
 
 The driver's normal working day must be possible entirely inside exactly these three primary screens:
 
-1. **Work** — operational work session, odometer activity, business/personal KM and fuel entry.
+1. **Work** — operational work session, odometer activity, business/personal KM, break handling and fuel entry.
 2. **Performance** — current business position, running cost and driver-facing operating targets.
 3. **Timeline** — chronological activity history with Day, Week and Long-term horizons.
 
-Fuel can be added directly from Work. No break workflow is part of the current frozen driver contract. Trip planning is intentionally not part of the driver workflow.
+Fuel can be added directly from Work. Break handling is part of the frozen Work-session business contract. Trip planning is intentionally not part of the driver workflow.
 
-**Admin is back-office only.** It is not required for a normal driver working day. Admin is the administrative command center for Vehicle, Driver, Finance, Renewals, Maintenance, Loans and Settings.
+**Admin is back-office only.** It is not required for a normal driver working day. Admin is the administrative command center for Vehicle, Driver, Finance, Compliance, Maintenance, Loans and Settings.
 
 ## Admin contract
 
@@ -47,13 +47,13 @@ Admin Home is month-aware and contains:
 - Management
 - View Timeline
 
-Month View contains Month Overview, Profitability, Break-even, Insight, Weekly rows and Month Timeline. Month → Week → Day navigation is two taps from the month view. Finance is derived/read-only and exposes six tiles: Revenue, Business Cost, Profit, Profit/KM, Cost/KM and Break-even.
+Month View contains Month Overview, Profitability, Break-even, Insight, Weekly rows and Month Timeline. Month → Week → Day navigation is two taps from the month view, and the selected day must open the canonical Timeline with that day as the authoritative viewing context. Finance is derived/read-only and exposes six tiles: Revenue, Business Cost, Profit, Profit/KM, Cost/KM and Break-even.
 
 Management is grouped as:
 
 - BUSINESS: Vehicle, Driver
 - FINANCE: one combined read-only Finance dashboard
-- OPERATIONS: Renewals, Maintenance, Loans
+- OPERATIONS: Compliance, Maintenance, Loans
 - SYSTEM: Settings
 
 Admin must use the same canonical Timeline as the driver. Admin may enter an authorized correction flow, but never edits derived financial numbers directly.
