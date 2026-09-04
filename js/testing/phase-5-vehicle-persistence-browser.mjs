@@ -16,14 +16,20 @@ try{
       const setupPage=await context.newPage();
       await setupPage.goto(`http://127.0.0.1:${port}/manifest.json`,{waitUntil:'load'});
       await setupPage.evaluate(async()=>{
-        await new Promise((resolve,reject)=>{const request=indexedDB.deleteDatabase('kfe');request.onsuccess=resolve;request.onerror=()=>reject(request.error||new Error('Legacy IndexedDB reset failed'));request.onblocked=()=>reject(new Error('Legacy IndexedDB reset was blocked'));});
+        const deleteDb=()=>new Promise((resolve,reject)=>{const request=indexedDB.deleteDatabase('kfe');request.onsuccess=resolve;request.onerror=()=>reject(request.error||new Error('Legacy IndexedDB reset failed'));request.onblocked=()=>reject(new Error('Legacy IndexedDB reset was blocked'));});
+        await deleteDb();
+        for(let i=0;i<20;i++){
+          const databases=await indexedDB.databases();
+          if(!databases.some(database=>database.name==='kfe'))break;
+          await new Promise(resolve=>setTimeout(resolve,25));
+          if(i===19)throw new Error('Legacy IndexedDB reset did not complete');
+        }
         const legacyStores=['state','rides','logs','settings','outbox','config','audit','idempotency','vehicles','work_sessions','work_days','odometer_allocations','operational_events','fuel_records','expense_records','maintenance_items','maintenance_records','revenue_records','loans','loan_payments','renewals_compliance','calculation_results','alerts'];
         const db=await new Promise((resolve,reject)=>{const request=indexedDB.open('kfe',6);request.onupgradeneeded=()=>{const upgradeDb=request.result;for(const name of legacyStores)if(!upgradeDb.objectStoreNames.contains(name))upgradeDb.createObjectStore(name,{keyPath:'id'});};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('Legacy IndexedDB setup failed'));});
+        if(db.version!==6)throw new Error(`Legacy IndexedDB setup expected v6, got ${db.version}`);
         await new Promise((resolve,reject)=>{const tx=db.transaction('vehicles','readwrite');tx.objectStore('vehicles').put({id:'legacy-vehicle',marker:'must-survive-v6-to-v7'});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('Legacy sentinel write failed'));});
         db.close();
       });
-      // Keep setup and application pages in the same browser context so they share IndexedDB,
-      // but never load the application until the v6 database and sentinel are established.
       await setupPage.close();
       const page=await context.newPage();
       const pageErrors=[];page.on('pageerror',error=>pageErrors.push(String(error?.message||error)));
