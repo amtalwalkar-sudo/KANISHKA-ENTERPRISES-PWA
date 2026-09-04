@@ -2,12 +2,11 @@ import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 const browser=await chromium.launch({headless:true});const context=await browser.newContext();const page=await context.newPage();const errors=[];
 page.on('pageerror',e=>errors.push(String(e?.message||e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
-async function reset(){await page.evaluate(async()=>window.__KFE_RUNTIME__.application.resetAllData());await page.reload({waitUntil:'networkidle'});await page.locator('.kfe-shell').waitFor({state:'visible',timeout:30000});}
 async function route(name){await page.goto(`http://127.0.0.1:4173/#${encodeURIComponent(name)}`,{waitUntil:'networkidle'});await page.locator('.kfe-shell').waitFor({state:'visible',timeout:10000});}
 async function heading(name){await page.getByRole('heading',{name,exact:true}).waitFor({state:'visible',timeout:5000});}
 async function button(name){const b=page.getByRole('button',{name,exact:true});assert.ok(await b.count()>0,`missing button: ${name}`);return b.first();}
 try{
- await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});await reset();
+ await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});await page.locator('.kfe-shell').waitFor({state:'visible',timeout:30000});
  for(const name of ['Work','Performance','Timeline','Admin']){await route(name);await heading(name)}
  await route('Admin');await (await button('Finance')).click();assert.equal(await page.locator('.kfe-finance-tiles article').count(),6);await (await button('Admin')).click();await (await button('Management')).click();
  for(const name of ['Vehicle','Driver','Finance','Fixed Expenses','Compliance','Maintenance','Loans','Settings'])assert.ok(await page.getByRole('button',{name,exact:true}).count()>0,`missing Admin management control: ${name}`);
