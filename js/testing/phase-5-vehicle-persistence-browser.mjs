@@ -1,6 +1,6 @@
 import {chromium} from '@playwright/test';
 import {spawn} from 'node:child_process';
-const port=4173;
+const port=4174;
 const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true});
 let output='';server.stdout.on('data',c=>output+=c.toString());server.stderr.on('data',c=>output+=c.toString());
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
