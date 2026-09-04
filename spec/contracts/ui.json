@@ -28,13 +28,23 @@
     "Dashboard": {"required": true},
     "Profitability": {"required": true},
     "Historical Entries": {"required": true},
-    "Settings": {"required": true, "surface": "admin-child", "parent": "Admin"}
+    "Settings": {"required": true, "surface": "admin-child", "parent": "Admin", "features": ["theme", "localBackup", "localRestore", "resetErpData", "about"]}
+  },
+  "settingsContract": {
+    "theme": {"required": true, "options": ["system", "light", "dark"], "persisted": true},
+    "localBackup": {"required": true, "format": "application/json"},
+    "localRestore": {"required": true, "replacesCurrentLocalData": true},
+    "resetErpData": {"required": true, "confirmationRequired": true},
+    "about": {"required": true, "application": "KFE 2.0", "version": "2.0.0"},
+    "futureFeatures": {"uiControls": false, "businessBehavior": false}
   },
   "presentationRules": [
     "Business calculations belong outside Vue presentation components.",
     "Loan calculations belong in the domain/application layers, not loan presentation.",
     "Future-scope modules must not be treated as required current-scope UI capabilities.",
     "Historical Entries must expose its save-request contract.",
-    "Required admin-child modules must be represented under their declared Admin parent and are not primary driver navigation destinations."
+    "Required admin-child modules must be represented under their declared Admin parent and are not primary driver navigation destinations.",
+    "Settings may expose only currently implemented theme, local backup, local restore, reset and about behavior.",
+    "Future capabilities remain architecture-ready but must not appear as buttons, switches or other controls until their contracts and implementations are activated."
   ]
 }
