@@ -6,26 +6,11 @@ on:
   workflow_dispatch:
     inputs:
       start_boundary:
-        description: 'Optional boundary override. Use only when the change classifier cannot safely infer the boundary.'
+        description: 'Optional boundary override. Auto is the normal universal mode.'
         required: false
         default: auto
         type: choice
-        options:
-          - auto
-          - foundation
-          - governance
-          - architecture
-          - domain
-          - work
-          - administrator
-          - persistence
-          - ui
-          - application
-          - real-persistence
-          - runtime
-          - browser
-          - resilience
-          - final
+        options: [auto, foundation, governance, architecture, domain, work, administrator, persistence, ui, application, real-persistence, runtime, browser, resilience, final]
 
 permissions:
   contents: read
@@ -37,7 +22,7 @@ concurrency:
 
 jobs:
   classify:
-    name: Classify affected validation boundary
+    name: Classify earliest affected boundary
     runs-on: ubuntu-latest
     outputs:
       start: ${{ steps.classify.outputs.start }}
@@ -47,8 +32,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
-      - name: Determine earliest affected boundary
+      - name: Determine boundary
         id: classify
         shell: bash
         env:
@@ -59,72 +43,40 @@ jobs:
           set -euo pipefail
           if [[ "$OVERRIDE" != "auto" ]]; then
             echo "start=$OVERRIDE" >> "$GITHUB_OUTPUT"
-            echo "reason=manual workflow override" >> "$GITHUB_OUTPUT"
+            echo "reason=manual override" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
           mapfile -t files < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
-          if [[ ${#files[@]} -eq 0 ]]; then
-            echo "start=foundation" >> "$GITHUB_OUTPUT"
-            echo "reason=no changed files; conservative fallback" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
           start=final
-          reason="unclassified or release-sensitive change"
-          rank() {
-            case "$1" in
-              foundation) echo 1;; governance) echo 2;; architecture) echo 3;; domain) echo 4;; work) echo 5;; administrator) echo 6;; persistence) echo 7;; ui) echo 8;; application) echo 9;; real-persistence) echo 10;; runtime) echo 11;; browser) echo 12;; resilience) echo 13;; final) echo 14;; *) echo 14;;
-            esac
-          }
-          set_start() {
-            candidate="$1"
-            if (( $(rank "$candidate") < $(rank "$start") )); then
-              start="$candidate"
-            fi
-          }
-
+          reason='unclassified change; conservative final fallback'
+          rank(){ case "$1" in foundation)echo 1;; governance)echo 2;; architecture)echo 3;; domain)echo 4;; work)echo 5;; administrator)echo 6;; persistence)echo 7;; ui)echo 8;; application)echo 9;; real-persistence)echo 10;; runtime)echo 11;; browser)echo 12;; resilience)echo 13;; final)echo 14;; esac; }
+          set_start(){ if (( $(rank "$1") < $(rank "$start") )); then start="$1"; reason="$2"; fi; }
           for f in "${files[@]}"; do
             case "$f" in
-              .github/*|package.json|package-lock.json|vite.config.*|index.html|service-worker.js|src/main.*|js/app.js)
-                set_start foundation; reason="shared/build/CI infrastructure changed";;
-              js/testing/governance-*|js/testing/*governance*|docs/*governance*)
-                set_start governance; reason="governance contract changed";;
-              js/core/*|js/services/*|js/testing/architecture-*|js/testing/clean-architecture-*)
-                set_start architecture; reason="shared architecture/infrastructure changed";;
-              js/domain/*|js/testing/phase-[ijklm n]-*|js/testing/domain-*|js/testing/*lifecycle*)
-                set_start domain; reason="domain/lifecycle contract changed";;
-              js/ui/*|src/components/WorkSessionView.vue|js/testing/*work*|js/testing/*timeline*)
-                set_start work; reason="Work/timeline UI or domain boundary changed";;
-              js/domain/vehicle.*|js/application/administrator.js|js/application/vehicle*|src/components/Vehicle*|src/components/Driver*|js/testing/vehicle-*|js/testing/phase-5-vehicle*|js/testing/phase-6-ui-shell-contract.mjs)
-                set_start administrator; reason="Vehicle/Driver domain or UI contract changed";;
-              js/persistence/*|js/application/*repository*|js/testing/*persistence*|js/testing/phase-k*)
-                set_start persistence; reason="persistence boundary changed";;
-              src/components/*|src/App.vue|src/styles/*|js/testing/phase-1*|js/testing/phase-2*|js/testing/phase-3*|js/testing/phase-5-module*|js/testing/phase-6*)
-                set_start ui; reason="UI shell/module contract changed";;
-              js/application/*|js/testing/*application*)
-                set_start application; reason="application boundary changed";;
-              js/testing/*real-persistence*)
-                set_start real-persistence; reason="real persistence contract changed";;
-              js/testing/phase-4*|js/domain/*|js/application/*|js/services/*)
-                set_start runtime; reason="runtime/domain/application code changed";;
-              playwright.config.*|js/testing/*browser*|js/testing/work-screen-browser*)
-                set_start browser; reason="browser integration contract changed";;
-              js/testing/*resilience*|js/testing/*offline*)
-                set_start resilience; reason="resilience/offline contract changed";;
-              *)
-                set_start foundation; reason="unknown path; conservative full-chain fallback";;
+              .github/*|package.json|package-lock.json|vite.config.*|index.html|service-worker.js|src/main.*|js/app.js) set_start foundation 'shared/build/CI infrastructure changed';;
+              js/testing/governance-*|js/testing/*governance*) set_start governance 'governance contract changed';;
+              js/core/*|js/services/*|js/testing/architecture-*|js/testing/clean-architecture-*) set_start architecture 'shared architecture changed';;
+              js/domain/*|js/testing/domain-*|js/testing/*lifecycle*|js/testing/phase-i*|js/testing/phase-j*|js/testing/phase-l*|js/testing/phase-m*|js/testing/phase-n*) set_start domain 'domain/lifecycle changed';;
+              js/ui/*|src/components/WorkSessionView.vue|js/testing/*work*|js/testing/*timeline*) set_start work 'Work/timeline boundary changed';;
+              js/domain/vehicle.*|js/application/administrator.js|js/application/vehicle*|src/components/Vehicle*|src/components/Driver*|js/testing/vehicle-*|js/testing/phase-5-vehicle*|js/testing/phase-6-ui-shell-contract.mjs) set_start administrator 'Vehicle/Driver boundary changed';;
+              js/persistence/*|js/application/*repository*|js/testing/*persistence*|js/testing/phase-k*) set_start persistence 'persistence boundary changed';;
+              src/components/*|src/App.vue|src/styles/*|js/testing/phase-1*|js/testing/phase-2*|js/testing/phase-3*|js/testing/phase-5-module*|js/testing/phase-6*) set_start ui 'UI shell/module contract changed';;
+              js/application/*|js/testing/*application*) set_start application 'application boundary changed';;
+              js/testing/*real-persistence*) set_start real-persistence 'real persistence contract changed';;
+              js/testing/phase-4*) set_start runtime 'runtime contract changed';;
+              playwright.config.*|js/testing/*browser*|js/testing/work-screen-browser*) set_start browser 'browser integration changed';;
+              js/testing/*resilience*|js/testing/*offline*) set_start resilience 'resilience/offline changed';;
+              *) set_start final 'unknown path; conservative final fallback';;
             esac
           done
-
           echo "start=$start" >> "$GITHUB_OUTPUT"
           echo "reason=$reason" >> "$GITHUB_OUTPUT"
-          echo "Affected boundary: $start"
-          echo "Reason: $reason"
-          printf '%s\n' "Changed files:" "${files[@]}"
+          echo "INCREMENTAL_START=$start"
+          echo "INCREMENTAL_REASON=$reason"
+          printf 'CHANGED_FILE=%s\n' "${files[@]}"
 
   validate:
-    name: Incremental validation from ${{ needs.classify.outputs.start }}
+    name: Validate from ${{ needs.classify.outputs.start }} through final
     needs: classify
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -142,132 +94,45 @@ jobs:
         run: npm install
       - name: Build application
         run: GITHUB_ACTIONS=false npm run build
-
-      - name: Foundation boundary
-        if: needs.classify.outputs.start == 'foundation'
-        run: |
-          npm run validate:kfe-screen-contract
-          npm run validate:foundation-preflight
-          npm run validate:governance
-          npm run validate:architecture
-          npm run validate:foundation
-          npm run validate:foundation-audit
-          npm run validate:domain
-          npm run validate:phase-i
-          npm run validate:phase-j
-          npm run validate:phase-l
-          npm run validate:phase-m
-          npm run validate:phase-n
-          npm run validate:work-geolocation
-          npm run validate:administrator-foundation
-          npm run validate:vehicle-driver-ui-decoupling
-          npm run validate:phase-k
-
-      - name: Governance boundary
-        if: needs.classify.outputs.start == 'governance'
-        run: npm run validate:governance
-      - name: Architecture boundary
-        if: needs.classify.outputs.start == 'architecture'
-        run: |
-          npm run validate:architecture
-          npm run validate:foundation
-          npm run validate:foundation-audit
-      - name: Domain boundary
-        if: needs.classify.outputs.start == 'domain'
-        run: |
-          npm run validate:domain
-          npm run validate:phase-i
-          npm run validate:phase-j
-          npm run validate:phase-l
-          npm run validate:phase-m
-          npm run validate:phase-n
-      - name: Work boundary
-        if: needs.classify.outputs.start == 'work'
-        run: npm run validate:work-geolocation
-      - name: Administrator boundary
-        if: needs.classify.outputs.start == 'administrator'
-        run: |
-          npm run validate:administrator-foundation
-          npm run validate:vehicle-driver-ui-decoupling
-          npm run validate:phase-k
-          npm run validate:phase-6-ui-shell
-      - name: Persistence boundary
-        if: needs.classify.outputs.start == 'persistence'
-        run: npm run validate:phase-k
-      - name: UI boundary
-        if: needs.classify.outputs.start == 'ui'
-        run: |
-          npm run validate:phase-1
-          npm run validate:phase-2
-          npm run validate:phase-3
-          npm run validate:phase-5
-          npm run validate:phase-5-replication
-          npm run validate:phase-5-module-contracts
-          npm run validate:phase-5-completion-integrity
-          npm run validate:phase-6-ui-shell
-          npm run validate:phase-7-reliability
-      - name: Application boundary
-        if: needs.classify.outputs.start == 'application'
-        run: |
-          npm run validate:phase-5-vehicle
-          npm run validate:phase-5-fuel-application
-          npm run validate:phase-5-expenses-application
-          npm run validate:phase-5-revenue-application
-          npm run validate:phase-5-loans-application
-          npm run validate:phase-5-renewals-compliance-application
-          npm run validate:phase-5-maintenance-application
-          npm run validate:phase-5-profitability-application
-          npm run validate:phase-5-dashboard-application
-      - name: Real persistence boundary
-        if: needs.classify.outputs.start == 'real-persistence'
-        run: |
-          npm run validate:phase-5-vehicle-real-persistence
-          npm run validate:phase-5-fuel-real-persistence
-          npm run validate:phase-5-expenses-real-persistence
-          npm run validate:phase-5-revenue-real-persistence
-          npm run validate:phase-5-loans-real-persistence
-          npm run validate:phase-5-renewals-compliance-real-persistence
-          npm run validate:phase-5-maintenance-real-persistence
-      - name: Runtime boundary
-        if: needs.classify.outputs.start == 'runtime'
-        shell: bash
-        run: |
-          set -euo pipefail
-          for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done
-          npm run validate:phase-4
-      - name: Browser boundary
-        if: needs.classify.outputs.start == 'browser'
-        run: |
-          npx playwright install --with-deps chromium
-          nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
-          npm run validate:work-screen-browser
-      - name: Resilience boundary
-        if: needs.classify.outputs.start == 'resilience'
-        run: node js/testing/app-resilience-reliability-offline.mjs
-      - name: Final boundary
-        if: needs.classify.outputs.start == 'final'
-        run: |
-          npm run validate:phase-7-reliability
-          node js/testing/app-resilience-reliability-offline.mjs
-          GITHUB_ACTIONS=false npm run build
-
-      - name: Universal downstream contract chain
+      - name: Execute universal downstream chain
         shell: bash
         env:
           START: ${{ needs.classify.outputs.start }}
         run: |
           set -euo pipefail
-          order=(foundation governance architecture domain work administrator persistence ui application real-persistence runtime browser resilience final)
-          start_index=0
-          for i in "${!order[@]}"; do [[ "${order[$i]}" == "$START" ]] && start_index=$i; done
-          echo "Incremental CI start boundary: $START (index $start_index)"
-          echo "The workflow above executes the selected boundary. Any future module-specific boundary expansion must preserve this rule: start at the earliest affected boundary and run all downstream contracts."
+          rank(){ case "$1" in foundation)echo 1;; governance)echo 2;; architecture)echo 3;; domain)echo 4;; work)echo 5;; administrator)echo 6;; persistence)echo 7;; ui)echo 8;; application)echo 9;; real-persistence)echo 10;; runtime)echo 11;; browser)echo 12;; resilience)echo 13;; final)echo 14;; esac; }
+          start=$(rank "$START")
+          run_stage(){ local name="$1"; shift; local n; n=$(rank "$name"); if (( n >= start )); then echo "===== KFE INCREMENTAL: $name ====="; "$@"; fi; }
 
-      - name: Final state identity
-        shell: bash
-        run: |
-          set -euo pipefail
+          foundation(){ npm run validate:kfe-screen-contract; npm run validate:foundation-preflight; }
+          governance(){ npm run validate:governance; }
+          architecture(){ npm run validate:architecture; npm run validate:foundation; npm run validate:foundation-audit; }
+          domain(){ npm run validate:domain; npm run validate:phase-i; npm run validate:phase-j; npm run validate:phase-l; npm run validate:phase-m; npm run validate:phase-n; }
+          work(){ npm run validate:work-geolocation; }
+          administrator(){ npm run validate:administrator-foundation; npm run validate:vehicle-driver-ui-decoupling; }
+          persistence(){ npm run validate:phase-k; }
+          ui(){ npm run validate:phase-1; npm run validate:phase-2; npm run validate:phase-3; npm run validate:phase-5; npm run validate:phase-5-replication; npm run validate:phase-5-module-contracts; npm run validate:phase-5-completion-integrity; npm run validate:phase-6-ui-shell; npm run validate:phase-7-reliability; }
+          application(){ npm run validate:phase-5-vehicle; npm run validate:phase-5-fuel-application; npm run validate:phase-5-expenses-application; npm run validate:phase-5-revenue-application; npm run validate:phase-5-loans-application; npm run validate:phase-5-renewals-compliance-application; npm run validate:phase-5-maintenance-application; npm run validate:phase-5-profitability-application; npm run validate:phase-5-dashboard-application; }
+          real_persistence(){ npm run validate:phase-5-vehicle-real-persistence; npm run validate:phase-5-fuel-real-persistence; npm run validate:phase-5-expenses-real-persistence; npm run validate:phase-5-revenue-real-persistence; npm run validate:phase-5-loans-real-persistence; npm run validate:phase-5-renewals-compliance-real-persistence; npm run validate:phase-5-maintenance-real-persistence; }
+          runtime(){ for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done; npm run validate:phase-4; }
+          browser(){ npx playwright install --with-deps chromium; nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &; for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done; npm run validate:work-screen-browser; }
+          resilience(){ node js/testing/app-resilience-reliability-offline.mjs; }
+          final(){ GITHUB_ACTIONS=false npm run build; }
+
+          run_stage foundation foundation
+          run_stage governance governance
+          run_stage architecture architecture
+          run_stage domain domain
+          run_stage work work
+          run_stage administrator administrator
+          run_stage persistence persistence
+          run_stage ui ui
+          run_stage application application
+          run_stage real-persistence real_persistence
+          run_stage runtime runtime
+          run_stage browser browser
+          run_stage resilience resilience
+          run_stage final final
+
           echo "KFE_INCREMENTAL_CI=PASS"
-          echo "KFE_INCREMENTAL_START=${{ needs.classify.outputs.start }}"
-          echo "KFE_INCREMENTAL_REASON=${{ needs.classify.outputs.reason }}"
+          echo "KFE_INCREMENTAL_START=$START"
