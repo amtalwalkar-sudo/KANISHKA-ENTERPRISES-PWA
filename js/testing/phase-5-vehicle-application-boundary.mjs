@@ -1,17 +1,13 @@
 import assert from 'node:assert/strict';
-import {createVehicleApplicationBoundary,VEHICLE_MODULE_ID} from '../application/vehicle-module.js';
-
-const calls=[];
-const boundary=createVehicleApplicationBoundary({
-  dispatch:command=>{calls.push(['dispatch',command]);return command;},
-  query:request=>{calls.push(['query',request]);return request;}
-});
-
-assert.equal(boundary.contract.module.id,VEHICLE_MODULE_ID);
-assert.deepEqual(boundary.create({}),{module:VEHICLE_MODULE_ID,type:'CREATE',input:{}});
-assert.deepEqual(boundary.update({id:'vehicle-1'}),{module:VEHICLE_MODULE_ID,type:'UPDATE',input:{id:'vehicle-1'}});
-assert.deepEqual(boundary.get('vehicle-1'),{module:VEHICLE_MODULE_ID,type:'GET',id:'vehicle-1'});
-assert.deepEqual(boundary.list(),{module:VEHICLE_MODULE_ID,type:'LIST'});
-assert.equal(calls.length,4);
-assert.throws(()=>createVehicleApplicationBoundary(),/dispatch and query are required/);
+import {createAdministratorApplication} from '../application/administrator.js';
+import {VEHICLE_STATUS} from '../domain/vehicle.js';
+const data=new Map();
+const entity=store=>({create:async value=>{const r={...value,id:value.id||`${store}-${data.size+1}`,created_at:value.created_at||new Date().toISOString(),updated_at:value.updated_at||new Date().toISOString(),is_deleted:false};data.set(`${store}:${r.id}`,r);return r;},update:async (e,v)=>{const r={...e,...v,updated_at:new Date().toISOString()};data.set(`${store}:${r.id}`,r);return r;},get:async id=>data.get(`${store}:${id}`),list:async()=>[...data.entries()].filter(([k])=>k.startsWith(`${store}:`)).map(([,v])=>v)});
+const repository={entity,atomic:async(stores,fn)=>{const map=Object.fromEntries(stores.map(s=>[s,{put(v){data.set(`${s}:${v.id}`,v);},get(){},delete(){}}]));return fn(map);}};
+const app=createAdministratorApplication({repository});
+const vehicle=await app.createVehicle({registration_number:'MH01AB1234',make:'Test',model:'Vehicle',fuel_type:'CNG',acquisition_date:'2026-01-01',acquisition_type:'USED',acquisition_odometer:1000,acquisition_cost:350000});
+assert.equal(vehicle.lifecycle_status,VEHICLE_STATUS.ACTIVE);
+assert.equal((await app.listVehicles()).length,1);
+assert.equal(typeof app.recordOdometer,'function');
+assert.equal(typeof app.listVehicleLifecycleHistory,'function');
 console.log('PHASE_5_VEHICLE_APPLICATION_BOUNDARY=PASS');
