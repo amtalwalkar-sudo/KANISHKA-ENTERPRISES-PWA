@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {createUiCommand,createPresentationState,isUiCommand} from '../application/ui-contract.js';
 import {createCommandDispatcher} from '../application/command-dispatcher.js';
+import './settings-contract.mjs';
 
 const command=createUiCommand('SELECT_MODULE',{module:'Work'});
 assert.equal(command.version,1);
