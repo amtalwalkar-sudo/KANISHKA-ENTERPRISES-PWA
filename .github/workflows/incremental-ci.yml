@@ -141,3 +141,4 @@ jobs:
           echo "KFE_INCREMENTAL_START=$START"
 
 # No-op synchronization marker; behavior unchanged.
+# CI validation synchronization requested for exact current PR HEAD.
