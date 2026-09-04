@@ -8,7 +8,6 @@ async function waitForServer(){for(let i=0;i<120;i++){try{if((await fetch(`http:
 function stop(){try{process.kill(-server.pid,'SIGTERM')}catch{try{server.kill('SIGTERM')}catch{}}}
 const openDb=(name,version)=>new Promise((resolve,reject)=>{const request=indexedDB.open(name,version);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB open failed'));});
 const requestResult=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB request failed'));});
-const deleteDb=name=>new Promise((resolve,reject)=>{const request=indexedDB.deleteDatabase(name);request.onsuccess=resolve;request.onerror=()=>reject(request.error||new Error('IndexedDB delete failed'));request.onblocked=()=>reject(new Error(`IndexedDB delete blocked for ${name}`));});
 try{
   await waitForServer();
   const browser=await chromium.launch({headless:true});
@@ -17,7 +16,8 @@ try{
     try{
       const page=await context.newPage();
       // Establish an isolated legacy KFE v6 database before the application loads.
-      await page.goto(`http://127.0.0.1:${port}/icon-192.png`,{waitUntil:'load'});
+      // manifest.json is a guaranteed static resource and cannot bootstrap the application.
+      await page.goto(`http://127.0.0.1:${port}/manifest.json`,{waitUntil:'load'});
       await page.evaluate(async()=>{
         await new Promise((resolve,reject)=>{const request=indexedDB.deleteDatabase('kfe');request.onsuccess=resolve;request.onerror=()=>reject(request.error||new Error('Legacy IndexedDB reset failed'));request.onblocked=()=>reject(new Error('Legacy IndexedDB reset was blocked'));});
         const legacyStores=['state','rides','logs','settings','outbox','config','audit','idempotency','vehicles','work_sessions','work_days','odometer_allocations','operational_events','fuel_records','expense_records','maintenance_items','maintenance_records','revenue_records','loans','loan_payments','renewals_compliance','calculation_results','alerts'];
