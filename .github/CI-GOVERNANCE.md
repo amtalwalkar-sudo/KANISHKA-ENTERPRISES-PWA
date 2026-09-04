@@ -13,6 +13,12 @@ Incremental CI may skip only **upstream boundaries proven unaffected by the chan
 
 If changed files cannot be safely classified, Incremental CI must fall back to Full CI.
 
+## Engineering speed principle
+
+KFE must be developed as quickly as technically possible **without weakening correctness, data integrity, architecture, testing, CI, or deployment verification**.
+
+CI efficiency means removing unnecessary validation work, not removing necessary evidence. Incremental CI is the mechanism for avoiding unrelated upstream work while preserving every affected downstream guarantee. Full CI remains the authority at freeze, merge, and release boundaries.
+
 ## Universal domain rule
 
 Every KFE domain follows the same lifecycle:
