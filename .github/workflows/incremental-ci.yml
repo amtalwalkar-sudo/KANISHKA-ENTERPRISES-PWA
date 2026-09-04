@@ -139,3 +139,5 @@ jobs:
 
           echo "KFE_INCREMENTAL_CI=PASS"
           echo "KFE_INCREMENTAL_START=$START"
+
+# No-op synchronization marker; behavior unchanged.
