@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {createRecord} from '../core/record.js';
 import {createAdministratorApplication,ADMINISTRATOR_VEHICLE_SOURCES} from '../application/administrator.js';
 
 const schema=readFileSync(new URL('../core/hardened-db.js',import.meta.url),'utf8');
@@ -10,7 +11,7 @@ const data=new Map();
 function entity(name){
   if(!data.has(name))data.set(name,new Map());
   const map=data.get(name);
-  return {async list(){return [...map.values()]},async get(id){return map.get(id)||null},async create(value){map.set(value.id,value);return value},async update(existing,changes){const next={...existing,...changes,updated_at:new Date().toISOString()};map.set(existing.id,next);return next}};
+  return {async list(){return [...map.values()]},async get(id){return map.get(id)||null},async create(value){const record=createRecord(value);map.set(record.id,record);return record},async update(existing,changes){const next=createRecord({...existing,...changes},{id:existing.id,user_id:existing.user_id,created_at:existing.created_at,updated_at:new Date().toISOString(),synced:false,is_deleted:changes.is_deleted??existing.is_deleted});map.set(existing.id,next);return next}};
 }
 const repository={entity,async atomic(names,fn){const stores=Object.fromEntries(names.map(name=>[name,{put(value){if(!data.has(name))data.set(name,new Map());data.get(name).set(value.id,value)}}]));return fn(stores);}};
 const app=createAdministratorApplication({repository});
