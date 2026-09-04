@@ -95,6 +95,11 @@ jobs:
         run: npm run validate:foundation-preflight
       - name: Governance gate — authoritative KFE 2.0 contract
         run: npm run validate:governance
+      - name: Foundation domain contracts
+        run: |
+          npm run validate:settings
+          npm run validate:vehicle-domain
+          npm run validate:fixed-expense-lifecycle
       - name: Architecture and foundation
         run: |
           npm run validate:architecture
