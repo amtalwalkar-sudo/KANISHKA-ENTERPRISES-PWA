@@ -150,6 +150,7 @@ jobs:
           npm run validate:phase-5-loans-real-persistence
           npm run validate:phase-5-renewals-compliance-real-persistence
           npm run validate:phase-5-maintenance-real-persistence
+          npm run validate:fixed-expense-real-persistence
       - name: Runtime syntax and Work Screen domain contract
         shell: bash
         run: |
