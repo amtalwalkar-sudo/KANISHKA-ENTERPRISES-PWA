@@ -1,10 +1,10 @@
 <script setup>
-import {computed,onMounted,onBeforeUnmount,ref,watch} from 'vue';
+import {onMounted,onBeforeUnmount,ref,watch} from 'vue';
 import {clearFormDraft,discardFormDraft,hasFormDraft} from '../../js/ui/form-drafts.js';
 const props=defineProps({draftKey:{type:String,required:true},title:{type:String,required:true},subtitle:{type:String,default:''},initialValue:{type:Object,default:()=>({})},saving:{type:Boolean,default:false},valid:{type:Boolean,default:true}});const emit=defineEmits(['save','discard','change','close']);const formRef=ref(null),value=ref({...props.initialValue}),hasDraft=ref(false),dirty=ref(false);let submitTimer=null;const SUBMIT_COOLDOWN_MS=750;
 function refreshDraftState(){hasDraft.value=hasFormDraft(formRef.value);}
 function clearDraft(){if(formRef.value)clearFormDraft(formRef.value);hasDraft.value=false;dirty.value=false;}
-function onSubmit(){if(props.saving||!props.valid||submitTimer)return;emit('save',{...value.value});clearDraft();submitTimer=setTimeout(()=>{submitTimer=null;},SUBMIT_COOLDOWN_MS);}
+function onSubmit(){if(props.saving||!props.valid||submitTimer)return;emit('save',{...value.value});submitTimer=setTimeout(()=>{submitTimer=null;},SUBMIT_COOLDOWN_MS);}
 function discard(){discardFormDraft(formRef.value);value.value={...props.initialValue};hasDraft.value=false;dirty.value=false;emit('discard');}
 function requestClose(){if(props.saving)return;if(dirty.value||hasDraft.value){const confirmed=globalThis.confirm?.('Discard your unsaved changes?')??true;if(!confirmed)return;clearDraft();}emit('discard');emit('close');}
 watch(value,next=>{dirty.value=true;emit('change',{...next});},{deep:true});onMounted(refreshDraftState);onBeforeUnmount(()=>{clearTimeout(submitTimer);});
