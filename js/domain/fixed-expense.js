@@ -6,6 +6,8 @@ export const FIXED_EXPENSE_STATUS=Object.freeze({ACTIVE:'ACTIVE',INACTIVE:'INACT
 export const FIXED_EXPENSE_DOMAIN_VERSION=1;
 const text=v=>String(v??'').trim();
 const key=v=>text(v).toUpperCase();
+const isEffectiveDate=value=>isIsoUtcTimestamp(value)||/^\d{4}-\d{2}-\d{2}$/.test(String(value??''));
+const effectiveDateValue=value=>/^\d{4}-\d{2}-\d{2}$/.test(String(value??''))?`${value}T00:00:00.000Z`:value;
 
 export function assertFixedExpenseAmountPaise(value){
   if(!Number.isSafeInteger(value)||value<=0)throw new RangeError('Fixed expense amount must be a positive integer number of paise');
@@ -22,9 +24,9 @@ export function assertFixedExpenseStatus(value){
   return status;
 }
 export function assertFixedExpenseLifecycle({effective_from,effective_to=null,status=FIXED_EXPENSE_STATUS.ACTIVE}={}){
-  if(!isIsoUtcTimestamp(effective_from))throw new TypeError('Fixed expense requires effective_from as an ISO/UTC timestamp');
-  if(effective_to!==null&&!isIsoUtcTimestamp(effective_to))throw new TypeError('Fixed expense effective_to must be an ISO/UTC timestamp or null');
-  if(effective_to!==null&&effective_to<=effective_from)throw new RangeError('Fixed expense effective_to must be later than effective_from');
+  if(!isEffectiveDate(effective_from))throw new TypeError('Fixed expense requires effective_from as an ISO/UTC timestamp or YYYY-MM-DD date');
+  if(effective_to!==null&&!isEffectiveDate(effective_to))throw new TypeError('Fixed expense effective_to must be an ISO/UTC timestamp, YYYY-MM-DD date, or null');
+  if(effective_to!==null&&effectiveDateValue(effective_to)<=effectiveDateValue(effective_from))throw new RangeError('Fixed expense effective_to must be later than effective_from');
   return Object.freeze({effective_from,effective_to,status:assertFixedExpenseStatus(status)});
 }
 export function normalizeFixedExpenseInput(input={}){
@@ -37,7 +39,7 @@ export function normalizeFixedExpenseInput(input={}){
   return Object.freeze({name,category,frequency,amount_paise,monthly_amount_paise:amount_paise,effective_from:lifecycle.effective_from,effective_to:lifecycle.effective_to,status:lifecycle.status,scope:'BUSINESS'});
 }
 export function overlapsFixedExpense(a,b){
-  return String(a.effective_from)<String(b.effective_to||'9999-12-31T23:59:59.999Z')&&String(b.effective_from)<String(a.effective_to||'9999-12-31T23:59:59.999Z');
+  return effectiveDateValue(a.effective_from)<effectiveDateValue(b.effective_to||'9999-12-31')&&effectiveDateValue(b.effective_from)<effectiveDateValue(a.effective_to||'9999-12-31');
 }
 export function assertNoFixedExpenseOverlap(rows,candidate,ignoreId=null){
   const activeRows=(rows||[]).filter(row=>!row.is_deleted&&(row.status??FIXED_EXPENSE_STATUS.ACTIVE)===FIXED_EXPENSE_STATUS.ACTIVE&&row.id!==ignoreId);
@@ -46,8 +48,11 @@ export function assertNoFixedExpenseOverlap(rows,candidate,ignoreId=null){
 }
 export function isFixedExpenseEffectiveAt(record,at){
   assertFixedExpenseLifecycle({...record,status:record.status??FIXED_EXPENSE_STATUS.ACTIVE});
-  if(!isIsoUtcTimestamp(at))throw new TypeError('Fixed expense evaluation date must be an ISO/UTC timestamp');
-  return (record.status??FIXED_EXPENSE_STATUS.ACTIVE)===FIXED_EXPENSE_STATUS.ACTIVE&&!record.is_deleted&&record.effective_from<=at&&(record.effective_to===null||at<record.effective_to);
+  if(!isEffectiveDate(at))throw new TypeError('Fixed expense evaluation date must be an ISO/UTC timestamp or YYYY-MM-DD date');
+  const effectiveAt=effectiveDateValue(at);
+  const from=effectiveDateValue(record.effective_from);
+  const to=record.effective_to===null?null:effectiveDateValue(record.effective_to);
+  return (record.status??FIXED_EXPENSE_STATUS.ACTIVE)===FIXED_EXPENSE_STATUS.ACTIVE&&!record.is_deleted&&from<=effectiveAt&&(to===null||effectiveAt<to);
 }
 export function effectiveFixedExpenses(rows,at){return (rows||[]).filter(row=>isFixedExpenseEffectiveAt(row,at));}
 export function fixedExpenseMonthlyAmount(rows,at){return effectiveFixedExpenses(rows,at).reduce((total,row)=>total+paise(row.monthly_amount_paise),0);}
