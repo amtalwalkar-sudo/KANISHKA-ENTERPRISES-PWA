@@ -1,7 +1,7 @@
 import {defineConfig} from 'vite';
 import vue from '@vitejs/plugin-vue';
 import {resolve} from 'node:path';
-import {cpSync,existsSync} from 'node:fs';
+import {cpSync,existsSync,readFileSync} from 'node:fs';
 
 function copyRuntimeAssets(){
   return {
@@ -9,6 +9,20 @@ function copyRuntimeAssets(){
     closeBundle(){
       const out=resolve('dist');
       if(existsSync('js')) cpSync('js',resolve(out,'js'),{recursive:true});
+    },
+    configurePreviewServer(server){
+      server.middlewares.use((req,res,next)=>{
+        if(req.url?.split('?')[0]==='/manifest.json'){
+          const manifest=resolve('dist','manifest.json');
+          if(existsSync(manifest)){
+            res.statusCode=200;
+            res.setHeader('Content-Type','application/manifest+json');
+            res.end(readFileSync(manifest));
+            return;
+          }
+        }
+        next();
+      });
     }
   };
 }
