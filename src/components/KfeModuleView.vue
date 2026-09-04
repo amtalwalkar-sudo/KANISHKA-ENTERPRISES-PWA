@@ -1,13 +1,18 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import KfeStatePanel from './KfeStatePanel.vue';
 import KfeFormShell from './KfeFormShell.vue';
 import KfeFormField from './KfeFormField.vue';
 
-const props = defineProps({ module: { type: String, required: true } });
+const props = defineProps({ module: { type: String, required: true }, application: { type: Object, default: null } });
 const emit = defineEmits(['open', 'back', 'save-request', 'reset-request']);
 const activeAction = ref('');
 const settingsOpen = ref(false);
+const settingsTheme = ref('system');
+const settingsBusy = ref(false);
+const settingsMessage = ref('');
+const settingsError = ref('');
+const restoreInput = ref(null);
 
 const MODULES = {
   Driver: { eyebrow: 'Vehicle', title: 'Driver', subtitle: 'Driver attached to the current vehicle.', sections: [{ title: 'Driver', items: ['Driver details', 'Vehicle attachment'] }] },
@@ -18,7 +23,7 @@ const MODULES = {
   Compliance: { eyebrow: 'Vehicle Operations', title: 'Compliance', subtitle: 'Renewals, validity and historical records.', sections: [{ title: 'Renewals', items: ['Add renewal', 'Current validity', 'Renewal history'] }] },
   Dashboard: { eyebrow: 'Business', title: 'Dashboard', subtitle: 'Actual business performance — what actually happened.', sections: [{ title: 'Actuals', items: ['Revenue', 'Costs', 'Business profitability', 'Operating metrics'] }] },
   Profitability: { eyebrow: 'Business', title: 'Profitability', subtitle: 'Decision-oriented financial interpretation.', sections: [{ title: 'Views', items: ['Actual', 'Projected', 'Target', 'Break-even'] }] },
-  Settings: { eyebrow: 'System', title: 'Settings', subtitle: 'KFE system and application preferences.', sections: [{ title: 'System', items: ['Application settings', 'Reset all data'] }] },
+  Settings: { eyebrow: 'System', title: 'Settings', subtitle: 'KFE system and application preferences.', sections: [{ title: 'App', items: ['Theme'] }, { title: 'Data', items: ['Backup', 'Restore', 'Reset ERP Data'] }, { title: 'About', items: ['KFE 2.0', 'Version 2.0.0'] }] },
 };
 
 const definition = computed(() => MODULES[props.module] ?? { eyebrow: 'KFE 2.0', title: props.module, subtitle: 'KFE module.', sections: [{ title: props.module, items: [] }] });
@@ -41,33 +46,110 @@ const formSpec = computed(() => {
   return null;
 });
 
+function applyTheme(theme) {
+  const value = ['system', 'light', 'dark'].includes(theme) ? theme : 'system';
+  settingsTheme.value = value;
+  const root = document.documentElement;
+  if (value === 'system') {
+    delete root.dataset.kfeTheme;
+    root.style.colorScheme = 'light dark';
+  } else {
+    root.dataset.kfeTheme = value;
+    root.style.colorScheme = value;
+  }
+}
+
+async function loadSettings() {
+  if (!props.application?.getSettings) return;
+  try { applyTheme((await props.application.getSettings()).theme); } catch { applyTheme('system'); }
+}
+
 function openApplicationSettings(event) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
   settingsOpen.value = true;
   activeAction.value = '';
+  settingsMessage.value = '';
+  settingsError.value = '';
+  void loadSettings();
+}
+
+async function changeTheme(theme) {
+  settingsMessage.value = '';
+  settingsError.value = '';
+  try {
+    settingsBusy.value = true;
+    await props.application.setTheme(theme);
+    applyTheme(theme);
+    settingsMessage.value = 'Theme saved.';
+  } catch (error) { settingsError.value = String(error?.message || error); }
+  finally { settingsBusy.value = false; }
+}
+
+function downloadBackup() {
+  settingsMessage.value = '';
+  settingsError.value = '';
+  settingsBusy.value = true;
+  void props.application.exportBackup().then(snapshot => {
+    const blob = new Blob([JSON.stringify(snapshot)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `kfe-2.0-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    settingsMessage.value = 'Backup created successfully.';
+  }).catch(error => { settingsError.value = String(error?.message || error); }).finally(() => { settingsBusy.value = false; });
+}
+
+function openRestorePicker() { restoreInput.value?.click(); }
+
+async function restoreSelectedFile(event) {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  if (!window.confirm('Restore this KFE backup? Current locally stored ERP data will be replaced.')) return;
+  settingsMessage.value = '';
+  settingsError.value = '';
+  try {
+    settingsBusy.value = true;
+    const snapshot = JSON.parse(await file.text());
+    await props.application.restoreBackup(snapshot);
+    settingsMessage.value = 'Restore completed. Reloading KFE…';
+    window.setTimeout(() => window.location.reload(), 250);
+  } catch (error) { settingsError.value = String(error?.message || error); settingsBusy.value = false; }
+}
+
+async function resetErpData() {
+  if (!window.confirm('Reset all KFE ERP data? This permanently removes all locally stored ERP data.')) return;
+  settingsMessage.value = '';
+  settingsError.value = '';
+  try {
+    settingsBusy.value = true;
+    await props.application.resetAllData();
+    window.location.reload();
+  } catch (error) { settingsError.value = String(error?.message || error); settingsBusy.value = false; }
 }
 
 function openAction(item) {
-  if (props.module === 'Settings' && item === 'Application settings') {
-    openApplicationSettings();
+  if (props.module === 'Settings') {
+    if (item === 'Theme') { openApplicationSettings(); return; }
+    if (item === 'Backup') { downloadBackup(); return; }
+    if (item === 'Restore') { openRestorePicker(); return; }
+    if (item === 'Reset ERP Data') { void resetErpData(); return; }
     return;
   }
-  if (props.module === 'Settings' && item === 'Reset all data') {
-    if (!window.confirm('Reset all KFE data? This permanently removes all locally stored ERP data.')) return;
-    emit('reset-request');
-    return;
-  }
-  if ((ACTIONS[props.module] ?? []).includes(item)) {
-    activeAction.value = item;
-    return;
-  }
+  if ((ACTIONS[props.module] ?? []).includes(item)) { activeAction.value = item; return; }
   emit('open', item);
 }
 
 function closeAction() { activeAction.value = ''; }
-function closeSettings() { settingsOpen.value = false; }
+function closeSettings() { settingsOpen.value = false; settingsMessage.value = ''; settingsError.value = ''; }
 function onSave(value) { emit('save-request', { module: props.module, action: activeAction.value, value }); }
+
+onMounted(() => { if (props.module === 'Settings') void loadSettings(); });
 </script>
 
 <template>
@@ -76,22 +158,44 @@ function onSave(value) { emit('save-request', { module: props.module, action: ac
       <div class="kfe-module-heading">
         <button class="kfe-secondary-action kfe-back-action" type="button" @click="closeSettings">‹ Settings</button>
         <p class="kfe-eyebrow">System</p>
-        <h1 id="application-settings-title">Application settings</h1>
-        <p class="kfe-destination-subtitle">KFE application configuration and runtime information.</p>
+        <h1 id="application-settings-title">Settings</h1>
+        <p class="kfe-destination-subtitle">Current KFE application preferences and local data tools.</p>
       </div>
+
       <section class="kfe-module-section">
-        <h2>Application</h2>
-        <div class="kfe-module-list">
-          <div class="kfe-detail-card"><strong>KFE 2.0</strong><p>Application version and system foundation.</p></div>
-          <div class="kfe-detail-card"><strong>Local storage</strong><p>ERP data is stored locally on this device.</p></div>
-          <div class="kfe-detail-card"><strong>Business logic</strong><p>Authoritative rules remain in the application and domain layers.</p></div>
+        <h2>APP</h2>
+        <div class="kfe-settings-options" role="group" aria-label="Theme selection">
+          <button v-for="theme in ['system', 'light', 'dark']" :key="theme" type="button" :class="{'is-active': settingsTheme === theme}" :disabled="settingsBusy" @click="changeTheme(theme)">
+            <span>{{theme === 'system' ? 'System' : theme === 'light' ? 'Light' : 'Dark'}}</span>
+            <span aria-hidden="true">{{settingsTheme === theme ? '✓' : ''}}</span>
+          </button>
         </div>
       </section>
+
+      <section class="kfe-module-section">
+        <h2>DATA</h2>
+        <div class="kfe-module-list">
+          <button type="button" :disabled="settingsBusy" @click="downloadBackup"><span>Backup</span><span aria-hidden="true">›</span></button>
+          <button type="button" :disabled="settingsBusy" @click="openRestorePicker"><span>Restore</span><span aria-hidden="true">›</span></button>
+          <button type="button" :disabled="settingsBusy" @click="resetErpData"><span>Reset ERP Data</span><span aria-hidden="true">›</span></button>
+        </div>
+        <input ref="restoreInput" class="kfe-visually-hidden" type="file" accept="application/json,.json" @change="restoreSelectedFile">
+      </section>
+
+      <section class="kfe-module-section">
+        <h2>ABOUT</h2>
+        <div class="kfe-module-list">
+          <div class="kfe-detail-card"><strong>KFE 2.0</strong><p>Single-vehicle ERP foundation with clean application, domain and persistence boundaries.</p></div>
+          <div class="kfe-detail-card"><strong>Version 2.0.0</strong><p>Current application release.</p></div>
+        </div>
+      </section>
+      <p v-if="settingsMessage" class="kfe-boundary-note" role="status">{{settingsMessage}}</p>
+      <p v-if="settingsError" class="kfe-error-note" role="alert">{{settingsError}}</p>
     </template>
 
     <template v-else>
       <div v-if="!activeAction" class="kfe-module-heading">
-        <button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('back')">‹ More</button>
+        <button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('back')">‹ Admin</button>
         <p class="kfe-eyebrow">{{ definition.eyebrow }}</p>
         <h1 id="module-title">{{ definition.title }}</h1>
         <p class="kfe-destination-subtitle">{{ definition.subtitle }}</p>
@@ -114,11 +218,7 @@ function onSave(value) { emit('save-request', { module: props.module, action: ac
         <section v-for="section in definition.sections" :key="section.title" class="kfe-module-section">
           <h2>{{ section.title }}</h2>
           <div class="kfe-module-list">
-            <template v-if="module === 'Settings' && section.title === 'System'">
-              <button type="button" @click.stop.prevent="openApplicationSettings($event)"><span>Application settings</span><span aria-hidden="true">›</span></button>
-              <button type="button" @click.stop.prevent="openAction('Reset all data')"><span>Reset all data</span><span aria-hidden="true">›</span></button>
-            </template>
-            <button v-else v-for="item in section.items" :key="item" type="button" @click="openAction(item)">
+            <button v-for="item in section.items" :key="item" type="button" @click="openAction(item)">
               <span>{{ item }}</span><span aria-hidden="true">›</span>
             </button>
           </div>
@@ -127,3 +227,7 @@ function onSave(value) { emit('save-request', { module: props.module, action: ac
     </template>
   </section>
 </template>
+
+<style scoped>
+.kfe-settings-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.kfe-settings-options button{min-height:48px;border:1px solid var(--kfe-ui-border);border-radius:12px;background:var(--kfe-ui-surface);color:var(--kfe-ui-text);padding:10px;font-weight:700}.kfe-settings-options button.is-active{outline:2px solid var(--kfe-ui-accent);outline-offset:1px}.kfe-settings-options button:disabled,.kfe-module-list button:disabled{opacity:.55}.kfe-visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+</style>
