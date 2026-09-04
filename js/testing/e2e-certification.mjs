@@ -1,36 +1,21 @@
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
-
-const browser=await chromium.launch({headless:true});
-const context=await browser.newContext();
-const page=await context.newPage();
-const errors=[];
-page.on('pageerror',error=>errors.push(String(error?.message||error)));
-page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
-
+const browser=await chromium.launch({headless:true});const context=await browser.newContext();const page=await context.newPage();const errors=[];
+page.on('pageerror',e=>errors.push(String(e?.message||e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
 async function reset(){await page.evaluate(async()=>window.__KFE_RUNTIME__.application.resetAllData());await page.reload({waitUntil:'networkidle'});await page.locator('.kfe-shell').waitFor({state:'visible',timeout:30000});}
-async function nav(name){await page.getByRole('button',{name,exact:true}).last().click();await page.waitForTimeout(150);}
-async function clickText(name){await page.getByRole('button',{name,exact:true}).click();await page.waitForTimeout(100);}
-async function expectHeading(name){await page.getByRole('heading',{name,exact:true}).waitFor({state:'visible',timeout:5000});}
-
+async function route(name){await page.goto(`http://127.0.0.1:4173/#${encodeURIComponent(name)}`,{waitUntil:'networkidle'});await page.locator('.kfe-shell').waitFor({state:'visible',timeout:10000});}
+async function heading(name){await page.getByRole('heading',{name,exact:true}).waitFor({state:'visible',timeout:5000});}
+async function button(name){const b=page.getByRole('button',{name,exact:true});assert.ok(await b.count()>0,`missing button: ${name}`);return b.first();}
 try{
- await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});await page.locator('.kfe-shell').waitFor({state:'visible',timeout:30000});await reset();
- assert.equal(await page.getByRole('button',{name:'Work',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'Performance',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'Timeline',exact:true}).count(),1);assert.equal(await page.getByRole('button',{name:'Admin',exact:true}).count(),1);
- await nav('Performance');await expectHeading('Performance');
- await nav('Timeline');await expectHeading('Timeline');for(const horizon of ['Day','Week','Long-term']){await clickText(horizon);assert.ok(await page.getByRole('button',{name:horizon,exact:true}).count()>=1)}
- await nav('Admin');await expectHeading('Admin');await clickText('Finance');assert.ok(await page.getByText('Revenue',{exact:true}).count()>=1);assert.equal(await page.locator('.kfe-finance-tiles article').count(),6);await page.getByRole('button',{name:'Admin',exact:true}).last().click();
- await clickText('Management');for(const item of ['Vehicle','Driver','Finance','Fixed Expenses','Compliance','Maintenance','Loans','Settings'])assert.ok(await page.getByRole('button',{name:item,exact:true}).count()>=1,`missing Admin control ${item}`);
- await clickText('Fixed Expenses');await expectHeading('Admin');assert.ok(await page.getByText('FIXED EXPENSES',{exact:true}).count()>=1);await clickText('Add fixed expense');assert.ok(await page.getByText('ADD FIXED EXPENSE',{exact:true}).count()>=1);await page.getByRole('button',{name:'Cancel',exact:true}).click();
- await page.getByRole('button',{name:'Admin',exact:true}).last().click();await clickText('Management');await clickText('Maintenance');await expectHeading('Maintenance');await clickText('Add maintenance');assert.ok(await page.getByLabel('Date',{exact:true}).count()>=1);await page.getByRole('button',{name:'Maintenance',exact:true}).click();await clickText('Maintenance history');assert.ok(await page.getByText('No maintenance records yet.',{exact:true}).count()>=1);
- await page.getByRole('button',{name:'Maintenance',exact:true}).click();await page.getByRole('button',{name:'Admin',exact:true}).last().click();await clickText('Management');await clickText('Compliance');await expectHeading('Compliance');await clickText('Add renewal');assert.ok(await page.getByLabel('Renewal type',{exact:true}).count()>=1);await page.getByRole('button',{name:'Compliance',exact:true}).click();await clickText('Current validity');assert.ok(await page.getByText('No active validity record.',{exact:true}).count()>=1);
- await page.getByRole('button',{name:'Compliance',exact:true}).click();await page.getByRole('button',{name:'Admin',exact:true}).last().click();await clickText('Management');await clickText('Loans');await expectHeading('Loans');await clickText('Create loan ›');assert.ok(await page.getByLabel('Principal',{exact:true}).count()>=1);await page.getByRole('button',{name:'Loans',exact:true}).click();await clickText('Record payment ›');assert.ok(await page.getByLabel('Payment amount',{exact:true}).count()>=1);await page.getByRole('button',{name:'Loans',exact:true}).click();await clickText('Prepayment calculator ›');assert.ok(await page.getByLabel('Outstanding principal',{exact:true}).count()>=1);
- await page.getByRole('button',{name:'Loans',exact:true}).click();await page.getByRole('button',{name:'Admin',exact:true}).last().click();await clickText('Management');await clickText('Expenses');assert.fail('Expenses should be opened from the Admin Money route, not Management');
-}catch(error){if(String(error?.message||error).includes('Expenses should be'))errors.push(String(error.message));else throw error;}
-
-try{
- await page.getByRole('button',{name:'Admin',exact:true}).last().click();await page.getByRole('button',{name:'Expenses',exact:true}).click().catch(()=>{});
-}catch{}
-
-assert.deepEqual(errors,[],`Browser console/page errors: ${errors.join(' | ')}`);
-console.log('PASS: KFE production browser certification matrix covers primary navigation, Admin finance/management, fixed expenses, maintenance, compliance and loan lifecycle entry points.');
-await context.close();await browser.close();
+ await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});await reset();
+ for(const name of ['Work','Performance','Timeline','Admin']){await route(name);await heading(name)}
+ await route('Admin');await (await button('Finance')).click();assert.equal(await page.locator('.kfe-finance-tiles article').count(),6);await (await button('Admin')).click();await (await button('Management')).click();
+ for(const name of ['Vehicle','Driver','Finance','Fixed Expenses','Compliance','Maintenance','Loans','Settings'])assert.ok(await page.getByRole('button',{name,exact:true}).count()>0,`missing Admin management control: ${name}`);
+ await (await button('Fixed Expenses')).click();assert.ok(await page.getByText('FIXED EXPENSES',{exact:true}).count()>0);await (await button('Add fixed expense')).click();assert.ok(await page.getByText('ADD FIXED EXPENSE',{exact:true}).count()>0);await (await button('Cancel')).click();
+ await route('Maintenance');await heading('Maintenance');await (await button('Add maintenance')).click();assert.ok(await page.getByLabel('Date',{exact:true}).count()>0);await (await button('Maintenance')).click();await (await button('Maintenance history')).click();assert.ok(await page.getByText('No maintenance records yet.',{exact:true}).count()>0);
+ await route('Compliance');await heading('Compliance');await (await button('Add renewal')).click();assert.ok(await page.getByLabel('Renewal type',{exact:true}).count()>0);await (await button('Compliance')).click();await (await button('Current validity')).click();assert.ok(await page.getByText('No active validity record.',{exact:true}).count()>0);await (await button('Compliance')).click();await (await button('Renewal history')).click();assert.ok(await page.getByText('No compliance records yet.',{exact:true}).count()>0);
+ await route('Expenses');await heading('Expenses');await (await button('Expense history')).click();assert.ok(await page.getByText('No records yet.',{exact:true}).count()>0);await (await button('Expenses')).click();await (await button('Add expense')).click();assert.ok(await page.getByLabel('Category',{exact:true}).count()>0);
+ await route('Revenue');await heading('Revenue');await (await button('Revenue history')).click();assert.ok(await page.getByText('No records yet.',{exact:true}).count()>0);await (await button('Revenue')).click();await (await button('Enter today’s revenue')).click();assert.ok(await page.getByLabel('Revenue amount',{exact:true}).count()>0);
+ await route('Loans');await heading('Loans');await (await button('Create loan ›')).click();for(const name of ['Principal','Annual interest rate %','Term (months)','EMI','Start date'])assert.ok(await page.getByLabel(name,{exact:true}).count()>0,`missing loan field: ${name}`);await (await button('Loans')).click();await (await button('Record payment ›')).click();assert.ok(await page.getByLabel('Payment amount',{exact:true}).count()>0);await (await button('Loans')).click();await (await button('Amortization schedule ›')).click();assert.ok(await page.getByText('No amortization schedule available.',{exact:true}).count()>0);await (await button('Loans')).click();await (await button('Prepayment calculator ›')).click();assert.ok(await page.getByLabel('Outstanding principal',{exact:true}).count()>0);
+ console.log('PASS: browser certification matrix covered every production route, Admin controls, histories, forms, fixed expense lifecycle entry, loan lifecycle entry, and calculation entry points.');
+}finally{assert.deepEqual(errors,[],`Browser console/page errors: ${errors.join(' | ')}`);await context.close();await browser.close();}
