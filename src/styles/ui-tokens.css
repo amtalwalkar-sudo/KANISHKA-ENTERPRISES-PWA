@@ -7,4 +7,27 @@
   --kfe-ui-accent:AccentColor;
   --kfe-ui-shadow:0 4px 18px color-mix(in srgb,CanvasText 12%,transparent);
   --kfe-ui-overlay:color-mix(in srgb,Canvas 94%,transparent);
+  color-scheme:light dark;
+}
+:root[data-kfe-theme="light"]{
+  --kfe-ui-bg:#fff;
+  --kfe-ui-surface:#fff;
+  --kfe-ui-text:#111;
+  --kfe-ui-muted:#666;
+  --kfe-ui-border:#d6d6d6;
+  --kfe-ui-accent:#111;
+  --kfe-ui-shadow:0 4px 18px rgba(0,0,0,.12);
+  --kfe-ui-overlay:rgba(255,255,255,.94);
+  color-scheme:light;
+}
+:root[data-kfe-theme="dark"]{
+  --kfe-ui-bg:#111;
+  --kfe-ui-surface:#1a1a1a;
+  --kfe-ui-text:#f4f4f4;
+  --kfe-ui-muted:#aaa;
+  --kfe-ui-border:#3a3a3a;
+  --kfe-ui-accent:#fff;
+  --kfe-ui-shadow:0 4px 18px rgba(0,0,0,.4);
+  --kfe-ui-overlay:rgba(17,17,17,.94);
+  color-scheme:dark;
 }
