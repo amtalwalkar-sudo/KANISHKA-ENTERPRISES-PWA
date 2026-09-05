@@ -1,9 +1,17 @@
 const DEFAULT_ROUTE='Work';
 const ROUTE_HISTORY_KEY='kfe:ui-route-history';
 
+function decodeHash(value){
+  try{return decodeURIComponent(String(value||''));}catch{return String(value||'');}
+}
+
 function normalize(path){
-  const value=String(path||'').replace(/^\/+|\/+$/g,'');
+  const value=decodeHash(path).replace(/^\/+|\/+$/g,'');
   return value||DEFAULT_ROUTE;
+}
+
+function readLocationRoute(){
+  return normalize(globalThis.location?.hash?.slice(1)||DEFAULT_ROUTE);
 }
 
 function readHistory(fallback){
@@ -18,21 +26,26 @@ function writeHistory(stack){
   try{globalThis.sessionStorage?.setItem(ROUTE_HISTORY_KEY,JSON.stringify(stack));}catch{}
 }
 
-export function createUiRouter({initialPath=globalThis.location?.hash?.slice(1)||DEFAULT_ROUTE,onChange=()=>{},onBack=()=>{}}={}){
+export function createUiRouter({initialPath=readLocationRoute(),onChange=()=>{},onBack=()=>{}}={}){
   let current=normalize(initialPath);
   let routeHistory=readHistory(current);
   if(routeHistory[routeHistory.length-1]!==current) routeHistory.push(current);
   let listening=false;
-  let internalNavigation=false;
+
   const notify=()=>onChange(current);
   const syncFromLocation=()=>{
-    const next=normalize(globalThis.location?.hash?.slice(1)||DEFAULT_ROUTE);
+    const next=readLocationRoute();
+    const changed=next!==current;
     current=next;
-    if(routeHistory[routeHistory.length-1]!==next){routeHistory.push(next);writeHistory(routeHistory);}
-    notify();
+    if(routeHistory[routeHistory.length-1]!==next){
+      routeHistory.push(next);
+      writeHistory(routeHistory);
+    }
+    if(changed) notify();
   };
-  const onHashChange=()=>{if(internalNavigation){internalNavigation=false;return;}syncFromLocation();};
-  const onPopState=()=>{syncFromLocation();};
+  const onHashChange=()=>syncFromLocation();
+  const onPopState=()=>syncFromLocation();
+
   return {
     get route(){return current;},
     get history(){return [...routeHistory];},
@@ -42,6 +55,7 @@ export function createUiRouter({initialPath=globalThis.location?.hash?.slice(1)|
       globalThis.addEventListener?.('hashchange',onHashChange);
       globalThis.addEventListener?.('popstate',onPopState);
       syncFromLocation();
+      notify();
     },
     stop(){
       if(!listening)return;
@@ -55,8 +69,8 @@ export function createUiRouter({initialPath=globalThis.location?.hash?.slice(1)|
       current=next;
       routeHistory.push(next);
       writeHistory(routeHistory);
-      if(globalThis.location){internalNavigation=true;globalThis.location.hash=next;}
       notify();
+      if(globalThis.location && globalThis.location.hash!==`#${next}`) globalThis.location.hash=next;
     },
     handleBack(){this.back();},
     back(){
@@ -65,9 +79,9 @@ export function createUiRouter({initialPath=globalThis.location?.hash?.slice(1)|
         const previous=routeHistory[routeHistory.length-1]||DEFAULT_ROUTE;
         current=previous;
         writeHistory(routeHistory);
-        if(globalThis.location){internalNavigation=true;globalThis.location.hash=previous;}
-        onBack(previous);
         notify();
+        if(globalThis.location && globalThis.location.hash!==`#${previous}`) globalThis.location.hash=previous;
+        onBack(previous);
         return;
       }
       if(current!==DEFAULT_ROUTE)this.navigate(DEFAULT_ROUTE);
