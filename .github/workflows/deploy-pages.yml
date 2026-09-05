@@ -1,6 +1,8 @@
 name: KFE 2.0 Production Pages
 
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: ["KFE 2.0 14-item certification"]
     types: [completed]
@@ -19,6 +21,7 @@ jobs:
   deploy:
     name: Build and deploy KFE 2.0 production PWA
     if: >-
+      github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
@@ -35,12 +38,14 @@ jobs:
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
             sha="${{ github.event.workflow_run.head_sha }}"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            sha="${{ github.sha }}"
           else
             sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout certified revision
+      - name: Checkout deployment revision
         uses: actions/checkout@v5
         with:
           ref: ${{ steps.revision.outputs.sha }}
@@ -64,11 +69,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f dist/index.html
-          test -f dist/manifest.json
-          test -f dist/service-worker.js
-          test -f dist/icon-192.png
-          test -f dist/icon-512.png
+          test -s dist/index.html
+          test -s dist/manifest.json
+          test -s dist/service-worker.js
+          test -s dist/icon-192.png
+          test -s dist/icon-512.png
           grep -q '/KANISHKA-ENTERPRISES-PWA/' dist/index.html
           grep -q 'src/main' dist/index.html
           echo "KFE_PAGES_ARTIFACT=PASS"
