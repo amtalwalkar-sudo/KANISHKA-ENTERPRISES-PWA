@@ -1,7 +1,7 @@
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 const browser=await chromium.launch({headless:true});const context=await browser.newContext();const page=await context.newPage();const errors=[];
-page.on('pageerror',e=>errors.push(String(e?.message||e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+page.on('pageerror',e=>errors.push(String(e?.message||e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});page.on('response',r=>{if(r.status()===404)errors.push(`HTTP 404: ${r.url()}`)});
 async function route(name){await page.goto(`http://127.0.0.1:4173/#${encodeURIComponent(name)}`,{waitUntil:'networkidle'});await page.locator('.kfe-shell').waitFor({state:'visible',timeout:10000});}
 async function heading(name){const h=page.getByRole('heading',{name,exact:true}).first();await h.waitFor({state:'visible',timeout:5000});}
 async function button(name){const b=page.getByRole('button',{name,exact:true});assert.ok(await b.count()>0,`missing button: ${name}`);return b.first();}
