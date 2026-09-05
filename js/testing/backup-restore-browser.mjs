@@ -40,6 +40,9 @@ try{
   const restored=await page.evaluate(async()=>window.__KFE_RUNTIME__.repository.entity('revenue_records').list());
   assert.equal(restored.filter(row=>!row.is_deleted).length,1);
   assert.equal(restored.find(row=>!row.is_deleted).amount_paise,123456);
+  const transientAfterRestore=await page.evaluate(async()=>({outbox:await window.__KFE_RUNTIME__.repository.entity('outbox').list(),idempotency:await window.__KFE_RUNTIME__.repository.entity('idempotency').list()}));
+  assert.deepEqual(transientAfterRestore.outbox,[],'stale outbox operations survived restore');
+  assert.deepEqual(transientAfterRestore.idempotency,[],'stale idempotency records survived restore');
   const safety=await readBackupPayload('safety');
   assert.ok(safety?.package,'pre-restore safety backup missing');
   const corrupt=structuredClone(portable);corrupt.ciphertext=corrupt.ciphertext.slice(0,-2)+'aa';
@@ -59,10 +62,13 @@ try{
   const phoneBRows=await pageB.evaluate(async()=>window.__KFE_RUNTIME__.repository.entity('revenue_records').list());
   assert.equal(phoneBRows.filter(row=>!row.is_deleted).length,1);
   assert.equal(phoneBRows.find(row=>!row.is_deleted).amount_paise,123456);
+  const phoneBTransient=await pageB.evaluate(async()=>({outbox:await window.__KFE_RUNTIME__.repository.entity('outbox').list(),idempotency:await window.__KFE_RUNTIME__.repository.entity('idempotency').list()}));
+  assert.deepEqual(phoneBTransient.outbox,[],'Phone B stale outbox operations survived restore');
+  assert.deepEqual(phoneBTransient.idempotency,[],'Phone B stale idempotency records survived restore');
   assert.deepEqual(phoneBErrors,[],`Phone B browser errors: ${phoneBErrors.join(' | ')}`);
   await phoneB.close();
 
-  console.log('PASS: local complete recovery, mutation-triggered refresh, encrypted portable migration, safe restore, integrity rejection, second-device restore, and provider-independent package behavior.');
+  console.log('PASS: local complete recovery, mutation-triggered refresh, encrypted portable migration, safe restore, transient-operation cleanup, integrity rejection, second-device restore, and provider-independent package behavior.');
 }finally{
   assert.deepEqual(errors,[],`Browser console/page errors: ${errors.join(' | ')}`);
   await context.close();await browser.close();
