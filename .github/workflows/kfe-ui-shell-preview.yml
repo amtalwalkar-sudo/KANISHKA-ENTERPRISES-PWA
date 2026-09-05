@@ -2,7 +2,7 @@ name: KFE UI Shell Preview
 
 on:
   push:
-    branches: [feat/kfe-ui-shell-live]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
