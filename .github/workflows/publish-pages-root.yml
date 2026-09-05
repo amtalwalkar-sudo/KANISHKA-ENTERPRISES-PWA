@@ -1,15 +1,10 @@
 name: KFE 2.0 Publish Production PWA
 
 on:
-  push:
+  workflow_run:
+    workflows: [KFE 2.0 single CI]
+    types: [completed]
     branches: [main]
-    paths-ignore:
-      - 'index.html'
-      - 'manifest.json'
-      - 'service-worker.js'
-      - 'icon-192.png'
-      - 'icon-512.png'
-      - 'assets/**'
   workflow_dispatch:
 
 permissions:
@@ -23,12 +18,34 @@ concurrency:
 jobs:
   publish:
     name: Build and publish production PWA to configured Pages source
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.name == 'KFE 2.0 single CI')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
+      - name: Resolve validated revision
+        id: state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            validated_sha="${{ github.event.workflow_run.head_sha }}"
+            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            if [[ "$live_sha" != "$validated_sha" ]]; then
+              echo "STATE_MISMATCH: validated=$validated_sha live=$live_sha"
+              exit 1
+            fi
+          else
+            validated_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          fi
+          echo "validated_sha=$validated_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout validated source
         uses: actions/checkout@v5
         with:
+          ref: ${{ steps.state.outputs.validated_sha }}
           fetch-depth: 1
+
       - name: Setup Node 24
         uses: actions/setup-node@v5
         with:
