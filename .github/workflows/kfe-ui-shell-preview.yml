@@ -1,0 +1,45 @@
+name: KFE UI Shell Preview
+
+on:
+  push:
+    branches: [feat/kfe-ui-shell-live]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: kfe-ui-shell-preview
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout UI shell branch
+        uses: actions/checkout@v5
+      - name: Setup Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Build UI shell preview
+        run: npm run build
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy UI shell preview
+        id: deployment
+        uses: actions/deploy-pages@v4
