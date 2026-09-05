@@ -8,10 +8,10 @@ const monthDays=(year,month)=>new Date(Date.UTC(year,month,0)).getUTCDate();
 export async function adminReadModel({repository,asOf=new Date().toISOString()}={}){
   if(!repository?.entity)throw new TypeError('Admin read model requires repository');
   const today=String(asOf).slice(0,10),month=today.slice(0,7);
-  const [vehicles,drivers,assignments,revenue,fuel,maintenance,compliance,loans,calculations]=await Promise.all([
+  const [vehicles,drivers,assignments,revenue,fuel,maintenance,compliance,loans,calculations,fixedExpenses]=await Promise.all([
     repository.entity('vehicles').list(),repository.entity('drivers').list(),repository.entity('vehicle_driver_assignments').list(),
     repository.entity('revenue_records').list(),repository.entity('fuel_records').list(),repository.entity('maintenance_records').list(),
-    repository.entity('renewals_compliance').list(),repository.entity('loans').list(),repository.entity('calculation_results').list()
+    repository.entity('renewals_compliance').list(),repository.entity('loans').list(),repository.entity('calculation_results').list(),repository.entity('fixed_expenses').list()
   ]);
   const activeVehicles=live(vehicles).filter(v=>v.lifecycle_status==='ACTIVE');
   const vehicle=activeVehicles[0]||live(vehicles)[0]||null;
@@ -42,6 +42,7 @@ export async function adminReadModel({repository,asOf=new Date().toISOString()}=
     breakEven:Object.freeze({status:breakEvenPaise==null?'UNAVAILABLE':currentPaise>=breakEvenPaise?'ABOVE BREAK-EVEN':'BELOW BREAK-EVEN',breakEvenPaise,currentPaise,remainingPaise}),
     month:Object.freeze({revenuePaise,costsPaise,profitPaise,fuelPaise:monthFuel.length?sum(monthFuel):null,maintenancePaise:monthMaintenance.length?sum(monthMaintenance):null,compliancePaise:monthCompliance.length?sum(monthCompliance):null,businessKm}),
     weekly:Object.freeze(weeks.map(Object.freeze)),
+    fixedExpenses:Object.freeze(live(fixedExpenses)),
     financialAvailable:Boolean(financial),
     allocationInputs:Object.freeze({maintenanceSourceRecords:monthMaintenance.length,complianceSourceRecords:monthCompliance.length,loanSourceRecords:loans.filter(r=>!r?.is_deleted).length,calendarDays:days})
   });
