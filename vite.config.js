@@ -9,6 +9,7 @@ function copyRuntimeAssets(){
     closeBundle(){
       const out=resolve('dist');
       if(existsSync('js')) cpSync('js',resolve(out,'js'),{recursive:true});
+      if(existsSync('service-worker.js')) cpSync('service-worker.js',resolve(out,'service-worker.js'));
     },
     configurePreviewServer(server){
       server.middlewares.use((req,res,next)=>{
