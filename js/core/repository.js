@@ -75,7 +75,7 @@ export function createRepository({initial={},onMutation=null}={}){
     const db=await openKfeDb();
     const result=await runAtomicTransaction(db,STORE_NAMES,(stores)=>{
       for(const name of STORE_NAMES)stores[name].clear();
-      for(const name of names)for(const record of snapshot.stores[name])stores[name].put(record);
+      for(const name of names)for(const record of snapshot.stores[name])if(name!=='outbox'&&name!=='idempotency')stores[name].put(record);
       return true;
     });
     memory=clone(initial);hydrationPromise=null;notifyMutation({type:'restore',stores:[...STORE_NAMES]});return result;
