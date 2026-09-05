@@ -1,8 +1,8 @@
 import { chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 
-const port=4175;
-const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true});
+const port=4180;
+const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true,env:{...process.env,GITHUB_ACTIONS:'false'}});
 let output='';
 server.stdout.on('data',chunk=>{output+=chunk.toString();});
 server.stderr.on('data',chunk=>{output+=chunk.toString();});

@@ -1,7 +1,7 @@
 import {chromium} from '@playwright/test';
 import {spawn} from 'node:child_process';
-const port=4178;
-const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true});
+const port=4183;
+const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true,env:{...process.env,GITHUB_ACTIONS:'false'}});
 let output='';server.stdout.on('data',c=>output+=c.toString());server.stderr.on('data',c=>output+=c.toString());
 async function wait(url,ms=30000){const s=Date.now();while(Date.now()-s<ms){try{if((await fetch(url)).ok)return;}catch{}await new Promise(r=>setTimeout(r,250));}throw new Error(`preview did not start:\n${output}`);}
 async function bounded(p,label,ms=30000){return Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error(`${label} timed out after ${ms}ms`)),ms))]);}

@@ -36,8 +36,9 @@ async function foundationContract() {
 async function integrationContract() {
   return page.evaluate(async () => {
     const runtime = window.__KFE_RUNTIME__;
-    const {queueOutbox,flushOutbox} = await import('/js/core/outbox.js');
-    const {all} = await import('/js/core/hardened-db.js');
+    const moduleUrl = relativePath => new URL(relativePath, window.location.href).href;
+    const {queueOutbox,flushOutbox} = await import(moduleUrl('./js/core/outbox.js'));
+    const {all} = await import(moduleUrl('./js/core/hardened-db.js'));
     const id = `phase-h-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     await queueOutbox({id,type:'PHASE_H_TEST',payload:{ok:true}});
     const queued = (await all('outbox')).some(entry => entry.id === id);
@@ -54,8 +55,9 @@ async function integrationContract() {
     const stateKey = `phase-h-${Date.now()}`;
     const original = await runtime.repository.load();
     await runtime.repository.save({...original,__phaseHProbe:stateKey});
-    const persisted = await runtime.repository.load();
-    if (persisted.__phaseHProbe !== stateKey) throw new Error('Repository persistence round-trip failed');
+    const stateRecords = await all('state');
+    const persistedRecord = stateRecords.find(record => record?.value?.__phaseHProbe === stateKey);
+    if (!persistedRecord) throw new Error('Repository persistence round-trip failed');
 
     let rolledBack = false;
     try {
