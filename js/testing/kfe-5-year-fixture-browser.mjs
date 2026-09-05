@@ -23,7 +23,7 @@ try {
     const runtime = window.__KFE_RUNTIME__;
     const snapshot = await runtime.repository.exportSnapshot();
     const performance = await runtime.application.getPerformance(asOf);
-    const timeline = await runtime.application.getTimeline('Day', asOf);
+    const timeline = await runtime.application.getTimeline('Long-term', asOf);
     const counts = Object.fromEntries(Object.entries(snapshot.stores).map(([name, rows]) => [name, rows.filter(row => row.test_data_id === testDataId).length]));
     return {counts, performance, timelineEvents: timeline.events.length};
   }, {testDataId:TEST_DATA_ID, asOf:'2026-09-05T12:00:00.000Z'});
@@ -32,9 +32,9 @@ try {
   assert.ok(observed.counts.work_sessions > 1000, 'five-year work sessions were not persisted');
   assert.ok(observed.counts.rides > 10000, 'five-year rides were not persisted');
   assert.equal(observed.counts.fuel_records, observed.counts.work_sessions, 'full-tank fuel coverage does not match work days');
-  assert.ok(observed.counts.loan_payments === 60, '60-month loan schedule was not persisted');
+  assert.equal(observed.counts.loan_payments, 60, '60-month loan schedule was not persisted');
   assert.ok(observed.counts.renewals_compliance > 10, 'renewal/compliance events were not persisted');
-  assert.ok(observed.timelineEvents > 1000, 'timeline did not observe the loaded history');
+  assert.ok(observed.timelineEvents > 1000, 'timeline did not observe the loaded five-year history');
   assert.ok(Number(observed.performance.businessKm) > 0, 'performance read model did not observe business KM');
   assert.ok(Number(observed.performance.revenuePaise) > 0, 'performance read model did not observe revenue');
   assert.ok(Number(observed.performance.fuelPaise) > 0, 'performance read model did not observe fuel');
