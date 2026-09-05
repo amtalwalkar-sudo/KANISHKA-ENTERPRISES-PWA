@@ -20,14 +20,21 @@ jobs:
     steps:
       - name: Checkout UI shell branch
         uses: actions/checkout@v5
+
       - name: Setup Node 20
         uses: actions/setup-node@v5
         with:
           node-version: 20
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
       - name: Install dependencies
         run: npm install
+
       - name: Build UI shell preview
         run: npm run build
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
