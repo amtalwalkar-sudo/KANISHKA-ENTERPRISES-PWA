@@ -1,11 +1,16 @@
-// Provider-independent Backup & Restore contract checks.
-import {createBackupPackage,validateBackupPackage} from '../core/backup/backup-format.js';
-import {assertBackupProvider} from '../core/backup/backup-provider.js';
+import assert from 'node:assert/strict';
+import {createMemoryBackupProvider,assertBackupProvider,BACKUP_PROVIDER_CONTRACT_VERSION} from '../core/backup-provider.js';
+import {canonicalize,validateBackupPackage,KFE_BACKUP_PACKAGE_VERSION} from '../core/backup-format.js';
 
-const pkg=createBackupPackage({dataset:{stores:{state:[]}},dbName:'kfe',dbVersion:9});
-if(!validateBackupPackage(pkg))throw new Error('Backup package validation failed');
-if(pkg.manifest.complete!==true)throw new Error('Backup must be complete');
-assertBackupProvider({put(){},list(){},get(){},remove(){}});
-let rejected=false;try{assertBackupProvider({put(){}});}catch{rejected=true;}
-if(!rejected)throw new Error('Incomplete provider contract was accepted');
-console.log('BACKUP_RESTORE_CONTRACT_OK');
+const provider=createMemoryBackupProvider();
+assertBackupProvider(provider);
+assert.equal(provider.contractVersion,BACKUP_PROVIDER_CONTRACT_VERSION);
+const first={id:'backup-1',createdAt:'2026-09-05T00:00:00.000Z',package:{packageVersion:KFE_BACKUP_PACKAGE_VERSION}};
+await provider.put(first);
+assert.deepEqual(await provider.get('backup-1'),first);
+assert.equal((await provider.list()).length,1);
+await provider.remove('backup-1');
+assert.equal((await provider.get('backup-1')),null);
+assert.equal(canonicalize({b:1,a:2}),'{"a":2,"b":1}');
+assert.throws(()=>validateBackupPackage({}),/Unsupported KFE backup package/);
+console.log('PASS: provider abstraction and backup package contract.');
