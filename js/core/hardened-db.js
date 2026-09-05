@@ -18,6 +18,7 @@ export function openKfeDb(){
   });
   return dbPromise;
 }
+export async function closeKfeDb(){if(!dbPromise)return;try{const db=await dbPromise;db.close();}finally{dbPromise=null;}}
 export const requestResult=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB request failed'));});
 export async function read(storeName,id){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readonly').objectStore(storeName).get(id));}
 export async function write(storeName,value){const db=await openKfeDb();const result=await requestResult(db.transaction(storeName,'readwrite').objectStore(storeName).put(value));if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('kfe:storage-mutated',{detail:{store:storeName,operation:'write'}}));return result;}
