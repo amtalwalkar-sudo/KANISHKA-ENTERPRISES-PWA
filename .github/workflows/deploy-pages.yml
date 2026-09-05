@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: kfe-production-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -86,9 +86,14 @@ jobs:
           test -s dist/service-worker.js
           test -s dist/icon-192.png
           test -s dist/icon-512.png
+          test -d dist/assets
           grep -q '/KANISHKA-ENTERPRISES-PWA/' dist/index.html
-          grep -q 'src/main' dist/index.html
-          echo "KFE_PAGES_ARTIFACT=PASS"
+          grep -q '/assets/' dist/index.html
+          if grep -q '/src/main.js' dist/index.html; then
+            echo 'ERROR: source entrypoint leaked into production artifact'
+            exit 1
+          fi
+          echo 'KFE_PAGES_ARTIFACT=PASS'
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
