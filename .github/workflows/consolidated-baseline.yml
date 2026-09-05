@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, ci/foundation-preflight-3-gates]
   workflow_dispatch:
+  workflow_run:
+    workflows: [KFE 2.0 14-item certification]
+    types: [completed]
 
 concurrency:
   group: kfe-single-ci
@@ -20,6 +23,7 @@ permissions:
 jobs:
   validate:
     name: KFE validation and Work Screen integration
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.name == 'KFE 2.0 14-item certification')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -32,10 +36,14 @@ jobs:
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
+            event_sha="${{ github.event.pull_request.head.sha }}"
+          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            event_sha="${{ github.event.workflow_run.head_sha }}"
           else
             current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq '.object.sha')"
+            event_sha="${{ github.sha }}"
           fi
-          event_sha="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
           if [[ -z "$current_sha" || -z "$event_sha" ]]; then
             echo "STATE_MISMATCH: unable to resolve current and event revision"
             exit 1
@@ -67,7 +75,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
           else
-            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq '.object.sha')"
+            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           fi
           if [[ "$live_sha" != "$observed_sha" ]]; then
             echo "STATE_MISMATCH: live=$live_sha checked_out=$observed_sha"
@@ -193,7 +201,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
           else
-            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq '.object.sha')"
+            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           fi
           if [[ "$live_sha" != "$KFE_VALIDATED_SHA" ]]; then
             echo "STATE_MISMATCH: repository advanced during validation. validated=$KFE_VALIDATED_SHA live=$live_sha"
