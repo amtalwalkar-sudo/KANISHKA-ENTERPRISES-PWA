@@ -38,7 +38,7 @@ onUnmounted(() => clearInterval(timer))
 </script>
 
 <template>
-  <section v-if="visible" aria-label="Work break control">
+  <section v-if="visible" class="kfe-work-break-control" aria-label="Work break control">
     <button type="button" :disabled="busy" @click="openEditor">Break · {{ breakMinutes }} min</button>
     <div v-if="open" role="dialog" aria-modal="true" aria-label="Record break minutes">
       <label>Break minutes<input v-model="minutes" type="number" min="0" step="1" inputmode="numeric"></label>
@@ -48,3 +48,7 @@ onUnmounted(() => clearInterval(timer))
     <p v-if="error" role="alert">{{ error }}</p>
   </section>
 </template>
+
+<style scoped>
+.kfe-work-break-control{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom) + 154px);z-index:55}
+</style>
