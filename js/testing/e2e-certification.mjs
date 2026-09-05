@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 const browser=await chromium.launch({headless:true});const context=await browser.newContext();const page=await context.newPage();const errors=[];
 page.on('pageerror',e=>errors.push(String(e?.message||e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
 async function route(name){await page.goto(`http://127.0.0.1:4173/#${encodeURIComponent(name)}`,{waitUntil:'networkidle'});await page.locator('.kfe-shell').waitFor({state:'visible',timeout:10000});}
-async function heading(name){const h=page.getByRole('heading',{name,exact:true}).first();await h.waitFor({state:'visible',timeout:5000});}
+async function heading(name){const h=page.locator('#module-title').filter({hasText:name}).first();await h.waitFor({state:'visible',timeout:5000});}
 async function button(name){const b=page.getByRole('button',{name,exact:true});assert.ok(await b.count()>0,`missing button: ${name}`);return b.first();}
 async function backFromLoan(){const b=page.getByRole('button',{name:/Loans/}).first();assert.ok(await b.count()>0,'missing Loans back control');await b.click();}
 try{
