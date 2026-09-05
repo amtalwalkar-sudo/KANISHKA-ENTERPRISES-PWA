@@ -30,7 +30,6 @@ export function createKfePresentationApi({ app = application, commandActions = a
     endPersonalTrip: (...args) => app.endPersonalTrip(...args),
     endDay: (...args) => app.endDay(...args),
     undoWorkAction: (...args) => app.undoWorkAction(...args),
-    recordBreakMinutes: (...args) => app.recordBreakMinutes(...args),
     recordExpense: (...args) => app.recordExpense(...args),
     recordRevenue: (...args) => app.recordRevenue(...args),
     recordMaintenance: (...args) => app.recordMaintenance(...args),
@@ -48,7 +47,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     exportPortableBackupFile: (...args) => backupEngine.exportPortableFile(...args),
     restorePortableBackupText: (...args) => backupEngine.restorePortableText(...args),
     refreshLocalBackup: (...args) => backupEngine.refreshLocal(...args),
-    resetAllData: (...args) => app.resetAllData(...args),
+    resetAllData: async (...args) => { backupEngine.stop?.(); return app.resetAllData(...args); },
     saveHistoricalCorrection: (...args) => app.saveHistoricalCorrection(...args),
   };
 
