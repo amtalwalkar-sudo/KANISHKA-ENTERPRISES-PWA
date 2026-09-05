@@ -41,5 +41,4 @@ window.KFE_APPLICATION=application;
 window.KFE_BACKUP=backup;
 window.KFE_VIEW_MODELS=viewModels;
 void initializeResilience({sendOutbox:noTransport});
-void backup.start().catch(error=>window.dispatchEvent(new CustomEvent('kfe:backup-error',{detail:{message:String(error?.message||error)}})));
 export function getRuntime(){return runtime;}
