@@ -26,3 +26,8 @@ export function enforceDecimalInput(element, options = {}) {
   if (element.value !== value) element.value = value;
   return value;
 }
+
+export function enforceDecimalInputs(elements, options = {}) {
+  if (!elements) return [];
+  return Array.from(elements, element => enforceDecimalInput(element, options));
+}
