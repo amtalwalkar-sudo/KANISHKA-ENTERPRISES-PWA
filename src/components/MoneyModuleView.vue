@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import KfeFormShell from './KfeFormShell.vue';import KfeFormField from './KfeFormField.vue';import FuelHistoryView from './FuelHistoryView.vue';
 const props=defineProps({module:{type:String,required:true},fuelRecords:{type:Array,default:()=>[]},fuelHistoryOpen:{type:Boolean,default:false},application:{type:Object,required:true}});
 const emit=defineEmits(['save-request','back','open','fuel-history-back','fuel-undo']);
@@ -11,6 +11,7 @@ const formSpec=computed(()=>{if(props.module==='Fuel'&&activeAction.value==='Add
 async function load(){try{model.value=await props.application.getAdminState();}catch{model.value=null;}}
 function openAction(item){if(item==='Fuel history'){emit('open','Fuel history');return;}if(item==='Add fuel'){emit('open','Work');return;}if(['Expense history','Revenue history'].includes(item)){detail.value=item;void load();return;}if(formSpec.value)activeAction.value=item;else emit('open',item);}
 function closeAction(){activeAction.value='';}function closeDetail(){detail.value='';}function onSave(value){emit('save-request',{module:props.module,action:activeAction.value,value});}
+watch(()=>props.module,()=>{activeAction.value='';detail.value='';model.value=null;void load();});
 onMounted(load);
 </script>
 <template>
