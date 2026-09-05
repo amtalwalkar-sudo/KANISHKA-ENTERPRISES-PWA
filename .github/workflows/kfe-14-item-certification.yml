@@ -28,16 +28,11 @@ jobs:
           set -euo pipefail
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
-            event_sha="${{ github.event.pull_request.head.sha }}"
           else
-            current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-            event_sha="${{ github.sha }}"
+            current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq '.object.sha')"
           fi
-          if [[ -z "$current_sha" || -z "$event_sha" ]]; then
-            echo "STATE_MISMATCH: unable to resolve current and event revision"
-            exit 1
-          fi
-          if [[ "$current_sha" != "$event_sha" ]]; then
+          event_sha="${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}"
+          if [[ -z "$current_sha" || -z "$event_sha" || "$current_sha" != "$event_sha" ]]; then
             echo "STATE_MISMATCH: live=$current_sha event=$event_sha"
             exit 1
           fi
@@ -49,15 +44,107 @@ jobs:
           ref: ${{ steps.state.outputs.validated_sha }}
           fetch-depth: 1
 
-      - name: Setup Node 20
+      - name: Verify checkout and export CI state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KFE_VALIDATED_SHA: ${{ steps.state.outputs.validated_sha }}
+        run: |
+          set -euo pipefail
+          observed_sha="$(git rev-parse HEAD)"
+          if [[ "$observed_sha" != "$KFE_VALIDATED_SHA" ]]; then
+            echo "STATE_MISMATCH: checked_out=$observed_sha expected=$KFE_VALIDATED_SHA"
+            exit 1
+          fi
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
+          else
+            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq '.object.sha')"
+          fi
+          if [[ "$live_sha" != "$observed_sha" ]]; then
+            echo "STATE_MISMATCH: live=$live_sha checked_out=$observed_sha"
+            exit 1
+          fi
+          echo "KFE_VALIDATED_SHA=$observed_sha" >> "$GITHUB_ENV"
+          echo "KFE_OBSERVED_CODE_SHA=$observed_sha" >> "$GITHUB_ENV"
+          echo "KFE_CI_RUN_SHA=$observed_sha" >> "$GITHUB_ENV"
+          echo "KFE_STATE_STATUS=FRESH" >> "$GITHUB_ENV"
+
+      - name: Setup Node 24
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
       - name: Install dependencies
         run: npm install
-      - name: Build application
+      - name: Build certification artifact
         run: GITHUB_ACTIONS=false npm run build
-      - name: Install Chromium
-        run: timeout 180s npx playwright install --with-deps chromium
-      - name: Run 14-item certification suite
-        run: npm run validate:e2e
+      - name: Install Playwright Chromium and headless shell
+        run: npx playwright install --with-deps chromium chromium-headless-shell
+      - name: Structural and governance contracts
+        run: |
+          npm run validate:kfe-screen-contract
+          npm run validate:foundation-preflight
+          npm run validate:governance
+          npm run validate:architecture
+          npm run validate:foundation
+          npm run validate:foundation-audit
+          npm run validate:domain
+      - name: Domain and application lifecycle contracts
+        run: |
+          npm run validate:phase-i
+          npm run validate:phase-j
+          npm run validate:phase-k
+          npm run validate:phase-l
+          npm run validate:phase-m
+          npm run validate:phase-n
+      - name: PWA and UI contracts
+        run: |
+          npm run validate:phase-1
+          npm run validate:phase-2
+          npm run validate:phase-3
+          npm run validate:phase-5
+          npm run validate:phase-5-replication
+          npm run validate:phase-5-module-contracts
+          npm run validate:phase-5-completion-integrity
+          npm run validate:phase-6-ui-shell
+          npm run validate:phase-7-reliability
+      - name: Application and real-persistence contracts
+        env:
+          GITHUB_ACTIONS: false
+        run: |
+          npm run validate:phase-5-vehicle
+          npm run validate:phase-5-fuel-application
+          npm run validate:phase-5-expenses-application
+          npm run validate:phase-5-revenue-application
+          npm run validate:phase-5-loans-application
+          npm run validate:phase-5-renewals-compliance-application
+          npm run validate:phase-5-maintenance-application
+          npm run validate:phase-5-profitability-application
+          npm run validate:phase-5-dashboard-application
+          npm run validate:phase-5-vehicle-real-persistence
+          npm run validate:phase-5-fuel-real-persistence
+          npm run validate:phase-5-expenses-real-persistence
+          npm run validate:phase-5-revenue-real-persistence
+          npm run validate:phase-5-loans-real-persistence
+          npm run validate:phase-5-renewals-compliance-real-persistence
+          npm run validate:phase-5-maintenance-real-persistence
+      - name: Browser certification
+        run: |
+          nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
+          npm run validate:work-screen-browser
+          npm run validate:e2e
+      - name: Final build and syntax integrity
+        run: |
+          for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done
+          GITHUB_ACTIONS=false npm run build
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kfe-14-item-certification-diagnostics
+          path: |
+            /tmp/kfe-vite.log
+            playwright-report
+            test-results
+          if-no-files-found: ignore
