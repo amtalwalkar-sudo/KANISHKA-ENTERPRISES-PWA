@@ -18,6 +18,8 @@ import {createHistoricalCorrections} from './historical-corrections.js';
 import {createAdministratorApplication} from './administrator.js';
 import {createFixedExpenseApplication} from './fixed-expense.js';
 import {createLoanRepository} from './loan-repository.js';
+import {closeKfeDb} from '../core/hardened-db.js';
+import {resetBackupStorage} from '../core/backup-storage.js';
 
 export function createKfeApplication(repository){
  const graph=createDependencyGraph();
@@ -51,6 +53,11 @@ export function createKfeApplication(repository){
  async function setTheme(theme){const value=String(theme||'').toLowerCase();if(!THEMES.has(value))throw new RangeError('Unsupported KFE theme');const rows=await repository.entity('settings').list();const active=rows.find(row=>row.kind===SETTINGS_KIND&&!row.is_deleted);if(active)return repository.entity('settings').update(active,{kind:SETTINGS_KIND,theme:value});return repository.entity('settings').create({kind:SETTINGS_KIND,theme:value},{});}
  async function exportBackup(){return repository.exportSnapshot();}
  async function restoreBackup(snapshot){return repository.importSnapshot(snapshot);}
- async function resetAllData(){if(typeof indexedDB==='undefined')throw new Error('IndexedDB unavailable');await new Promise((resolve,reject)=>{const request=indexedDB.deleteDatabase('kfe');request.onsuccess=()=>resolve();request.onerror=()=>reject(request.error||new Error('Data reset failed'));request.onblocked=()=>reject(new Error('Data reset blocked by an open database connection'));});}
+ async function resetAllData(){
+   if(typeof indexedDB==='undefined')throw new Error('IndexedDB unavailable');
+   await closeKfeDb();
+   await resetBackupStorage();
+   await new Promise((resolve,reject)=>{const request=indexedDB.deleteDatabase('kfe');request.onsuccess=()=>resolve();request.onerror=()=>reject(request.error||new Error('Data reset failed'));request.onblocked=()=>reject(new Error('Data reset blocked by an open database connection'));});
+ }
  return Object.freeze({graph,administrator,work,fixedExpenses,telemetry,historicalCorrections,saveHistoricalCorrection:historicalCorrections.save,startWork,getWork,listWork,completeWork,recordHistoricalDay,listFuel,recordFuel,recordHistoricalFuel,updateFuel,undoFuel,listTrips,recordTrip,updateTrip,undoTrip,recordRevenue,recordExpense,recordMaintenance,recordCompliance,recordVehicleLifecycle,createLoan,recordLoanPayment,getLoanReadModel,getPerformance,getAdminState,getTimeline,getSettings,setTheme,exportBackup,restoreBackup,resetAllData,calculateWorkSession,expectedTomorrowKm,rollingFuelCostPerKm,projectedFuelCostForKm,businessExpenses,fixedExpensePerBusinessKm,provisionMaintenance,reconcileInvoice,maintenanceAlerts,businessRevenue,amortize,applyPrepayment,profitability,tomorrowTarget,evaluateAlerts,getWorkScreenState:work.state,startDay:work.startDay,startShift:work.startShift,recordBreakMinutes:work.recordBreakMinutes,startBusinessTrip:work.startBusinessTrip,startPersonalTrip:work.startPersonalTrip,endBusinessTrip:work.endBusinessTrip,endPersonalTrip:work.endPersonalTrip,endShift:work.endShift,endDay:work.endDay,undoWorkAction:work.undo,workSummary:work.summary,latestWorkOdometer:work.latestOdometer});
 }
