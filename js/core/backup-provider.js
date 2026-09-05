@@ -13,7 +13,7 @@ export function createMemoryBackupProvider(){
   const records=new Map();
   return createBackupProviderContract({
     async put(backup){if(!backup?.id)throw new TypeError('Backup id is required');records.set(backup.id,structuredClone(backup));return structuredClone(backup);},
-    async list(){return [...records.values()].map(structuredClone).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));},
+    async list(){return [...records.values()].map(value=>structuredClone(value)).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));},
     async get(id){const value=records.get(id);return value?structuredClone(value):null;},
     async remove(id){return records.delete(id);}
   });
