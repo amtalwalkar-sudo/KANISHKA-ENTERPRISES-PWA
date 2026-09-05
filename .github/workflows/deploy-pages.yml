@@ -1,99 +1,42 @@
-name: Deploy & Gemini Auto-Fix to GitHub Pages
+name: KFE 2.0 Publish Production PWA
 
-# KFE deployment workflow: every main push publishes the current build.
 on:
   push:
-    branches: [ main, master ]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
 concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  group: pages
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: npm install
 
-      - name: Build & Inline Gemini Auto-Fix
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          mkdir -p .logs
-          
-          if ! (npm run lint > .logs/ci.log 2>&1 && npm run build >> .logs/ci.log 2>&1); then
-            echo "⚠️ Initial build failed. Invoking Gemini Auto-Fix..."
-            
-            node -e '
-            const fs = require("fs");
-            const https = require("https");
+      - name: Build production PWA
+        run: npm run build
 
-            const log = fs.readFileSync(".logs/ci.log", "utf8");
-            const targetFile = "src/components/AdminDashboard.vue";
-            const currentCode = fs.existsSync(targetFile) ? fs.readFileSync(targetFile, "utf8") : "";
-
-            const prompt = `Fix all lint and build errors based on the CI log. Return ONLY raw updated code without markdown blocks.\n\nCI LOG:\n${log}\n\nFILE:\n${currentCode}`;
-            const payload = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] });
-
-            const req = https.request({
-              hostname: "generativelanguage.googleapis.com",
-              path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-              method: "POST",
-              headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }
-            }, (res) => {
-              let body = "";
-              res.on("data", chunk => body += chunk);
-              res.on("end", () => {
-                const json = JSON.parse(body);
-                let cleanCode = json.candidates[0].content.parts[0].text;
-                cleanCode = cleanCode.replace(/^```[a-z]*\n/i, "").replace(/\n```$/, "");
-                fs.writeFileSync(targetFile, cleanCode);
-                console.log("Applied Gemini repair patch to " + targetFile);
-              });
-            });
-            req.write(payload);
-            req.end();
-            '
-
-            echo "🔄 Retrying build with repaired code..."
-            npm run build
-            echo "FIX_APPLIED=true" >> $GITHUB_ENV
-          fi
-
-      - name: Commit Repaired Code Back
-        if: env.FIX_APPLIED == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          commit_message: "fix(ci): auto-repaired code via Gemini API [skip ci]"
-          branch: ${{ github.head_ref || github.ref_name }}
+          path: ./dist
 
-      - name: Upload Static Build Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './dist'
-
-  deploy:
-    needs: build-and-deploy
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
