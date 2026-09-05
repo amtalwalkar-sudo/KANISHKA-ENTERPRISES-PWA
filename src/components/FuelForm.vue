@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { application } from '../../js/app.js';
+import { application } from '../presentation/application/presentation-runtime.js';
 import { clearFormDraft, hasFormDraft } from '../../js/ui/form-drafts.js';
 import { timelineArea } from '../../js/ui/timeline.js';
 

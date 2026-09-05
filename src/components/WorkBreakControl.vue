@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { application } from '../../js/app.js'
+import { application } from '../presentation/application/presentation-runtime.js'
 
 const model = ref(null)
 const open = ref(false)

@@ -9,6 +9,8 @@
     "dev:https": "vite --host 0.0.0.0 --https",
     "build": "vite build",
     "preview": "vite preview",
+    "validate:shell-resolver": "node js/testing/shell-resolver-contract.mjs",
+    "validate:replaceable-shell": "node js/testing/replaceable-shell-contract.mjs",
     "validate:settings": "node js/testing/settings-contract.mjs",
     "validate:vehicle-domain": "node js/testing/vehicle-domain-contract.mjs",
     "validate:fixed-expense-lifecycle": "node js/testing/fixed-expense-lifecycle-contract.mjs",

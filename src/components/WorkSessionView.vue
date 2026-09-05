@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { application, actions } from '../../js/app.js'
+import { application, actions } from '../presentation/application/presentation-runtime.js'
 import { createUiCommand } from '../../js/application/ui-contract.js'
 import KfeSwipeBar from './KfeSwipeBar.vue'
 import { clearFormDraft, hasFormDraft } from '../../js/ui/form-drafts.js'
