@@ -31,7 +31,7 @@
     "Settings": {"required": true, "surface": "admin-child", "parent": "Admin", "features": ["theme", "localBackup", "localRestore", "resetErpData", "about"]}
   },
   "settingsContract": {
-    "theme": {"required": true, "options": ["system", "light", "dark"], "persisted": true},
+    "theme": {"required": true, "options": ["day", "night", "dusk"], "persisted": true},
     "localBackup": {"required": true, "format": "application/json"},
     "localRestore": {"required": true, "replacesCurrentLocalData": true},
     "resetErpData": {"required": true, "confirmationRequired": true},
