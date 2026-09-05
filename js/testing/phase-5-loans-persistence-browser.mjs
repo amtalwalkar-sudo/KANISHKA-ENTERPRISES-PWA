@@ -1,11 +1,11 @@
 import {chromium} from '@playwright/test';
 import {spawn} from 'node:child_process';
 
-const port=4176;
-const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true});
+const port=4181;
+const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true,env:{...process.env,GITHUB_ACTIONS:'false'}});
 let output='';
-server.stdout.on('data',chunk=>{output+=chunk.toString();});
-server.stderr.on('data',chunk=>{output+=chunk.toString();});
+server.stdout.on('data',c=>output+=c.toString());
+server.stderr.on('data',c=>output+=c.toString());
 async function waitForServer(url,timeoutMs=30000){const started=Date.now();while(Date.now()-started<timeoutMs){try{const response=await fetch(url);if(response.ok)return;}catch{}await new Promise(resolve=>setTimeout(resolve,250));}throw new Error(`Vite preview did not start. Output:\n${output}`);}
 async function withTimeout(promise,label,timeoutMs=30000){return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${label} timed out after ${timeoutMs}ms`)),timeoutMs))]);}
 function stopServer(){try{process.kill(-server.pid,'SIGTERM');}catch{try{server.kill('SIGTERM');}catch{}}}
