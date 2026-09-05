@@ -6,8 +6,6 @@ const KEY='kfe:state:v1';
 function clone(value){return structuredClone(value);}
 function assertStoreName(name){if(typeof name!=='string'||!name)throw new TypeError('Repository store name is required');return name;}
 
-// Base repository for all domain entities. Metadata is created/validated here,
-// at the persistence boundary, rather than being trusted from callers.
 export function createEntityRepository(storeName){
   assertStoreName(storeName);
   return Object.freeze({
@@ -20,8 +18,6 @@ export function createEntityRepository(storeName){
   });
 }
 
-// Configuration repository: configuration records carry effective dating and
-// versioning in addition to the authoritative metadata contract.
 export function createConfigurationRepository(storeName){
   assertStoreName(storeName);
   return Object.freeze({
@@ -44,10 +40,19 @@ export function createConfigurationRepository(storeName){
 }
 
 export function createRepository({initial={}}={}){
-  let memory=clone(initial);let hydrated=false;
-  async function load(){if(hydrated)return clone(memory);hydrated=true;await openKfeDb();const record=await read('state',KEY);memory=record?.value?clone(record.value):clone(initial);return clone(memory);}
-  // `state` is an internal singleton keyed by a stable namespace key, not a
-  // domain entity; entity repositories above enforce the UUID contract.
+  let memory=clone(initial);
+  let hydrationPromise=null;
+  async function load(){
+    if(hydrationPromise)return hydrationPromise;
+    hydrationPromise=(async()=>{
+      await openKfeDb();
+      const record=await read('state',KEY);
+      memory=record?.value?clone(record.value):clone(initial);
+      return clone(memory);
+    })();
+    try{return await hydrationPromise;}
+    catch(error){hydrationPromise=null;throw error;}
+  }
   async function save(next){memory=clone(next);const now=new Date().toISOString();await write('state',{id:KEY,value:memory,created_at:now,updated_at:now,synced:false,is_deleted:false});return clone(memory);}
   async function clear(){memory=clone(initial);await remove('state',KEY);return clone(memory);}
   async function atomic(storeNames,operation){const db=await openKfeDb();return runAtomicTransaction(db,storeNames,operation);}
@@ -68,7 +73,7 @@ export function createRepository({initial={}}={}){
       for(const name of STORE_NAMES)stores[name].clear();
       for(const name of names)for(const record of snapshot.stores[name])stores[name].put(record);
       return true;
-    }).then(()=>{memory=clone(initial);hydrated=false;return true;});
+    }).then(()=>{memory=clone(initial);hydrationPromise=null;return true;});
   }
   return {load,save,clear,atomic,exportSnapshot,importSnapshot,createRecord:(data,meta)=>createRecord(data,meta),updateRecord:(existing,changes)=>updateRecord(existing,changes),softDeleteRecord,assertRecord:assertAuthoritativeRecord,entity:(store)=>createEntityRepository(store),configuration:(store)=>createConfigurationRepository(store),async getIdempotency(id){return read('idempotency',id);},async saveIdempotency(entry){return write('idempotency',entry);}};
 }
