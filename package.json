@@ -59,7 +59,8 @@
     "validate:phase-5-dashboard-application": "node js/testing/phase-5-dashboard-application-boundary.mjs",
     "validate:phase-5-completion-integrity": "node js/testing/phase-5-completion-integrity.mjs",
     "validate:phase-6-ui-shell": "node js/testing/phase-6-ui-shell-contract.mjs",
-    "validate:phase-7-reliability": "node js/testing/phase-7-reliability-contract.mjs"
+    "validate:phase-7-reliability": "node js/testing/phase-7-reliability-contract.mjs",
+    "validate:e2e": "node js/testing/e2e-certification.mjs"
   },
   "dependencies": {"vue": "^3.5.18"},
   "devDependencies": {"@playwright/test": "^1.55.0", "@vitejs/plugin-vue": "^6.0.1", "vite": "^7.1.3", "vite-plugin-pwa": "^1.0.2"}
