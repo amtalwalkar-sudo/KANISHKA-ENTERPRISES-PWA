@@ -16,10 +16,10 @@ const restoreInput = ref(null);
 
 const MODULES = {
   Driver: { eyebrow: 'Vehicle', title: 'Driver', subtitle: 'Driver attached to the current vehicle.', sections: [{ title: 'Driver', items: ['Driver details', 'Vehicle attachment'] }] },
-  Fuel: { eyebrow: 'Money', title: 'Fuel', subtitle: 'Record fuel using the established KFE fuel model.', sections: [{ title: 'Fuel', items: ['Add fuel', 'Fuel history'] }] },
-  Expenses: { eyebrow: 'Money', title: 'Expenses', subtitle: 'One unified expense model for business expenses.', sections: [{ title: 'Expenses', items: ['Add expense', 'Expense history'] }, { title: 'Quick entry', items: ['Toll', 'Parking'] }] },
-  Revenue: { eyebrow: 'Money', title: 'Revenue', subtitle: 'Fast manual end-of-day revenue entry.', sections: [{ title: 'Revenue', items: ['Enter today’s revenue', 'Revenue history'] }] },
-  Loans: { eyebrow: 'Money', title: 'Loans', subtitle: 'Current obligations, payments and financial history.', sections: [{ title: 'Loan status', items: ['EMI', 'Outstanding balance', 'Vehicle association'] }, { title: 'History & tools', items: ['Payment history', 'Amortization', 'Prepayment calculator'] }] },
+  Fuel: { eyebrow: 'Vehicle Operations', title: 'Fuel', subtitle: 'Record fuel using the established KFE fuel model.', sections: [{ title: 'Fuel', items: ['Add fuel'] }] },
+  Expenses: { eyebrow: 'Business Operations', title: 'Expenses', subtitle: 'One unified expense model for business expenses.', sections: [{ title: 'Expenses', items: ['Add expense'] }, { title: 'Quick entry', items: ['Toll', 'Parking'] }] },
+  Revenue: { eyebrow: 'Business Operations', title: 'Revenue', subtitle: 'Fast manual end-of-day revenue entry.', sections: [{ title: 'Revenue', items: ['Enter today’s revenue'] }] },
+  Loans: { eyebrow: 'Finance', title: 'Loans', subtitle: 'Current obligations, payments and financial history.', sections: [{ title: 'Loan status', items: ['EMI', 'Outstanding balance', 'Vehicle association'] }, { title: 'History & tools', items: ['Payment history', 'Amortization', 'Prepayment calculator'] }] },
   Compliance: { eyebrow: 'Vehicle Operations', title: 'Compliance', subtitle: 'Renewals, validity and historical records.', sections: [{ title: 'Renewals', items: ['Add renewal', 'Current validity', 'Renewal history'] }] },
   Dashboard: { eyebrow: 'Business', title: 'Dashboard', subtitle: 'Actual business performance — what actually happened.', sections: [{ title: 'Actuals', items: ['Revenue', 'Costs', 'Business profitability', 'Operating metrics'] }] },
   Profitability: { eyebrow: 'Business', title: 'Profitability', subtitle: 'Decision-oriented financial interpretation.', sections: [{ title: 'Views', items: ['Actual', 'Projected', 'Target', 'Break-even'] }] },
