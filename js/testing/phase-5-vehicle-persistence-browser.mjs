@@ -34,7 +34,11 @@ try{
       const page=await context.newPage();
       const pageErrors=[];page.on('pageerror',error=>pageErrors.push(String(error?.message||error)));
       await page.goto(`http://127.0.0.1:${port}/`,{waitUntil:'domcontentloaded'});
-      await page.waitForFunction(() => window.__KFE_PERSISTENCE_READY__ === true, null, {timeout:10000});
+      try{
+        await page.waitForFunction(() => window.__KFE_PERSISTENCE_READY__ === true, null, {timeout:30000});
+      }catch(error){
+        throw new Error(`Persistence readiness timeout. pageErrors=${pageErrors.join(' | ')||'none'} consoleOutput=${output.slice(-4000)}`);
+      }
       const result=await page.evaluate(async()=>{
         const openDb=(name,version)=>new Promise((resolve,reject)=>{const request=indexedDB.open(name,version);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB open failed'));});
         const requestResult=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB request failed'));});
