@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import KfeStatePanel from './KfeStatePanel.vue';
 import KfeFormShell from './KfeFormShell.vue';
 import KfeFormField from './KfeFormField.vue';
@@ -56,6 +56,7 @@ function openAction(item) { if (props.module === 'Settings') { if (item === 'The
 function closeAction() { activeAction.value = ''; }
 function closeSettings() { settingsOpen.value = false; settingsMessage.value = ''; settingsError.value = ''; }
 function onSave(value) { emit('save-request', { module: props.module, action: activeAction.value, value }); }
+watch(() => props.module, () => { activeAction.value = ''; settingsOpen.value = false; settingsMessage.value = ''; settingsError.value = ''; settingsBusy.value = false; });
 onMounted(() => { if (props.module === 'Settings') { settingsOpen.value = true; void loadSettings(); } });
 </script>
 
