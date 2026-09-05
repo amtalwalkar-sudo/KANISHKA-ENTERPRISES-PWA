@@ -9,6 +9,13 @@ function copyRuntimeAssets(){
     closeBundle(){
       const out=resolve('dist');
       if(existsSync('js')) cpSync('js',resolve(out,'js'),{recursive:true});
+      // These files live at repository root for the existing runtime/tests,
+      // but GitHub Pages publishes only dist. Copy the complete PWA runtime
+      // surface into the production artifact so the deployed app is not a
+      // blank shell with missing service-worker/icons.
+      for(const file of ['service-worker.js','icon-192.png','icon-512.png']){
+        if(existsSync(file)) cpSync(file,resolve(out,file));
+      }
     },
     configurePreviewServer(server){
       server.middlewares.use((req,res,next)=>{
