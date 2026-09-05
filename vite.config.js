@@ -29,7 +29,9 @@ function copyRuntimeAssets(){
 
 export default defineConfig({
   appType:'spa',
-  base:process.env.GITHUB_ACTIONS==='true'&&process.env.npm_lifecycle_event==='build'?'/KANISHKA-ENTERPRISES-PWA/':'/',
+  // GitHub Pages is a project site. Keep the production base deterministic
+  // instead of depending on npm's lifecycle environment.
+  base:process.env.GITHUB_ACTIONS==='true'?'/KANISHKA-ENTERPRISES-PWA/':'/',
   plugins:[vue(),copyRuntimeAssets()],
   server:{host:'0.0.0.0'},
   build:{target:'es2022'},
