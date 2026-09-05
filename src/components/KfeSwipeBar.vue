@@ -48,20 +48,7 @@ function keyboard(event) {
 }
 
 function accessibleClick(event) {
-  if (props.disabled) return
-  // A single-action swipe bar is also a normal mobile action target.
-  // Dual bars retain swipe-only side selection so a tap cannot trigger
-  // the wrong side. This makes form confirmation actions tappable without
-  // changing the existing swipe semantics.
-  if (props.leftAction && !props.rightAction) {
-    if (!props.leftDisabled) emit('swipe', props.leftAction)
-    return
-  }
-  if (props.rightAction && !props.leftAction) {
-    if (!props.rightDisabled) emit('swipe', props.rightAction)
-    return
-  }
-  if (event.detail !== 0) return
+  if (event.detail !== 0 || props.disabled) return
   if (props.rightAction && !props.rightDisabled) emit('swipe', props.rightAction)
   else if (props.leftAction && !props.leftDisabled) emit('swipe', props.leftAction)
 }
