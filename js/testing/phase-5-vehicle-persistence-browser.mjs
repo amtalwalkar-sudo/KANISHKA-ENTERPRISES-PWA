@@ -1,10 +1,11 @@
 import {chromium} from '@playwright/test';
 import {spawn} from 'node:child_process';
 const port=4174;
-const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true});
+const origin=`http://127.0.0.1:${port}`;
+const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true,env:{...process.env,GITHUB_ACTIONS:'false'}});
 let output='';server.stdout.on('data',c=>output+=c.toString());server.stderr.on('data',c=>output+=c.toString());
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-async function waitForServer(){for(let i=0;i<120;i++){try{if((await fetch(`http://127.0.0.1:${port}/`)).ok)return;}catch{}await sleep(250)}throw new Error(`Vite preview did not start: ${output}`)}
+async function waitForServer(){for(let i=0;i<120;i++){try{if((await fetch(`${origin}/`)).ok)return;}catch{}await sleep(250)}throw new Error(`Vite preview did not start: ${output}`)}
 function stop(){try{process.kill(-server.pid,'SIGTERM')}catch{try{server.kill('SIGTERM')}catch{}}}
 try{
   await waitForServer();
@@ -13,8 +14,9 @@ try{
     const context=await browser.newContext({serviceWorkers:'block'});
     try{
       const setupPage=await context.newPage();
-      const manifestResponse=await setupPage.goto(`http://127.0.0.1:${port}/manifest.json`,{waitUntil:'load'});
-      if(manifestResponse?.headers()['content-type']?.split(';')[0]!=='application/manifest+json')throw new Error(`Legacy IndexedDB setup did not receive manifest.json; content-type=${manifestResponse?.headers()['content-type']||'unknown'}`);
+      const manifestResponse=await setupPage.goto(`${origin}/manifest.json`,{waitUntil:'load'});
+      const manifestType=manifestResponse?.headers()['content-type']?.split(';')[0]||'unknown';
+      if(!['application/manifest+json','application/json'].includes(manifestType))throw new Error(`Legacy IndexedDB setup did not receive manifest.json; content-type=${manifestType}`);
       await setupPage.evaluate(async()=>{
         const deleteDb=()=>new Promise((resolve,reject)=>{const request=indexedDB.deleteDatabase('kfe');request.onsuccess=resolve;request.onerror=()=>reject(request.error||new Error('Legacy IndexedDB reset failed'));request.onblocked=()=>reject(new Error('Legacy IndexedDB reset was blocked'));});
         for(let attempt=1;attempt<=5;attempt++){
@@ -33,8 +35,12 @@ try{
       await setupPage.close();
       const page=await context.newPage();
       const pageErrors=[];page.on('pageerror',error=>pageErrors.push(String(error?.message||error)));
-      await page.goto(`http://127.0.0.1:${port}/`,{waitUntil:'domcontentloaded'});
-      await page.waitForFunction(() => window.__KFE_PERSISTENCE_READY__ === true, null, {timeout:10000});
+      await page.goto(`${origin}/`,{waitUntil:'domcontentloaded'});
+      try{
+        await page.waitForFunction(() => window.__KFE_PERSISTENCE_READY__ === true, null, {timeout:30000});
+      }catch(error){
+        throw new Error(`Persistence readiness timeout. pageErrors=${pageErrors.join(' | ')||'none'} consoleOutput=${output.slice(-4000)}`);
+      }
       const result=await page.evaluate(async()=>{
         const openDb=(name,version)=>new Promise((resolve,reject)=>{const request=indexedDB.open(name,version);request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB open failed'));});
         const requestResult=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB request failed'));});

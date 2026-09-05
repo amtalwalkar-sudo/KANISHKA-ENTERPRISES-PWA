@@ -111,6 +111,8 @@ jobs:
           npm run validate:phase-6-ui-shell
           npm run validate:phase-7-reliability
       - name: Application and real-persistence contracts
+        env:
+          GITHUB_ACTIONS: false
         run: |
           npm run validate:phase-5-vehicle
           npm run validate:phase-5-fuel-application
