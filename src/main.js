@@ -1,6 +1,11 @@
-import '../js/app.js';
+import { repository } from '../js/app.js';
 import { createApp } from 'vue';
 import { resolveKfeShell } from './presentation/shell/shell-resolver.js';
+
+// Complete local persistence hydration before mounting the UI. This guarantees
+// IndexedDB schema upgrades and persisted state are settled before any screen
+// reads from the runtime.
+await repository.load();
 
 const resolvedShell = resolveKfeShell();
 const app = createApp(resolvedShell.shell.component);
