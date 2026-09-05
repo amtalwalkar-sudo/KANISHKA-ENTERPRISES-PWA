@@ -5,11 +5,14 @@ on:
       - 'js/core/backup-*.js'
       - 'js/core/hardened-db.js'
       - 'js/core/repository.js'
+      - 'js/application/kfe.js'
       - 'js/app.js'
       - 'src/components/BackupRestorePanel.vue'
       - 'src/components/KfeModuleView.vue'
+      - 'src/components/AdminModuleView.vue'
       - 'src/presentation/application/presentation-api.js'
       - 'js/testing/backup-restore-*.mjs'
+      - 'js/testing/settings-*.mjs'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/kfe-backup-restore.yml'
@@ -24,7 +27,9 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
+      - run: npm run validate:settings
       - run: npm run validate:backup-provider
       - run: npx playwright install --with-deps chromium
       - run: npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/kfe-vite.log 2>&1 &
       - run: node js/testing/backup-restore-browser.mjs
+      - run: npm run validate:settings-browser
