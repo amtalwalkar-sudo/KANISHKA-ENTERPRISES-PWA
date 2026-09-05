@@ -1,13 +1,16 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import KfeFormShell from './KfeFormShell.vue';
+const props=defineProps({application:{type:Object,required:true}});
 const emit = defineEmits(['save-request', 'back']);
-const editing = ref(false);
-const detail = ref('');
+const editing = ref(false);const detail = ref('');const model=ref(null);
 const initial = { type: '', cost: '', start: '', end: '' };
+const records=computed(()=>model.value?.complianceRecords||[]);
+async function load(){try{model.value=await props.application.getAdminState();}catch{model.value=null;}}
 function save(value) { emit('save-request', { module: 'Compliance', value }); }
-function openDetail(value) { detail.value = value; }
+function openDetail(value) { detail.value = value; void load(); }
 function closeDetail() { detail.value = ''; }
+onMounted(load);
 </script>
 <template>
   <section class="kfe-module-view" aria-labelledby="compliance-title">
@@ -16,8 +19,9 @@ function closeDetail() { detail.value = ''; }
       <p class="kfe-eyebrow">Vehicle Operations</p>
       <h1 id="compliance-title">{{ detail === 'history' ? 'Renewal history' : 'Current validity' }}</h1>
       <article class="kfe-detail-card">
-        <strong>{{ detail === 'history' ? 'Authoritative renewal history' : 'No active validity recorded' }}</strong>
-        <p>{{ detail === 'history' ? 'Completed renewals will appear here from the application read model.' : 'The current validity record will appear here when authoritative renewal data is available.' }}</p>
+        <strong>{{ detail === 'history' ? 'Authoritative renewal history' : 'Current validity records' }}</strong>
+        <div v-if="records.length" class="kfe-module-list"><article v-for="row in records" :key="row.id" class="kfe-detail-card"><strong>{{ row.type || row.name || 'Renewal' }}</strong><p>{{ row.start || row.valid_from || row.business_date || row.date }} → {{ row.end || row.valid_to || 'No end date' }}<span v-if="row.cost_paise!=null"> · ₹{{ (Number(row.cost_paise)/100).toFixed(2) }}</span></p><p v-if="detail==='validity'">{{ String(row.end || row.valid_to || '') >= new Date().toISOString().slice(0,10) ? 'VALID' : 'EXPIRED' }}</p></article></div>
+        <p v-else>No compliance records recorded.</p>
       </article>
     </template>
     <template v-else-if="!editing">
