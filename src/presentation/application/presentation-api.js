@@ -1,12 +1,13 @@
-import { application, actions } from '../../../js/app.js';
+import { application, actions, backup } from '../../../js/app.js';
 
 /**
  * Stable presentation-facing capability boundary.
  * Shells consume this object instead of importing the application singleton directly.
  * Business rules and persistence remain owned by the application/domain layers.
  */
-export function createKfePresentationApi({ app = application, commandActions = actions } = {}) {
+export function createKfePresentationApi({ app = application, commandActions = actions, backupEngine = backup } = {}) {
   if (!app || typeof app !== 'object') throw new TypeError('KFE application is required.');
+  if (!backupEngine || typeof backupEngine !== 'object') throw new TypeError('KFE backup engine is required.');
 
   const read = {
     getWorkScreenState: (...args) => app.getWorkScreenState(...args),
@@ -16,6 +17,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getAdminState: (...args) => app.getAdminState(...args),
     getLoanReadModel: (...args) => app.getLoanReadModel(...args),
     getSettings: (...args) => app.getSettings(...args),
+    getBackupStatus: (...args) => backupEngine.getStatus(...args),
   };
 
   const commands = {
@@ -41,8 +43,11 @@ export function createKfePresentationApi({ app = application, commandActions = a
     createLoan: (...args) => app.createLoan(...args),
     recordLoanPayment: (...args) => app.recordLoanPayment(...args),
     setTheme: (...args) => app.setTheme(...args),
-    exportBackup: (...args) => app.exportBackup(...args),
-    restoreBackup: (...args) => app.restoreBackup(...args),
+    exportBackup: (...args) => backupEngine.createPortableBackup(...args),
+    restoreBackup: (...args) => backupEngine.restorePackage(...args),
+    exportPortableBackupFile: (...args) => backupEngine.exportPortableFile(...args),
+    restorePortableBackupText: (...args) => backupEngine.restorePortableText(...args),
+    refreshLocalBackup: (...args) => backupEngine.refreshLocal(...args),
     resetAllData: (...args) => app.resetAllData(...args),
     saveHistoricalCorrection: (...args) => app.saveHistoricalCorrection(...args),
   };
@@ -70,12 +75,27 @@ export function createKfePresentationApi({ app = application, commandActions = a
     deactivate: (...args) => app.fixedExpenses.deactivate(...args),
   });
 
+  const backupApi = Object.freeze({
+    status: (...args) => backupEngine.getStatus(...args),
+    refreshLocal: (...args) => backupEngine.refreshLocal(...args),
+    createPortableBackup: (...args) => backupEngine.createPortableBackup(...args),
+    exportPortableFile: (...args) => backupEngine.exportPortableFile(...args),
+    restorePackage: (...args) => backupEngine.restorePackage(...args),
+    restorePortableText: (...args) => backupEngine.restorePortableText(...args),
+    cloud: Object.freeze({
+      list: (...args) => backupEngine.listCloud(...args),
+      get: (...args) => backupEngine.getCloud(...args),
+      remove: (...args) => backupEngine.removeCloud(...args),
+    }),
+  });
+
   const dispatch = (...args) => commandActions.dispatch(...args);
 
   return Object.freeze({
-    version: '1.0.0',
+    version: '1.1.0',
     read: Object.freeze(read),
     commands: Object.freeze(commands),
+    backup: backupApi,
     administrator,
     fixedExpenses,
     dispatch,
@@ -86,6 +106,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getAdminState: read.getAdminState,
     getLoanReadModel: read.getLoanReadModel,
     getSettings: read.getSettings,
+    getBackupStatus: read.getBackupStatus,
     ...commands,
   });
 }
