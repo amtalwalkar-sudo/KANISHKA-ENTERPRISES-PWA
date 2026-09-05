@@ -20,8 +20,8 @@ export function openKfeDb(){
 }
 export const requestResult=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('IndexedDB request failed'));});
 export async function read(storeName,id){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readonly').objectStore(storeName).get(id));}
-export async function write(storeName,value){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readwrite').objectStore(storeName).put(value));}
-export async function remove(storeName,id){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readwrite').objectStore(storeName).delete(id));}
+export async function write(storeName,value){const db=await openKfeDb();const result=await requestResult(db.transaction(storeName,'readwrite').objectStore(storeName).put(value));if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('kfe:storage-mutated',{detail:{store:storeName,operation:'write'}}));return result;}
+export async function remove(storeName,id){const db=await openKfeDb();const result=await requestResult(db.transaction(storeName,'readwrite').objectStore(storeName).delete(id));if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('kfe:storage-mutated',{detail:{store:storeName,operation:'remove',id}}));return result;}
 export async function all(storeName){const db=await openKfeDb();return requestResult(db.transaction(storeName,'readonly').objectStore(storeName).getAll());}
 let crashCounter=0;
 export async function bufferCrash(error,context={}){const id=`crash-${Date.now().toString(36)}-${(++crashCounter).toString(36)}`;return write('logs',{id,createdAt:new Date().toISOString(),message:String(error?.message||error||'Unknown error'),stack:error?.stack||null,context});}
