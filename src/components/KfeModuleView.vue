@@ -67,7 +67,7 @@ onMounted(() => { if (props.module === 'Settings') { settingsOpen.value = true; 
         <p class="kfe-destination-subtitle">KFE application preferences, recovery and migration tools.</p>
       </div>
       <section class="kfe-module-section"><h2>APP</h2><div class="kfe-settings-options" role="group" aria-label="Theme selection"><button v-for="theme in ['system', 'light', 'dark']" :key="theme" type="button" :class="{'is-active': settingsTheme === theme}" :disabled="settingsBusy" @click="changeTheme(theme)"><span>{{theme === 'system' ? 'System' : theme === 'light' ? 'Light' : 'Dark'}}</span><span aria-hidden="true">{{settingsTheme === theme ? '✓' : ''}}</span></button></div></section>
-      <BackupRestorePanel :application="props.application" />
+      <section class="kfe-module-section"><h2>BACKUP &amp; RESTORE</h2><BackupRestorePanel :application="props.application" /></section>
       <section class="kfe-module-section"><h2>DATA ADMINISTRATION</h2><div class="kfe-module-list"><button type="button" :disabled="settingsBusy" @click="resetErpData"><span>Reset ERP Data</span><span aria-hidden="true">›</span></button></div></section>
       <section class="kfe-module-section"><h2>ABOUT</h2><div class="kfe-module-list"><div class="kfe-detail-card"><strong>KFE 2.0</strong><p>Single-vehicle ERP foundation with clean application, domain and persistence boundaries.</p></div><div class="kfe-detail-card"><strong>Version 2.0.0</strong><p>Current application release.</p></div></div></section>
       <p v-if="settingsMessage" class="kfe-boundary-note" role="status">{{settingsMessage}}</p><p v-if="settingsError" class="kfe-error-note" role="alert">{{settingsError}}</p>
