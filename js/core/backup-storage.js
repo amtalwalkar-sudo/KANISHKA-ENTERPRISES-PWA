@@ -14,6 +14,8 @@ function open(){
   });
   return dbPromise;
 }
+export async function closeBackupStorage(){if(!dbPromise)return;try{const db=await dbPromise;db.close();}finally{dbPromise=null;}}
+export async function resetBackupStorage(){await closeBackupStorage();await new Promise((resolve,reject)=>{if(typeof indexedDB==='undefined'){reject(new Error('IndexedDB unavailable'));return;}const request=indexedDB.deleteDatabase(DB_NAME);request.onsuccess=()=>resolve();request.onerror=()=>reject(request.error||new Error('KFE backup data reset failed'));request.onblocked=()=>reject(new Error('KFE backup data reset blocked by an open database connection'));});}
 async function get(store,id){const db=await open();return requestResult(db.transaction(store,'readonly').objectStore(store).get(id));}
 async function put(store,value){const db=await open();return requestResult(db.transaction(store,'readwrite').objectStore(store).put(value));}
 async function remove(store,id){const db=await open();return requestResult(db.transaction(store,'readwrite').objectStore(store).delete(id));}
