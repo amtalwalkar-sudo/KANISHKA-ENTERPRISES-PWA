@@ -71,7 +71,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
         <KfeSwipeBar v-else-if="!form && screenState === 'PERSONAL_TRIP'" right-label="END PERSONAL TRIP" right-action="END_PERSONAL_TRIP" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="form === 'DAY_START'" right-label="CONFIRM START DAY" right-action="START_DAY_CONFIRM" :disabled="busy || !dayAllocationValid" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="form === 'PERSONAL_START'" right-label="START PERSONAL TRIP" right-action="START_PERSONAL_TRIP_CONFIRM" :disabled="busy || !personalAllocationValid" @swipe="handleSwipe" />
-        <KfeSwipeBar v-else-if="form === 'PERSONAL_END'" right-label="CLOSE PERSONAL TRIP" left-action="CLOSE_PERSONAL_TRIP" :disabled="busy || !personalEndValid" @swipe="handleSwipe" />
+        <KfeSwipeBar v-else-if="form === 'PERSONAL_END'" right-label="CLOSE PERSONAL TRIP" right-action="CLOSE_PERSONAL_TRIP" :disabled="busy || !personalEndValid" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="form === 'SHIFT_END'" left-label="CLOSE SHIFT" left-action="CLOSE_SHIFT" :disabled="busy || !shiftEndValid || !shiftRevenueValid" @swipe="handleSwipe" />
       </div>
       <div v-if="form" class="work-form-overlay" role="dialog" aria-modal="true"><div class="work-form-card" data-kfe-draft-form="true" :data-kfe-draft-key="`work:${form}`"><p class="kfe-eyebrow">{{ form === 'DAY_START' ? 'START OF DAY' : form === 'PERSONAL_START' ? 'START PERSONAL TRIP' : form === 'PERSONAL_END' ? 'END PERSONAL TRIP' : 'END SHIFT' }}</p>
