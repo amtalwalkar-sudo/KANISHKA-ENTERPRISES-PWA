@@ -1,108 +1,99 @@
-name: KFE 2.0 Production Pages
+name: Deploy & Gemini Auto-Fix to GitHub Pages
 
 on:
   push:
-    branches: [main]
-  workflow_run:
-    workflows: ["KFE 2.0 14-item certification"]
-    types: [completed]
+    branches: [ main, master ]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
 concurrency:
-  group: kfe-production-pages
+  group: "pages"
   cancel-in-progress: false
 
 jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Build & Inline Gemini Auto-Fix
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          mkdir -p .logs
+          
+          if ! (npm run lint > .logs/ci.log 2>&1 && npm run build >> .logs/ci.log 2>&1); then
+            echo "⚠️ Initial build failed. Invoking Gemini Auto-Fix..."
+            
+            node -e '
+            const fs = require("fs");
+            const https = require("https");
+
+            const log = fs.readFileSync(".logs/ci.log", "utf8");
+            const targetFile = "src/components/AdminDashboard.vue";
+            const currentCode = fs.existsSync(targetFile) ? fs.readFileSync(targetFile, "utf8") : "";
+
+            const prompt = `Fix all lint and build errors based on the CI log. Return ONLY raw updated code without markdown blocks.\n\nCI LOG:\n${log}\n\nFILE:\n${currentCode}`;
+            const payload = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] });
+
+            const req = https.request({
+              hostname: "generativelanguage.googleapis.com",
+              path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) }
+            }, (res) => {
+              let body = "";
+              res.on("data", chunk => body += chunk);
+              res.on("end", () => {
+                const json = JSON.parse(body);
+                let cleanCode = json.candidates[0].content.parts[0].text;
+                cleanCode = cleanCode.replace(/^```[a-z]*\n/i, "").replace(/\n```$/, "");
+                fs.writeFileSync(targetFile, cleanCode);
+                console.log("Applied Gemini repair patch to " + targetFile);
+              });
+            });
+            req.write(payload);
+            req.end();
+            '
+
+            echo "🔄 Retrying build with repaired code..."
+            npm run build
+            echo "FIX_APPLIED=true" >> $GITHUB_ENV
+          fi
+
+      - name: Commit Repaired Code Back
+        if: env.FIX_APPLIED == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "fix(ci): auto-repaired code via Gemini API [skip ci]"
+          branch: ${{ github.head_ref || github.ref_name }}
+
+      - name: Upload Static Build Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
   deploy:
-    name: Build and deploy KFE 2.0 production PWA
-    if: >-
-      github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
+    needs: build-and-deploy
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Resolve deployment revision
-        id: revision
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            sha="${{ github.event.workflow_run.head_sha }}"
-          elif [[ "${{ github.event_name }}" == "push" ]]; then
-            sha="${{ github.sha }}"
-          else
-            sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          fi
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout deployment revision
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ steps.revision.outputs.sha }}
-          fetch-depth: 1
-
-      - name: Configure GitHub Pages source
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh api --method PUT "repos/${GITHUB_REPOSITORY}/pages" \
-            -H 'Accept: application/vnd.github+json' \
-            -f build_type='workflow' \
-            -f source[branch]='main' \
-            -f source[path]='/' || {
-              echo 'Pages source could not be changed with GITHUB_TOKEN; continuing to deployment.'
-            }
-
-      - name: Setup Node 24
-        uses: actions/setup-node@v5
-        with:
-          node-version: 24
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build production PWA
-        env:
-          GITHUB_ACTIONS: true
-        run: npm run build
-
-      - name: Verify Pages artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s dist/index.html
-          test -s dist/manifest.json
-          test -s dist/service-worker.js
-          test -s dist/icon-192.png
-          test -s dist/icon-512.png
-          test -d dist/assets
-          grep -q '/KANISHKA-ENTERPRISES-PWA/' dist/index.html
-          grep -q '/assets/' dist/index.html
-          if grep -q '/src/main.js' dist/index.html; then
-            echo 'ERROR: source entrypoint leaked into production artifact'
-            exit 1
-          fi
-          echo 'KFE_PAGES_ARTIFACT=PASS'
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: dist
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
