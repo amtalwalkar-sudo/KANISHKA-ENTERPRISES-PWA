@@ -1,0 +1,1 @@
+KFE 2.0 production deployment trigger. The production artifact is built from main and published through GitHub Pages Actions.
