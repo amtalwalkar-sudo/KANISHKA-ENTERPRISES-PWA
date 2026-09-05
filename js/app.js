@@ -1,6 +1,7 @@
 import {createStore} from './core/store.js';
 import {createRepository} from './core/repository.js';
 import {createNetworkManager} from './core/network.js';
+import {createBackupEngine} from './core/backup-engine.js';
 import {installCrashBuffer} from './pwa/crash-buffer.js';
 import {initializeResilience} from './core/resilience.js';
 import {createKfeApplication} from './application/kfe.js';
@@ -11,6 +12,7 @@ const initialState={};
 export const repository=createRepository({initial:initialState});
 export const state=createStore(initialState,repository);
 export const application=createKfeApplication(repository);
+export const backup=createBackupEngine({repository});
 
 const commandHandlers=Object.freeze({
   START_DAY:payload=>application.startDay(payload),
@@ -31,11 +33,13 @@ const noTransport=async()=>{throw new Error('No sync transport configured');};
 export const network=createNetworkManager({sendOutbox:noTransport,onStatus:online=>window.dispatchEvent(new CustomEvent('kfe:network',{detail:{online}}))});
 export const actions=Object.freeze({dispatch:commandDispatcher});
 export const viewModels=Object.freeze({dashboard:dashboardReadModel,workSession:workSessionReadModel,error:presentationError});
-const runtime={repository,state,application,commandDispatcher,network,actions,viewModels};
+const runtime={repository,state,application,backup,commandDispatcher,network,actions,viewModels};
 window.__KFE_RUNTIME__=runtime;
 window.KFE_REPOSITORY=repository;
 window.KFE_NETWORK=network;
 window.KFE_APPLICATION=application;
+window.KFE_BACKUP=backup;
 window.KFE_VIEW_MODELS=viewModels;
 void initializeResilience({sendOutbox:noTransport});
+void backup.start().catch(error=>window.dispatchEvent(new CustomEvent('kfe:backup-error',{detail:{message:String(error?.message||error)}})));
 export function getRuntime(){return runtime;}

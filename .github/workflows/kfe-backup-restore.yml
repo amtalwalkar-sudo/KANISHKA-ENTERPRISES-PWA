@@ -1,0 +1,31 @@
+name: KFE Backup Restore Certification
+on:
+  pull_request:
+    paths:
+      - 'js/core/backup-*.js'
+      - 'js/application/**'
+      - 'js/core/repository.js'
+      - 'js/app.js'
+      - 'src/components/BackupRestorePanel.vue'
+      - 'src/components/KfeModuleView.vue'
+      - 'src/presentation/application/presentation-api.js'
+      - 'js/testing/backup-restore-*.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/kfe-backup-restore.yml'
+  workflow_dispatch:
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run validate:backup-provider
+      - run: npx playwright install --with-deps chromium
+      - run: npm run dev -- --host 127.0.0.1 --port 4173 > /tmp/kfe-vite.log 2>&1 &
+      - run: node js/testing/backup-restore-browser.mjs

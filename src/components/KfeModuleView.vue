@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import KfeStatePanel from './KfeStatePanel.vue';
 import KfeFormShell from './KfeFormShell.vue';
 import KfeFormField from './KfeFormField.vue';
+import BackupRestorePanel from './BackupRestorePanel.vue';
 
 const props = defineProps({ module: { type: String, required: true }, application: { type: Object, default: null } });
 const emit = defineEmits(['open', 'back', 'save-request', 'reset-request']);
@@ -12,7 +13,6 @@ const settingsTheme = ref('system');
 const settingsBusy = ref(false);
 const settingsMessage = ref('');
 const settingsError = ref('');
-const restoreInput = ref(null);
 
 const MODULES = {
   Driver: { eyebrow: 'Vehicle', title: 'Driver', subtitle: 'Driver attached to the current vehicle.', sections: [{ title: 'Driver', items: ['Driver details', 'Vehicle attachment'] }] },
@@ -48,11 +48,8 @@ function applyTheme(theme) {
 async function loadSettings() { if (!props.application?.getSettings) return; try { applyTheme((await props.application.getSettings()).theme); } catch { applyTheme('system'); } }
 function openApplicationSettings(event) { event?.preventDefault?.(); event?.stopPropagation?.(); settingsOpen.value = true; activeAction.value = ''; settingsMessage.value = ''; settingsError.value = ''; void loadSettings(); }
 async function changeTheme(theme) { settingsMessage.value = ''; settingsError.value = ''; try { settingsBusy.value = true; await props.application.setTheme(theme); applyTheme(theme); settingsMessage.value = 'Theme saved.'; } catch (error) { settingsError.value = String(error?.message || error); } finally { settingsBusy.value = false; } }
-function downloadBackup() { settingsMessage.value = ''; settingsError.value = ''; settingsBusy.value = true; void props.application.exportBackup().then(snapshot => { const blob = new Blob([JSON.stringify(snapshot)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `kfe-2.0-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); settingsMessage.value = 'Backup created successfully.'; }).catch(error => { settingsError.value = String(error?.message || error); }).finally(() => { settingsBusy.value = false; }); }
-function openRestorePicker() { restoreInput.value?.click(); }
-async function restoreSelectedFile(event) { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; if (!window.confirm('Restore this KFE backup? Current locally stored ERP data will be replaced.')) return; settingsMessage.value = ''; settingsError.value = ''; try { settingsBusy.value = true; const snapshot = JSON.parse(await file.text()); await props.application.restoreBackup(snapshot); settingsMessage.value = 'Restore completed. Reloading KFE…'; window.setTimeout(() => window.location.reload(), 250); } catch (error) { settingsError.value = String(error?.message || error); settingsBusy.value = false; } }
 async function resetErpData() { if (!window.confirm('Reset all KFE ERP data? This permanently removes all locally stored ERP data.')) return; settingsMessage.value = ''; settingsError.value = ''; try { settingsBusy.value = true; await props.application.resetAllData(); window.location.reload(); } catch (error) { settingsError.value = String(error?.message || error); settingsBusy.value = false; } }
-function openAction(item) { if (props.module === 'Settings') { if (item === 'Theme') { openApplicationSettings(); return; } if (item === 'Backup') { downloadBackup(); return; } if (item === 'Restore') { openRestorePicker(); return; } if (item === 'Reset ERP Data') { void resetErpData(); return; } return; } if ((ACTIONS[props.module] ?? []).includes(item)) { activeAction.value = item; return; } emit('open', item); }
+function openAction(item) { if (props.module === 'Settings') { if (item === 'Theme') { openApplicationSettings(); return; } if (item === 'Backup') { settingsMessage.value = ''; settingsError.value = ''; return; } if (item === 'Restore') { settingsMessage.value = ''; settingsError.value = ''; return; } if (item === 'Reset ERP Data') { void resetErpData(); return; } return; } if ((ACTIONS[props.module] ?? []).includes(item)) { activeAction.value = item; return; } emit('open', item); }
 function closeAction() { activeAction.value = ''; }
 function closeSettings() { settingsOpen.value = false; settingsMessage.value = ''; settingsError.value = ''; }
 function onSave(value) { emit('save-request', { module: props.module, action: activeAction.value, value }); }
@@ -67,10 +64,11 @@ onMounted(() => { if (props.module === 'Settings') { settingsOpen.value = true; 
         <button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('back')">‹ Admin</button>
         <p class="kfe-eyebrow">System</p>
         <h1 id="application-settings-title">Settings</h1>
-        <p class="kfe-destination-subtitle">Current KFE application preferences and local data tools.</p>
+        <p class="kfe-destination-subtitle">KFE application preferences, recovery and migration tools.</p>
       </div>
       <section class="kfe-module-section"><h2>APP</h2><div class="kfe-settings-options" role="group" aria-label="Theme selection"><button v-for="theme in ['system', 'light', 'dark']" :key="theme" type="button" :class="{'is-active': settingsTheme === theme}" :disabled="settingsBusy" @click="changeTheme(theme)"><span>{{theme === 'system' ? 'System' : theme === 'light' ? 'Light' : 'Dark'}}</span><span aria-hidden="true">{{settingsTheme === theme ? '✓' : ''}}</span></button></div></section>
-      <section class="kfe-module-section"><h2>DATA</h2><div class="kfe-module-list"><button type="button" :disabled="settingsBusy" @click="downloadBackup"><span>Backup</span><span aria-hidden="true">›</span></button><button type="button" :disabled="settingsBusy" @click="openRestorePicker"><span>Restore</span><span aria-hidden="true">›</span></button><button type="button" :disabled="settingsBusy" @click="resetErpData"><span>Reset ERP Data</span><span aria-hidden="true">›</span></button></div><input ref="restoreInput" class="kfe-visually-hidden" type="file" accept="application/json,.json" @change="restoreSelectedFile"></section>
+      <BackupRestorePanel :application="props.application" />
+      <section class="kfe-module-section"><h2>DATA ADMINISTRATION</h2><div class="kfe-module-list"><button type="button" :disabled="settingsBusy" @click="resetErpData"><span>Reset ERP Data</span><span aria-hidden="true">›</span></button></div></section>
       <section class="kfe-module-section"><h2>ABOUT</h2><div class="kfe-module-list"><div class="kfe-detail-card"><strong>KFE 2.0</strong><p>Single-vehicle ERP foundation with clean application, domain and persistence boundaries.</p></div><div class="kfe-detail-card"><strong>Version 2.0.0</strong><p>Current application release.</p></div></div></section>
       <p v-if="settingsMessage" class="kfe-boundary-note" role="status">{{settingsMessage}}</p><p v-if="settingsError" class="kfe-error-note" role="alert">{{settingsError}}</p>
     </template>
@@ -85,5 +83,5 @@ onMounted(() => { if (props.module === 'Settings') { settingsOpen.value = true; 
 </template>
 
 <style scoped>
-.kfe-settings-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.kfe-settings-options button{min-height:48px;border:1px solid var(--kfe-ui-border);border-radius:12px;background:var(--kfe-ui-surface);color:var(--kfe-ui-text);padding:10px;font-weight:700}.kfe-settings-options button.is-active{outline:2px solid var(--kfe-ui-accent);outline-offset:1px}.kfe-settings-options button:disabled,.kfe-module-list button:disabled{opacity:.55}.kfe-visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.kfe-settings-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.kfe-settings-options button{min-height:48px;border:1px solid var(--kfe-ui-border);border-radius:12px;background:var(--kfe-ui-surface);color:var(--kfe-ui-text);padding:10px;font-weight:700}.kfe-settings-options button.is-active{outline:2px solid var(--kfe-ui-accent);outline-offset:1px}.kfe-settings-options button:disabled,.kfe-module-list button:disabled{opacity:.55}.kfe-detail-card{padding:14px;border:1px solid var(--kfe-ui-border);border-radius:14px;background:var(--kfe-ui-surface);display:grid;gap:6px}
 </style>
