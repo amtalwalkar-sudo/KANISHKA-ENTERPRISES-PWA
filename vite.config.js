@@ -3,6 +3,18 @@ import vue from '@vitejs/plugin-vue';
 import {resolve} from 'node:path';
 import {cpSync,existsSync,readFileSync} from 'node:fs';
 
+function restoreCanonicalSourceIndex(){
+  return {
+    name:'kfe-canonical-source-index',
+    buildStart(){
+      const source=resolve('index.source.html');
+      const target=resolve('index.html');
+      if(!existsSync(source)) throw new Error('Missing canonical source index: index.source.html');
+      cpSync(source,target);
+    }
+  };
+}
+
 function copyRuntimeAssets(){
   return {
     name:'kfe-runtime-assets',
@@ -39,7 +51,7 @@ export default defineConfig({
   // GitHub Pages is a project site. Keep the production base deterministic
   // instead of depending on npm's lifecycle environment.
   base:process.env.GITHUB_ACTIONS==='true'?'/KANISHKA-ENTERPRISES-PWA/':'/',
-  plugins:[vue(),copyRuntimeAssets()],
+  plugins:[restoreCanonicalSourceIndex(),vue(),copyRuntimeAssets()],
   server:{host:'0.0.0.0'},
   build:{target:'es2022'},
   optimizeDeps:{include:['vue']}
