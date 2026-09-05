@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { application, actions } from '../presentation/application/presentation-runtime.js'
 import { createUiCommand } from '../../js/application/ui-contract.js'
 import KfeSwipeBar from './KfeSwipeBar.vue'
+import WorkBreakControl from './WorkBreakControl.vue'
 import { clearFormDraft, hasFormDraft } from '../../js/ui/form-drafts.js'
 import './work-session.css'
 
@@ -61,6 +62,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
         <section v-else-if="screenState === 'BUSINESS_TRIP'" class="work-state-panel trip-panel"><p class="kfe-eyebrow">BUSINESS TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Trip active</p></section>
         <section v-else-if="screenState === 'PERSONAL_TRIP'" class="work-state-panel trip-panel"><p class="kfe-eyebrow">PERSONAL TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Personal trip active</p></section>
       </main>
+      <WorkBreakControl />
       <div class="bottom-action" aria-label="Work action">
         <KfeSwipeBar v-if="!form && screenState === 'DAY_START'" left-label="START PERSONAL TRIP" right-label="START DAY" left-action="START_PERSONAL_TRIP" right-action="START_DAY" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="!form && screenState === 'DAY_READY'" left-label="START PERSONAL TRIP" right-label="START BUSINESS SHIFT" left-action="START_PERSONAL_TRIP" right-action="START_SHIFT" :disabled="busy" @swipe="handleSwipe" />
@@ -69,7 +71,7 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
         <KfeSwipeBar v-else-if="!form && screenState === 'PERSONAL_TRIP'" right-label="END PERSONAL TRIP" right-action="END_PERSONAL_TRIP" :disabled="busy" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="form === 'DAY_START'" right-label="CONFIRM START DAY" right-action="START_DAY_CONFIRM" :disabled="busy || !dayAllocationValid" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="form === 'PERSONAL_START'" right-label="START PERSONAL TRIP" right-action="START_PERSONAL_TRIP_CONFIRM" :disabled="busy || !personalAllocationValid" @swipe="handleSwipe" />
-        <KfeSwipeBar v-else-if="form === 'PERSONAL_END'" right-label="CLOSE PERSONAL TRIP" right-action="CLOSE_PERSONAL_TRIP" :disabled="busy || !personalEndValid" @swipe="handleSwipe" />
+        <KfeSwipeBar v-else-if="form === 'PERSONAL_END'" right-label="CLOSE PERSONAL TRIP" left-action="CLOSE_PERSONAL_TRIP" :disabled="busy || !personalEndValid" @swipe="handleSwipe" />
         <KfeSwipeBar v-else-if="form === 'SHIFT_END'" left-label="CLOSE SHIFT" left-action="CLOSE_SHIFT" :disabled="busy || !shiftEndValid || !shiftRevenueValid" @swipe="handleSwipe" />
       </div>
       <div v-if="form" class="work-form-overlay" role="dialog" aria-modal="true"><div class="work-form-card" data-kfe-draft-form="true" :data-kfe-draft-key="`work:${form}`"><p class="kfe-eyebrow">{{ form === 'DAY_START' ? 'START OF DAY' : form === 'PERSONAL_START' ? 'START PERSONAL TRIP' : form === 'PERSONAL_END' ? 'END PERSONAL TRIP' : 'END SHIFT' }}</p>
