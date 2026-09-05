@@ -1,0 +1,69 @@
+name: KFE 5-Year Test Fixture
+
+on:
+  push:
+    branches:
+      - 'feat/kfe-5-year-test-data'
+  pull_request:
+    branches:
+      - development
+      - main
+    paths:
+      - 'js/testing/kfe-5-year-test-fixture.mjs'
+      - 'js/testing/kfe-5-year-fixture-browser.mjs'
+      - 'package.json'
+      - '.github/workflows/kfe-five-year-fixture.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kfe-five-year-fixture-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout test fixture candidate
+        uses: actions/checkout@v5
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate generated five-year fixture
+        run: npm run validate:five-year-fixture
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Build candidate
+        run: npm run build
+
+      - name: Start built app
+        run: npm run preview -- --host 127.0.0.1 > /tmp/kfe-preview.log 2>&1 &
+
+      - name: Wait for built app
+        run: |
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/kfe-preview.log
+          exit 1
+
+      - name: Load fixture, verify read models, and restore original data
+        run: npm run validate:five-year-fixture-browser
+
+      - name: Show preview log on failure
+        if: failure()
+        run: cat /tmp/kfe-preview.log
