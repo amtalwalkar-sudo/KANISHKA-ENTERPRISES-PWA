@@ -1,5 +1,6 @@
 name: Deploy & Gemini Auto-Fix to GitHub Pages
 
+# KFE deployment workflow: every main push publishes the current build.
 on:
   push:
     branches: [ main, master ]
