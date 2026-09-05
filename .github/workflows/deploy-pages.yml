@@ -51,6 +51,19 @@ jobs:
           ref: ${{ steps.revision.outputs.sha }}
           fetch-depth: 1
 
+      - name: Configure GitHub Pages source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --method PUT "repos/${GITHUB_REPOSITORY}/pages" \
+            -H 'Accept: application/vnd.github+json' \
+            -f build_type='workflow' \
+            -f source[branch]='main' \
+            -f source[path]='/' || {
+              echo 'Pages source could not be changed with GITHUB_TOKEN; continuing to deployment.'
+            }
+
       - name: Setup Node 24
         uses: actions/setup-node@v5
         with:
