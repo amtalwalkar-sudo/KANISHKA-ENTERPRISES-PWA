@@ -1,4 +1,4 @@
-name: KFE UI Shell Preview
+name: KFE UI Shell Production
 
 on:
   push:
@@ -11,14 +11,15 @@ permissions:
   id-token: write
 
 concurrency:
-  group: kfe-ui-shell-preview
+  group: kfe-ui-shell-production
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout UI shell branch
+      - name: Checkout production candidate
         uses: actions/checkout@v5
 
       - name: Setup Node 20
@@ -32,13 +33,34 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build UI shell preview
+      - name: Build production candidate
         run: npm run build
+
+      - name: Start built app for certification
+        run: npm run preview -- --host 127.0.0.1 > /tmp/kfe-preview.log 2>&1 &
+
+      - name: Wait for built app
+        run: |
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/kfe-preview.log
+          exit 1
+
+      - name: Run E2E certification before deployment
+        run: npm run validate:e2e
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
+      - name: Show preview log on failure
+        if: failure()
+        run: cat /tmp/kfe-preview.log
 
   deploy:
     needs: build
@@ -47,6 +69,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy UI shell preview
+      - name: Deploy verified production build
         id: deployment
         uses: actions/deploy-pages@v4
