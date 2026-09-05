@@ -11,7 +11,7 @@ const repository=read('js/core/repository.js');
 const contract=JSON.parse(read('spec/contracts/ui.json'));
 
 assert.deepEqual(contract.currentScope.Settings.features,['theme','localBackup','localRestore','resetErpData','about']);
-assert.deepEqual(contract.settingsContract.theme.options,['system','light','dark']);
+assert.deepEqual(contract.settingsContract.theme.options,['day','night','dusk']);
 assert.equal(contract.settingsContract.futureFeatures.uiControls,false);
 assert.equal(contract.settingsContract.futureFeatures.businessBehavior,false);
 for(const token of ['Theme','Backup','Restore','Reset ERP Data','KFE 2.0','Version 2.0.0'])assert.ok(component.includes(token),`Settings must expose ${token}`);
