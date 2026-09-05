@@ -1,14 +1,19 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import KfeFormShell from './KfeFormShell.vue';
+const props=defineProps({application:{type:Object,required:true}});
 const emit = defineEmits(['save-request', 'back']);
 const showForm = ref(false);
 const detail = ref('');
+const model = ref(null);
 const categories = ['Service', 'Tyres', 'Brakes', 'Battery', 'Repair', 'Other'];
 const initial = { maintenanceId: '', date: new Date().toISOString().slice(0, 10), vehicle: 'Current vehicle', odometer: '', category: '', description: '', amount: '', reference: '', workSessionId: '' };
+const maintenanceRecords=computed(()=>model.value?.maintenanceRecords||[]);
+async function load(){try{model.value=await props.application.getAdminState();}catch{model.value=null;}}
 function save(value) { emit('save-request', { module: 'Maintenance', value }); }
-function openDetail(value) { detail.value = value; }
+function openDetail(value) { detail.value = value; if(value==='history')void load(); }
 function closeDetail() { detail.value = ''; }
+onMounted(load);
 </script>
 <template>
   <section class="kfe-module-view" aria-labelledby="maintenance-title">
@@ -16,11 +21,12 @@ function closeDetail() { detail.value = ''; }
     <template v-if="detail">
       <p class="kfe-eyebrow">Vehicle Operations</p>
       <h1 id="maintenance-title">{{ detail === 'history' ? 'Maintenance history' : 'Maintenance categories' }}</h1>
-      <article class="kfe-detail-card">
-        <strong>{{ detail === 'history' ? 'Authoritative maintenance history' : 'Maintenance catalogue' }}</strong>
-        <p>{{ detail === 'history' ? 'Completed maintenance records will appear here from the application read model.' : 'Supported maintenance categories remain defined by the KFE maintenance model.' }}</p>
-        <div v-if="detail === 'categories'" class="kfe-module-list"><div v-for="category in categories" :key="category" class="kfe-detail-card"><strong>{{ category }}</strong></div></div>
+      <article v-if="detail === 'history'" class="kfe-detail-card">
+        <strong>Authoritative maintenance history</strong>
+        <div v-if="maintenanceRecords.length" class="kfe-module-list"><article v-for="row in maintenanceRecords" :key="row.id" class="kfe-detail-card"><strong>{{ row.description || row.category || 'Maintenance record' }}</strong><p>{{ row.date || row.business_date }} · {{ row.category || 'Other' }} · ₹{{ (Number(row.amount_paise??row.cost_paise??0)/100).toFixed(2) }}</p></article></div>
+        <p v-else>No maintenance records recorded.</p>
       </article>
+      <article v-else class="kfe-detail-card"><strong>Maintenance catalogue</strong><p>Supported maintenance categories remain defined by the KFE maintenance model.</p><div class="kfe-module-list"><div v-for="category in categories" :key="category" class="kfe-detail-card"><strong>{{ category }}</strong></div></div></article>
     </template>
     <template v-else-if="!showForm">
       <p class="kfe-eyebrow">Vehicle Operations</p><h1 id="maintenance-title">Maintenance</h1>
