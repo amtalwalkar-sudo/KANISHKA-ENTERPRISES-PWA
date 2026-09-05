@@ -1,0 +1,47 @@
+name: KFE 5-Year Test Fixture v2
+
+on:
+  push:
+    branches:
+      - 'feat/kfe-5-year-test-data'
+  pull_request:
+    branches:
+      - development
+      - main
+    paths:
+      - 'js/testing/kfe-5-year-test-fixture.mjs'
+      - 'js/testing/kfe-5-year-fixture-browser-v2.mjs'
+      - '.github/workflows/kfe-five-year-fixture-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kfe-five-year-fixture-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: npm run validate:five-year-fixture
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run preview -- --host 127.0.0.1 > /tmp/kfe-preview.log 2>&1 &
+      - run: |
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/kfe-preview.log
+          exit 1
+      - run: node js/testing/kfe-5-year-fixture-browser-v2.mjs
+      - if: failure()
+        run: cat /tmp/kfe-preview.log
