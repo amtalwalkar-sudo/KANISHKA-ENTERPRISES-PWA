@@ -55,8 +55,9 @@ async function integrationContract() {
     const stateKey = `phase-h-${Date.now()}`;
     const original = await runtime.repository.load();
     await runtime.repository.save({...original,__phaseHProbe:stateKey});
-    const persisted = await runtime.repository.load();
-    if (persisted.__phaseHProbe !== stateKey) throw new Error('Repository persistence round-trip failed');
+    const stateRecords = await all('state');
+    const persistedRecord = stateRecords.find(record => record?.value?.__phaseHProbe === stateKey);
+    if (!persistedRecord) throw new Error('Repository persistence round-trip failed');
 
     let rolledBack = false;
     try {
