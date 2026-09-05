@@ -1,6 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
-import KfeFormShell from './KfeFormShell.vue';import KfeFormField from './KfeFormField.vue';import FuelHistoryView from './FuelHistoryView.vue';
+import { computed, onMounted, ref, watch } from 'vue';import KfeFormShell from './KfeFormShell.vue';import KfeFormField from './KfeFormField.vue';import FuelHistoryView from './FuelHistoryView.vue';
 const props=defineProps({module:{type:String,required:true},fuelRecords:{type:Array,default:()=>[]},fuelHistoryOpen:{type:Boolean,default:false},application:{type:Object,required:true}});
 const emit=defineEmits(['save-request','back','open','fuel-history-back','fuel-undo']);
 const activeAction=ref('');const detail=ref('');const model=ref(null);
@@ -9,7 +8,7 @@ const definition=computed(()=>definitions[props.module]);
 const records=computed(()=>props.module==='Expenses'?(model.value?.expenseRecords||[]):(model.value?.revenueRecords||[]));
 const formSpec=computed(()=>{if(props.module==='Fuel'&&activeAction.value==='Add fuel')return{title:'Add fuel',subtitle:'Use Work Quick Fuel for the authoritative fuel record.',fields:[]};if(props.module==='Expenses'&&['Add expense','Toll','Parking'].includes(activeAction.value))return{title:activeAction.value==='Add expense'?'Add expense':`Add ${activeAction.value.toLowerCase()}`,subtitle:'Use the unified expense model.',fields:[{id:'category',label:'Category',required:true,placeholder:'Select category'},{id:'date',label:'Date',type:'date',required:true},{id:'amount',label:'Amount',type:'number',required:true,placeholder:'0.00'},{id:'description',label:'Description',optional:true,placeholder:'Optional details'},{id:'reference',label:'Receipt / reference',optional:true,placeholder:'Optional reference'}]};if(props.module==='Revenue'&&activeAction.value==='Enter today’s revenue')return{title:'Enter today’s revenue',subtitle:'Manual end-of-day revenue entry.',fields:[{id:'amount',label:'Revenue amount',type:'number',required:true,placeholder:'0.00'},{id:'date',label:'Date',type:'date',required:true}]};return null;});
 async function load(){try{model.value=await props.application.getAdminState();}catch{model.value=null;}}
-function openAction(item){if(item==='Fuel history'){emit('open','Fuel history');return;}if(item==='Add fuel'){emit('open','Work');return;}if(['Expense history','Revenue history'].includes(item)){detail.value=item;void load();return;}if(formSpec.value)activeAction.value=item;else emit('open',item);}
+async function openAction(item){if(item==='Fuel history'){emit('open','Fuel history');return;}if(item==='Add fuel'){emit('open','Work');return;}if(['Expense history','Revenue history'].includes(item)){detail.value=item;await load();return;}if(formSpec.value)activeAction.value=item;else emit('open',item);}
 function closeAction(){activeAction.value='';}function closeDetail(){detail.value='';}function onSave(value){emit('save-request',{module:props.module,action:activeAction.value,value});}
 watch(()=>props.module,()=>{activeAction.value='';detail.value='';model.value=null;void load();});
 onMounted(load);
