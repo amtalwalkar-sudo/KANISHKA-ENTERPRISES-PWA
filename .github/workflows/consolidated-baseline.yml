@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [main, ci/foundation-preflight-3-gates]
   workflow_dispatch:
-  workflow_run:
-    workflows: [KFE 2.0 14-item certification]
-    types: [completed]
 
 concurrency:
   group: kfe-single-ci
@@ -17,13 +14,10 @@ concurrency:
 permissions:
   contents: read
   pull-requests: read
-  pages: write
-  id-token: write
 
 jobs:
   validate:
     name: KFE validation and Work Screen integration
-    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.name == 'KFE 2.0 14-item certification')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -37,9 +31,6 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
             event_sha="${{ github.event.pull_request.head.sha }}"
-          elif [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-            event_sha="${{ github.event.workflow_run.head_sha }}"
           else
             current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq '.object.sha')"
             event_sha="${{ github.sha }}"
@@ -210,30 +201,3 @@ jobs:
           echo "Final KFE state synchronization PASS: $KFE_VALIDATED_SHA"
       - name: Final build verification
         run: GITHUB_ACTIONS=false npm run build
-
-  deploy:
-    name: Publish PWA to GitHub Pages
-    needs: validate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup Node 20
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm install
-      - name: Build PWA for Pages
-        run: npm run build
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-      - name: Deploy Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
