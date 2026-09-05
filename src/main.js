@@ -6,6 +6,7 @@ import { resolveKfeShell } from './presentation/shell/shell-resolver.js';
 // IndexedDB schema upgrades and persisted state are settled before any screen
 // reads from the runtime.
 await repository.load();
+window.__KFE_PERSISTENCE_READY__ = true;
 
 const resolvedShell = resolveKfeShell();
 const app = createApp(resolvedShell.shell.component);
