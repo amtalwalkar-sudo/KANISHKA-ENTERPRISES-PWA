@@ -34,6 +34,8 @@ jobs:
         run: npm install
 
       - name: Build production candidate
+        env:
+          KFE_PAGES_BUILD: 'false'
         run: npm run build
 
       - name: Start built app for certification
@@ -52,6 +54,11 @@ jobs:
 
       - name: Run E2E certification before deployment
         run: npm run validate:e2e
+
+      - name: Build verified Pages artifact
+        env:
+          KFE_PAGES_BUILD: 'true'
+        run: npm run build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
