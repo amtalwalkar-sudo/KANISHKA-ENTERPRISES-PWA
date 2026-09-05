@@ -3,6 +3,13 @@ name: KFE 2.0 Publish Production PWA
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'index.html'
+      - 'manifest.json'
+      - 'service-worker.js'
+      - 'icon-192.png'
+      - 'icon-512.png'
+      - 'assets/**'
   workflow_dispatch:
 
 permissions:
@@ -11,7 +18,7 @@ permissions:
 
 concurrency:
   group: kfe-publish-root-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -22,20 +29,16 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
-
       - name: Setup Node 24
         uses: actions/setup-node@v5
         with:
           node-version: 24
-
       - name: Install dependencies
         run: npm install
-
       - name: Build production PWA
         env:
           GITHUB_ACTIONS: true
         run: npm run build
-
       - name: Verify production bundle
         shell: bash
         run: |
@@ -47,8 +50,9 @@ jobs:
           test -s dist/icon-512.png
           test -d dist/assets
           grep -q '/KANISHKA-ENTERPRISES-PWA/' dist/index.html
-          echo "KFE_PRODUCTION_BUNDLE=PASS"
-
+          grep -q '/assets/' dist/index.html
+          if grep -q '/src/main.js' dist/index.html; then echo 'ERROR: source entry leaked into production bundle'; exit 1; fi
+          echo 'KFE_PRODUCTION_BUNDLE=PASS'
       - name: Publish built runtime into configured Pages source
         shell: bash
         run: |
@@ -60,7 +64,6 @@ jobs:
           cp dist/icon-512.png ./icon-512.png
           rm -rf ./assets
           cp -R dist/assets ./assets
-
       - name: Commit published runtime
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -70,17 +73,10 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html manifest.json service-worker.js icon-192.png icon-512.png assets
-          if git diff --cached --quiet; then
-            echo 'No published runtime changes.'
-          else
-            git commit -m 'build: publish KFE production runtime'
-            git push
-          fi
-
+          if git diff --cached --quiet; then echo 'No published runtime changes.'; else git commit -m 'build: publish KFE production runtime'; git push; fi
       - name: Request GitHub Pages build
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds" \
-            -H 'Accept: application/vnd.github+json'
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds" -H 'Accept: application/vnd.github+json'
