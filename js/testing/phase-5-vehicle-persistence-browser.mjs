@@ -16,7 +16,8 @@ try{
     try{
       const setupPage=await context.newPage();
       const manifestResponse=await setupPage.goto(`${origin}${basePath}manifest.json`,{waitUntil:'load'});
-      if(manifestResponse?.headers()['content-type']?.split(';')[0]!=='application/manifest+json')throw new Error(`Legacy IndexedDB setup did not receive manifest.json; content-type=${manifestResponse?.headers()['content-type']||'unknown'}`);
+      const manifestType=manifestResponse?.headers()['content-type']?.split(';')[0]||'unknown';
+      if(!['application/manifest+json','application/json'].includes(manifestType))throw new Error(`Legacy IndexedDB setup did not receive manifest.json; content-type=${manifestType}`);
       await setupPage.evaluate(async()=>{
         const deleteDb=()=>new Promise((resolve,reject)=>{const request=indexedDB.deleteDatabase('kfe');request.onsuccess=resolve;request.onerror=()=>reject(request.error||new Error('Legacy IndexedDB reset failed'));request.onblocked=()=>reject(new Error('Legacy IndexedDB reset was blocked'));});
         for(let attempt=1;attempt<=5;attempt++){
