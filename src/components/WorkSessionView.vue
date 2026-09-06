@@ -180,7 +180,7 @@ async function confirmShiftEnd() {
 }
 function handleSwipe(action) {
   if (action === 'START_DAY') return openForm('DAY_START')
-  if (action === 'START_PERSONAL_TRIP') return confirmPersonalStart()
+  if (action === 'START_PERSONAL_TRIP') return openForm('PERSONAL_START')
   if (action === 'START_SHIFT') return dispatch('START_SHIFT', { actionMode: 'SWIPE', direction: 'RIGHT' })
   if (action === 'START_TRIP') return dispatch('START_TRIP', { actionMode: 'SWIPE', direction: 'RIGHT' })
   if (action === 'END_TRIP') return dispatch('END_TRIP', { id: activeTrip.value?.id, actionMode: 'SWIPE', direction: 'RIGHT' })
