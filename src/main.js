@@ -1,6 +1,8 @@
 import { repository } from '../js/app.js';
 import { createApp } from 'vue';
 import { resolveKfeShell } from './presentation/shell/shell-resolver.js';
+import { installFormDraftRecovery } from '../js/ui/form-drafts.js';
+import { installFormResilience } from '../js/ui/form-resilience.js';
 
 // Persistence is preferred, but failure to open IndexedDB must never leave the
 // production shell blank. Mount the UI even when storage is temporarily
@@ -21,6 +23,12 @@ app.config.errorHandler = (error, instance, info) => {
   console.error('KFE UI error:', error, info, instance);
 };
 app.mount('#vue-runtime');
+
+// Install shared driver-facing form safeguards once, above individual screens.
+// Existing form/domain behavior remains authoritative; these utilities only
+// provide recovery, viewport, keyboard, validation and input ergonomics.
+installFormDraftRecovery();
+installFormResilience();
 
 window.KFE_VUE_RUNTIME = Object.freeze({
   mounted: true,
