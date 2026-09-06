@@ -1,15 +1,10 @@
 name: KFE 2.0 Publish Production PWA
 
 on:
-  push:
+  workflow_run:
+    workflows: ["KFE 2.0 single CI"]
+    types: [completed]
     branches: [main]
-    paths-ignore:
-      - index.html
-      - manifest.json
-      - service-worker.js
-      - icon-192.png
-      - icon-512.png
-      - assets/**
   workflow_dispatch:
 
 permissions:
@@ -23,12 +18,28 @@ concurrency:
 jobs:
   publish:
     name: Build, validate, and publish production PWA
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout pushed revision
+      - name: Resolve validated revision
+        id: state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            SOURCE_SHA="${{ github.event.workflow_run.head_sha }}"
+          else
+            SOURCE_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          fi
+          test -n "$SOURCE_SHA"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout validated revision
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ steps.state.outputs.source_sha }}
           fetch-depth: 1
 
       - name: Setup Node 24
@@ -47,7 +58,7 @@ jobs:
       - name: Invalidate runtime cache for this deployment
         shell: bash
         env:
-          DEPLOY_SHA: ${{ github.sha }}
+          DEPLOY_SHA: ${{ steps.state.outputs.source_sha }}
         run: |
           set -euo pipefail
           CACHE_VERSION="kanishka-fleet-kfe2-${DEPLOY_SHA}"
@@ -57,6 +68,8 @@ jobs:
 
       - name: Verify production bundle
         shell: bash
+        env:
+          DEPLOY_SHA: ${{ steps.state.outputs.source_sha }}
         run: |
           set -euo pipefail
           test -s dist/index.html
@@ -71,7 +84,7 @@ jobs:
             echo 'ERROR: source entry leaked into production bundle'
             exit 1
           fi
-          grep -q "const CACHE_NAME='kanishka-fleet-kfe2-${GITHUB_SHA}';" dist/service-worker.js
+          grep -q "const CACHE_NAME='kanishka-fleet-kfe2-${DEPLOY_SHA}';" dist/service-worker.js
           echo 'KFE_PRODUCTION_BUNDLE=PASS'
 
       - name: Publish built runtime into configured Pages source
