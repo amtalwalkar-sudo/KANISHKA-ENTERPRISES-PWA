@@ -321,7 +321,14 @@ onUnmounted(() => {
       <!-- DIRECTIONAL FULL-WIDTH SWIPE CONTROL -->
       <div class="bottom-action" aria-label="Work action">
         <KfeSwipeBar
-          v-if="!form && screenState === 'DAY_START'"
+          v-if="!form && screenState === 'DAY_ENDED'"
+          right-label="START DAY >>"
+          right-action="START_DAY"
+          :disabled="busy"
+          @swipe="handleSwipe"
+        />
+        <KfeSwipeBar
+          v-else-if="!form && screenState === 'DAY_START'"
           left-label="<< START PERSONAL TRIP"
           right-label="START DAY >>"
           left-action="START_PERSONAL_TRIP"
