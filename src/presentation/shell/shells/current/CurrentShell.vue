@@ -15,7 +15,32 @@ const darkMode = ref(true); const menuOpen = ref(false); const showWorkBreak = r
 const reducedMotion = ref(false); const ambientLightAvailable = ref(false); const driverState = ref('DAY_START');
 const activeNav = computed(() => NAV.some(item => item.id === route.value) ? route.value : 'Work');
 const fuelVisible = computed(() => ['Work','Performance','Timeline'].includes(activeNav.value));
-const stateMeta = computed(() => { if (!online.value) return {label:'Offline',className:'offline'}; const value=String(driverState.value||'').toUpperCase(); if(value.includes('PERSONAL'))return{label:'Personal trip',className:'personal'}; if(value.includes('BUSINESS')||value.includes('TRIP'))return{label:'On Business Trip',className:'business'}; return{label:'Shift Waiting',className:'waiting'}; });
+const stateMeta = computed(() => {
+  if (!online.value) return {label:'Offline',className:'offline'};
+  const value=String(driverState.value||'DAY_START').toUpperCase();
+  const states = {
+    DAY_START: {label:'Day Start',className:'waiting'},
+    DAY_READY: {label:'Day Ready',className:'waiting'},
+    SHIFT_WAITING: {label:'Shift Waiting',className:'waiting'},
+    BUSINESS_TRIP: {label:'On Business Trip',className:'business'},
+    PERSONAL_TRIP: {label:'Personal trip',className:'personal'},
+    DAY_ENDED: {label:'Day Ended',className:'waiting'},
+  };
+  return states[value] || {label:'Day Start',className:'waiting'};
+});
+const headerContextLabel = computed(() => {
+  if (activeNav.value !== 'Work') return activeNav.value;
+  const value=String(driverState.value||'DAY_START').toUpperCase();
+  const labels = {
+    DAY_START: 'Today · DAY START',
+    DAY_READY: 'Today · DAY READY',
+    SHIFT_WAITING: 'Today · SHIFT WAITING',
+    BUSINESS_TRIP: 'Today · BUSINESS TRIP',
+    PERSONAL_TRIP: 'Today · PERSONAL TRIP',
+    DAY_ENDED: 'Today · DAY ENDED',
+  };
+  return labels[value] || 'Today · DAY START';
+});
 function syncRoute(){route.value=location.hash.slice(1)||'Work';showWorkBreak.value=route.value==='Work'||route.value==='';menuOpen.value=false;}
 function navigate(path){const next=String(path||'Work');if(location.hash.slice(1)===next){syncRoute();return;}location.hash=next;}
 function goBack(){if(history.length>1)history.back();else navigate('Work');}
@@ -31,7 +56,7 @@ onUnmounted(()=>{window.removeEventListener('hashchange',syncRoute);window.remov
 </script>
 <template>
 <div class="driver-shell" :data-online="online" :data-reduced-motion="reducedMotion">
-<header class="driver-header" aria-label="KFE driver shell"><div class="header-watermark" aria-hidden="true">Kanishka Enterprises</div><div class="header-left"><button class="header-button" type="button" aria-label="Open shell menu" :aria-expanded="menuOpen" @click="toggleMenu">☰</button><button v-if="fuelVisible" class="header-button fuel-button" type="button" aria-label="Quick fuel" @click="openFuel">⛽</button></div><div class="header-context" aria-live="polite"><span class="route-kicker">{{activeNav==='Work'?'Work':activeNav}}</span><strong>{{activeNav==='Work'?'Today · DAY START':activeNav}}</strong></div><div class="header-state" :class="`state-${stateMeta.className}`" aria-live="polite"><i v-if="stateMeta.className!=='offline'" aria-hidden="true"></i><b>{{stateMeta.label}}</b></div></header>
+<header class="driver-header" aria-label="KFE driver shell"><div class="header-watermark" aria-hidden="true">Kanishka Enterprises</div><div class="header-left"><button class="header-button" type="button" aria-label="Open shell menu" :aria-expanded="menuOpen" @click="toggleMenu">☰</button><button v-if="fuelVisible" class="header-button fuel-button" type="button" aria-label="Quick fuel" @click="openFuel">⛽</button></div><div class="header-context" aria-live="polite"><span class="route-kicker">{{activeNav==='Work'?'Work':activeNav}}</span><strong>{{headerContextLabel}}</strong></div><div class="header-state" :class="`state-${stateMeta.className}`" aria-live="polite"><i v-if="stateMeta.className!=='offline'" aria-hidden="true"></i><b>{{stateMeta.label}}</b></div></header>
 <aside v-if="menuOpen" class="shell-menu" aria-label="Shell controls"><div class="menu-title">SHELL</div><button type="button" @click="setTheme(true);menuOpen=false;vibrate(8)"><span>◐</span><b>Dark mode</b><em v-if="darkMode">ACTIVE</em></button><button type="button" @click="setTheme(false);menuOpen=false;vibrate(8)"><span>○</span><b>Light mode</b><em v-if="!darkMode">ACTIVE</em></button><div class="menu-divider"></div><button type="button" @click="goBack();menuOpen=false;vibrate(10)"><span>‹</span><b>Back</b></button><p v-if="!online" class="offline-note">No connection. The app remains available for local work.</p></aside>
 <main class="driver-content"><div class="content-surface"><App /></div></main>
 <nav class="quick-dock" aria-label="Primary driver navigation"><button v-for="item in NAV" :key="item.id" type="button" :class="{active:activeNav===item.id}" :aria-current="activeNav===item.id?'page':undefined" @click="navigate(item.id);vibrate(8)"><span class="dock-icon" aria-hidden="true">{{item.icon}}</span><strong>{{item.label}}</strong></button></nav>
