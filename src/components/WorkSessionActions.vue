@@ -14,24 +14,36 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['swipe', 'state-authority'])
+const authorityState = ref(props.screenState)
 
-// The Work Swipe Bar is the single UI authority for the operational state.
-// Backend/application state is only the seed; every Work presentation surface
-// consumes the state published by this component after the bar resolves it.
-const authorityState = computed(() => props.screenState)
-
-function publishAuthority() {
-  emit('state-authority', authorityState.value)
+function publishAuthority(state = authorityState.value) {
+  authorityState.value = state
+  emit('state-authority', state)
   window.dispatchEvent(new CustomEvent('kfe:swipe-state', {
-    detail: { state: authorityState.value, form: props.form || null },
+    detail: { state, form: props.form || null },
   }))
 }
 
+const transitions = Object.freeze({
+  START_DAY: 'DAY_START',
+  START_DAY_CONFIRM: 'DAY_READY',
+  START_PERSONAL_TRIP: 'PERSONAL_TRIP',
+  START_PERSONAL_TRIP_CONFIRM: 'PERSONAL_TRIP',
+  CLOSE_PERSONAL_TRIP: 'DAY_READY',
+  END_PERSONAL_TRIP: 'DAY_READY',
+  START_SHIFT: 'SHIFT_WAITING',
+  START_TRIP: 'BUSINESS_TRIP',
+  END_TRIP: 'SHIFT_WAITING',
+  END_SHIFT: 'DAY_READY',
+})
+
 function onSwipe(action) {
+  const next = transitions[action]
+  if (next) publishAuthority(next)
   emit('swipe', action)
 }
 
-watch(() => [authorityState.value, props.form], publishAuthority, { immediate: true })
+watch(() => props.screenState, state => publishAuthority(state), { immediate: true })
 </script>
 
 <template>
