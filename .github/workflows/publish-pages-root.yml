@@ -1,10 +1,15 @@
 name: KFE 2.0 Publish Production PWA
 
 on:
-  workflow_run:
-    workflows: [KFE 2.0 single CI]
-    types: [completed]
+  push:
     branches: [main]
+    paths-ignore:
+      - index.html
+      - manifest.json
+      - service-worker.js
+      - icon-192.png
+      - icon-512.png
+      - assets/**
   workflow_dispatch:
 
 permissions:
@@ -17,45 +22,39 @@ concurrency:
 
 jobs:
   publish:
-    name: Build and publish production PWA to configured Pages source
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.name == 'KFE 2.0 single CI')
+    name: Build, validate, and publish production PWA
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve validated revision
-        id: state
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            validated_sha="${{ github.event.workflow_run.head_sha }}"
-            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-            if [[ "$live_sha" != "$validated_sha" ]]; then
-              echo "STATE_MISMATCH: validated=$validated_sha live=$live_sha"
-              exit 1
-            fi
-          else
-            validated_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          fi
-          echo "validated_sha=$validated_sha" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout validated source
+      - name: Checkout pushed revision
         uses: actions/checkout@v5
         with:
-          ref: ${{ steps.state.outputs.validated_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Setup Node 24
         uses: actions/setup-node@v5
         with:
           node-version: 24
+
       - name: Install dependencies
         run: npm install
+
       - name: Build production PWA
         env:
           GITHUB_ACTIONS: true
         run: npm run build
+
+      - name: Invalidate runtime cache for this deployment
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          CACHE_VERSION="kanishka-fleet-kfe2-${DEPLOY_SHA}"
+          sed -i "s/^const CACHE_NAME='[^']*';/const CACHE_NAME='${CACHE_VERSION}';/" dist/service-worker.js
+          grep -q "const CACHE_NAME='${CACHE_VERSION}';" dist/service-worker.js
+          echo "KFE_RUNTIME_CACHE=${CACHE_VERSION}"
+
       - name: Verify production bundle
         shell: bash
         run: |
@@ -68,8 +67,13 @@ jobs:
           test -d dist/assets
           grep -q '/KANISHKA-ENTERPRISES-PWA/' dist/index.html
           grep -q '/assets/' dist/index.html
-          if grep -q '/src/main.js' dist/index.html; then echo 'ERROR: source entry leaked into production bundle'; exit 1; fi
+          if grep -q '/src/main.js' dist/index.html; then
+            echo 'ERROR: source entry leaked into production bundle'
+            exit 1
+          fi
+          grep -q "const CACHE_NAME='kanishka-fleet-kfe2-${GITHUB_SHA}';" dist/service-worker.js
           echo 'KFE_PRODUCTION_BUNDLE=PASS'
+
       - name: Publish built runtime into configured Pages source
         shell: bash
         run: |
@@ -81,6 +85,7 @@ jobs:
           cp dist/icon-512.png ./icon-512.png
           rm -rf ./assets
           cp -R dist/assets ./assets
+
       - name: Commit published runtime
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -90,7 +95,13 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html manifest.json service-worker.js icon-192.png icon-512.png assets
-          if git diff --cached --quiet; then echo 'No published runtime changes.'; else git commit -m 'build: publish KFE production runtime [skip ci]'; git push origin HEAD:main; fi
+          if git diff --cached --quiet; then
+            echo 'No published runtime changes.'
+          else
+            git commit -m 'build: publish KFE production runtime [skip ci]'
+            git push origin HEAD:main
+          fi
+
       - name: Request GitHub Pages build
         env:
           GH_TOKEN: ${{ github.token }}
