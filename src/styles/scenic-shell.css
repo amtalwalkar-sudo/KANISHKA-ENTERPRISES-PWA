@@ -1,15 +1,19 @@
 /* KFE scenic backdrop: the road scene stays visible around readable ERP surfaces. */
 .driver-shell{position:relative;isolation:isolate;background:transparent!important;overflow-x:hidden}
 .driver-shell::before{content:"";position:fixed;inset:0;z-index:0;background-image:url('/kfe-mountain-drive.svg');background-position:center center;background-size:cover;background-repeat:no-repeat;transform:translateZ(0);pointer-events:none}
-.driver-shell::after{content:"";position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,rgba(245,247,251,.12),rgba(245,247,251,.30) 46%,rgba(245,247,251,.50));pointer-events:none}
+.driver-shell::after{content:"";position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,rgba(245,247,251,.08),rgba(245,247,251,.16) 46%,rgba(245,247,251,.24));pointer-events:none}
 .driver-content{position:relative;z-index:1}
 .content-surface,.content-surface .kfe-shell,.content-surface .kfe-viewport,.content-surface .kfe-workspace,.content-surface .kfe-work-session{background:transparent!important}
 .driver-header,.quick-dock,.shell-menu,.system-status{backdrop-filter:blur(22px) saturate(125%)!important;-webkit-backdrop-filter:blur(22px) saturate(125%)!important}
-.driver-header{background:color-mix(in srgb,var(--shell-surface,#101419) 84%,transparent)!important}
-.quick-dock{background:color-mix(in srgb,var(--shell-surface,#101419) 78%,transparent)!important}
+.driver-header{background:color-mix(in srgb,var(--shell-surface,#101419) 72%,transparent)!important}
+.quick-dock{background:color-mix(in srgb,var(--shell-surface,#101419) 68%,transparent)!important}
 .shell-menu{background:color-mix(in srgb,var(--shell-surface,#101419) 88%,transparent)!important}
 .system-status{background:color-mix(in srgb,var(--shell-surface,#101419) 62%,transparent)!important;border-radius:999px;padding:6px 10px}
-.kfe-work-session .work-state-panel,.kfe-work-session .day-start-input-card,.kfe-work-session .welcome-card,.kfe-work-session .shift-summary-card,.kfe-work-session .ready-status span,.kfe-work-session .waiting-metrics div{background:color-mix(in srgb,var(--kfe-ui-surface) 78%,transparent)!important;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.kfe-work-session .kfe-swipe-bar{background:rgba(15,23,42,.76)!important;backdrop-filter:blur(14px) saturate(135%);-webkit-backdrop-filter:blur(14px) saturate(135%)}
-@media(max-width:560px){.driver-shell::before{background-position:center top}.driver-shell::after{background:linear-gradient(180deg,rgba(245,247,251,.16),rgba(245,247,251,.34) 48%,rgba(245,247,251,.54))}.kfe-work-session .work-state-panel,.kfe-work-session .welcome-card,.kfe-work-session .shift-summary-card{background:color-mix(in srgb,var(--kfe-ui-surface) 74%,transparent)!important}}
+/* Scoped Work CSS previously had higher specificity than the scenic bridge. These selectors intentionally win without changing ERP content structure. */
+.driver-shell .content-surface .kfe-work-session{background:transparent!important}
+.driver-shell .content-surface .kfe-work-session .work-main{overflow:hidden!important;overscroll-behavior:none!important}
+.driver-shell .content-surface .kfe-work-session .work-state-panel,.driver-shell .content-surface .kfe-work-session .day-start-input-card,.driver-shell .content-surface .kfe-work-session .welcome-card,.driver-shell .content-surface .kfe-work-session .shift-summary-card,.driver-shell .content-surface .kfe-work-session .ready-status span,.driver-shell .content-surface .kfe-work-session .waiting-metrics div{background:color-mix(in srgb,var(--kfe-ui-surface) 72%,transparent)!important;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.driver-shell .content-surface .kfe-work-session .day-start-input-card input,.driver-shell .content-surface .kfe-work-session .allocation-block input,.driver-shell .content-surface .kfe-work-session .ready-status span,.driver-shell .content-surface .kfe-work-session .waiting-metrics div{background:color-mix(in srgb,var(--kfe-ui-surface) 82%,transparent)!important}
+.driver-shell .content-surface .kfe-work-session .kfe-swipe-bar{background:rgba(15,23,42,.76)!important;backdrop-filter:blur(14px) saturate(135%);-webkit-backdrop-filter:blur(14px) saturate(135%)}
+@media(max-width:560px){.driver-shell::before{background-position:center top}.driver-shell::after{background:linear-gradient(180deg,rgba(245,247,251,.10),rgba(245,247,251,.18) 48%,rgba(245,247,251,.28))}.driver-shell .content-surface .kfe-work-session .work-state-panel,.driver-shell .content-surface .kfe-work-session .welcome-card,.driver-shell .content-surface .kfe-work-session .shift-summary-card{background:color-mix(in srgb,var(--kfe-ui-surface) 68%,transparent)!important}}
 @media(prefers-reduced-motion:reduce){.driver-shell::before{transform:none}}
