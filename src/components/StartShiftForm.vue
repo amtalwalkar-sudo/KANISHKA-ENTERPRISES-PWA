@@ -8,15 +8,16 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'submitted'])
 
+const previousOdometerValue = ref(props.previousOdometer == null ? null : Number(props.previousOdometer))
 const startOdometer = ref(props.previousOdometer == null ? '' : String(props.previousOdometer))
-const businessKm = ref('')
-const personalKm = ref('')
+const businessKm = ref('0')
+const personalKm = ref('0')
 const openingCashFloat = ref('0')
 const vehicleInspectionCleared = ref(false)
 const submitting = ref(false)
 const error = ref('')
 
-const previousOdometer = computed(() => props.previousOdometer == null ? null : Number(props.previousOdometer))
+const previousOdometer = computed(() => previousOdometerValue.value)
 const startValue = computed(() => Number(startOdometer.value))
 const gap = computed(() => previousOdometer.value == null ? 0 : Math.max(0, startValue.value - previousOdometer.value))
 const allocationValid = computed(() => {
@@ -35,6 +36,20 @@ function enforceDecimalInputs() {
       if (target instanceof HTMLInputElement && target.value.includes('.')) target.value = target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1')
     })
   })
+}
+
+async function loadPreviousOdometer() {
+  if (previousOdometer.value != null) return
+  try {
+    const state = await kfePresentationApi.getWorkScreenState()
+    const latest = state?.latestOdometer
+    if (latest != null) {
+      previousOdometerValue.value = Number(latest)
+      startOdometer.value = String(latest)
+    }
+  } catch (cause) {
+    error.value = String(cause?.message || cause)
+  }
 }
 
 async function submit() {
@@ -67,7 +82,10 @@ async function submit() {
   }
 }
 
-onMounted(enforceDecimalInputs)
+onMounted(async () => {
+  await loadPreviousOdometer()
+  enforceDecimalInputs()
+})
 </script>
 
 <template>
