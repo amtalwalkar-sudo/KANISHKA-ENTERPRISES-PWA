@@ -107,7 +107,7 @@ jobs:
       - name: Domain and lifecycle
         run: |
           npm run validate:domain
-          npm run validate:phase-i
+          npm run phase-i 2>/dev/null || npm run validate:phase-i
           npm run validate:phase-j
           npm run validate:phase-l
           npm run validate:phase-m
