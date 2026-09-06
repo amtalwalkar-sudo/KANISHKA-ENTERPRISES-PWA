@@ -10,6 +10,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
 
   const read = {
     getWorkScreenState: (...args) => app.getWorkScreenState(...args),
+    getWorkSummary: (...args) => app.workSummary(...args),
     getPerformance: (...args) => app.getPerformance(...args),
     getTimeline: (...args) => app.getTimeline(...args),
     listFuel: (...args) => app.listFuel(...args),
@@ -80,6 +81,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     fixedExpenses,
     dispatch,
     getWorkScreenState: read.getWorkScreenState,
+    getWorkSummary: read.getWorkSummary,
     getPerformance: read.getPerformance,
     getTimeline: read.getTimeline,
     listFuel: read.listFuel,
