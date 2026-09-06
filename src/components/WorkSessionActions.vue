@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import KfeSwipeBar from './KfeSwipeBar.vue'
 
 const props = defineProps({
