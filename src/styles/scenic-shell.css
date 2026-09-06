@@ -1,0 +1,12 @@
+/* Soothing scenic shell backdrop. The ERP remains on opaque token-driven surfaces for readability. */
+.driver-shell{position:relative;isolation:isolate;background:var(--shell-bg,var(--kfe-ui-bg))!important;overflow-x:hidden}
+.driver-shell::before{content:"";position:fixed;inset:0;z-index:-2;background-image:url('/kfe-mountain-drive.svg');background-position:center center;background-size:cover;background-repeat:no-repeat;transform:translateZ(0);pointer-events:none}
+.driver-shell::after{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(180deg,color-mix(in srgb,var(--kfe-ui-bg) 26%,transparent),color-mix(in srgb,var(--kfe-ui-bg) 58%,transparent) 48%,color-mix(in srgb,var(--kfe-ui-bg) 78%,transparent));pointer-events:none}
+.driver-content{position:relative;z-index:1}
+.driver-header,.quick-dock,.shell-menu{backdrop-filter:blur(22px) saturate(125%)!important}
+.driver-header{background:color-mix(in srgb,var(--shell-surface,var(--kfe-ui-surface)) 90%,transparent)!important}
+.quick-dock,.shell-menu{background:color-mix(in srgb,var(--shell-surface,var(--kfe-ui-surface)) 91%,transparent)!important}
+.content-surface{background:transparent!important}
+:deep(.kfe-workspace .card),:deep(.kfe-workspace .module-card),:deep(.kfe-workspace .panel),:deep(.kfe-workspace .section-card),:deep(.kfe-workspace .summary-card),:deep(.kfe-workspace .metric-card),:deep(.kfe-workspace .form-card),:deep(.kfe-workspace .settings-card),:deep(.kfe-workspace .record-card),:deep(.kfe-workspace .timeline-card),:deep(.kfe-workspace .stat-card){background:color-mix(in srgb,var(--kfe-ui-surface) 94%,transparent)}
+@media(max-width:560px){.driver-shell::before{background-position:center top}.driver-shell::after{background:linear-gradient(180deg,color-mix(in srgb,var(--kfe-ui-bg) 32%,transparent),color-mix(in srgb,var(--kfe-ui-bg) 70%,transparent) 58%,color-mix(in srgb,var(--kfe-ui-bg) 86%,transparent))}}
+@media(prefers-reduced-motion:reduce){.driver-shell::before{transform:none}}
