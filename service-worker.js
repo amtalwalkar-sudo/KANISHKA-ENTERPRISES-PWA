@@ -1,7 +1,7 @@
 // KFE PWA infrastructure boundary. Application/domain/UI modules are not imported here.
 importScripts('./js/pwa/sw-strategies.js');
 
-const CACHE_NAME='kanishka-fleet-kfe2-90e00e4c041b5aaa79f2feddba9fdedd480fa1fb';
+const CACHE_NAME='kanishka-fleet-kfe2-5b2b64a21d8dff3a8eac490a42620954e38a25e5';
 const APP_SHELL=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png','./js/app.js','./js/core/store.js','./js/core/repository.js','./js/core/network.js','./js/core/resilience.js','./js/domain/work.js','./js/domain/fuel.js','./js/domain/expenses.js','./js/domain/revenue.js','./js/domain/maintenance.js','./js/services/background-tracking.js','./js/services/wake-lock.js','./js/services/core-loop.js','./js/pwa/sw-strategies.js','./js/pwa/push-notifications.js','./js/pwa/crash-buffer.js','./js/pwa/silent-recovery.js'];
 
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(APP_SHELL)).then(()=>self.skipWaiting())));
