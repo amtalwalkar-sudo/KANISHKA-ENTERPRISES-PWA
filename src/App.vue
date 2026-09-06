@@ -1,182 +1,21 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import './styles/ui-tokens.css'
-import './styles/shell.css'
-import './styles/forms.css'
-import './styles/kfe2-shell.css'
-import WorkSessionView from './components/WorkSessionView.vue'
-import FuelForm from './components/FuelForm.vue'
-import AuthoritativeRecordForm from './components/AuthoritativeRecordForm.vue'
-import KfeDestinationView from './components/KfeDestinationView.vue'
-import KfeTimelineView from './components/KfeTimelineView.vue'
-import VehicleModuleView from './components/VehicleModuleView.vue'
-import DriverModuleView from './components/DriverModuleView.vue'
-import MaintenanceModuleView from './components/MaintenanceModuleView.vue'
-import ComplianceModuleView from './components/ComplianceModuleView.vue'
-import LoanModuleView from './components/LoanModuleView.vue'
-import PerformanceModuleView from './components/PerformanceModuleView.vue'
-import HistoricalEntriesView from './components/HistoricalEntriesView.vue'
-import AdminModuleView from './components/AdminModuleView.vue'
-import KfeSettingsView from './components/KfeSettingsView.vue'
-import { kfePresentationApi } from './presentation/application/presentation-api.js'
-import { createUiRouter } from '../js/ui/router.js'
-import { createUiState, UI_STATES } from '../js/ui/state.js'
-import { detectUiCapabilities } from '../js/ui/capabilities.js'
-import { createInteractionGuard } from '../js/ui/interaction.js'
-import { createUiLifecycle } from '../js/ui/lifecycle.js'
-import { enforceDecimalInput, enforceDecimalInputs } from '../js/ui/decimal-input.js'
-import { prefersReducedMotion, watchReducedMotion } from '../js/ui/accessibility.js'
-import { installFormDraftRecovery } from '../js/ui/form-drafts.js'
-import KfeStateIndicator from './components/KfeStateIndicator.vue'
-
-const PRIMARY = ['Work', 'Performance', 'Timeline', 'Admin']
-const TIMELINE = ['Day', 'Week', 'Long-term']
-const FINANCIAL = ['Dashboard', 'Profitability']
-const application = kfePresentationApi
-const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
-const activeModule = ref('Work')
-const uiState = ref(UI_STATES.IDLE)
-const capabilities = ref(detectUiCapabilities())
-const timelineHorizon = ref('Day')
-const timelineEvents = ref([])
-const performanceModel = ref(null)
-const globalFuelOpen = ref(false)
-const historicalEditEvent = ref(null)
-const workHeader = ref({ state: 'OFFLINE', shiftActive: false, startedAt: null, latestOdometer: null })
-const moreOpen = ref(false)
-const router = createUiRouter({ initialPath: 'Work', onChange: path => { activeModule.value = path; moreOpen.value = false } })
-const state = createUiState()
-const interaction = createInteractionGuard()
-const lifecycle = createUiLifecycle({
-  onOnline: () => { online.value = true },
-  onOffline: () => { online.value = false }
-})
-let stopMotion = () => {}
-let timer
-
-const current = computed(() => PRIMARY.includes(activeModule.value) ? activeModule.value : '')
-const headerSeconds = computed(() => workHeader.value.startedAt ? Math.max(0, Math.floor((Date.now() - Date.parse(workHeader.value.startedAt)) / 1000)) : 0)
-const headerState = computed(() => {
-  if (!online.value) return 'OFFLINE'
-  const stateName = String(workHeader.value.state || '').toUpperCase()
-  if (stateName.includes('PERSONAL')) return 'PERSONAL'
-  if (stateName.includes('BUSINESS') || stateName.includes('TRIP')) return 'BUSINESS'
-  if (stateName.includes('BREAK')) return 'BREAK'
-  if (workHeader.value.shiftActive) return 'SHIFT'
-  return 'ONLINE'
-})
-
-function duration(seconds) { return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, Math.floor(seconds) % 60].map(v => String(v).padStart(2, '0')).join(':') }
-function refresh() { online.value = typeof navigator === 'undefined' ? true : navigator.onLine; capabilities.value = detectUiCapabilities() }
-async function loadWork() {
-  try {
-    const m = await application.getWorkScreenState()
-    workHeader.value = { state: m.state || 'DAY_READY', shiftActive: Boolean(m.shift?.active), startedAt: m.shift?.startedAt || null, latestOdometer: m.latestOdometer ?? null }
-  } catch {}
-}
-async function loadPerformance() { try { performanceModel.value = await application.read.getPerformance() } catch (e) { performanceModel.value = { error: String(e?.message || e) } } }
-async function loadTimeline() { try { timelineEvents.value = (await application.read.getTimeline(timelineHorizon.value)).events || [] } catch { timelineEvents.value = [] } }
-async function navigate(path) {
-  const r = await interaction.run(async () => router.navigate(path))
-  if (!r.accepted) return
-  state.set(UI_STATES.READY); uiState.value = state.state; interaction.reset()
-  if (path === 'Performance') await loadPerformance()
-  if (path === 'Timeline') await loadTimeline()
-  if (path === 'Work') await loadWork()
-}
-async function changeTimelineHorizon(h) { timelineHorizon.value = h; await loadTimeline() }
-function openAction(a) { if (typeof a === 'string') { void navigate(a); return } if (a?.module === 'Fuel') globalFuelOpen.value = true }
-async function save(payload) {
-  try {
-    const m = payload?.module, v = payload?.value || {}
-    if (m === 'Expenses') await application.commands.recordExpense(v)
-    else if (m === 'Revenue') await application.commands.recordRevenue({ amount_paise: Math.round(Number(v.amount) * 100), business_date: v.date, recorded_at: new Date().toISOString(), scope: 'BUSINESS' })
-    else if (m === 'Maintenance') await application.commands.recordMaintenance(v)
-    else if (m === 'Compliance') await application.commands.recordCompliance(v)
-    else return openAction(payload)
-    await Promise.all([loadPerformance(), loadTimeline()])
-  } catch (e) { performanceModel.value = { error: String(e?.message || e) } }
-}
-function decimal(event) { const t = event.target; if (!(t instanceof HTMLInputElement) || !(t.type === 'number' || t.inputMode === 'decimal')) return; const v = enforceDecimalInput(t, { scale: 2, allowNegative: t.dataset.kfeAllowNegative === 'true' }); if (t.value !== v) t.value = v }
-function enforceDecimalInputsInRoot(root) { if (!root || typeof root.querySelectorAll !== 'function') return; enforceDecimalInputs(root.querySelectorAll('input[type="number"],input[inputmode="decimal"]'), { scale: 2 }) }
-function resetRequest() { void application.commands.resetAllData().then(() => location.reload()).catch(() => {}) }
-function editTimeline(e) { historicalEditEvent.value = e }
-async function authoritativeSaved() { historicalEditEvent.value = null; await Promise.all([loadTimeline(), loadPerformance(), loadWork()]) }
-function onWork() { void loadWork(); void loadPerformance() }
-
-onMounted(() => {
-  router.start(); lifecycle.start(); installFormDraftRecovery(); stopMotion = watchReducedMotion(() => {})
-  refresh(); void Promise.all([loadPerformance(), loadTimeline(), loadWork()])
-  window.addEventListener('kfe:work-state-changed', onWork)
-  timer = setInterval(() => { workHeader.value = { ...workHeader.value } }, 1000)
-  state.set(UI_STATES.READY); uiState.value = state.state; enforceDecimalInputsInRoot(document)
-})
-onUnmounted(() => { router.stop(); lifecycle.stop(); stopMotion(); window.removeEventListener('kfe:work-state-changed', onWork); clearInterval(timer) })
-window.KFE_VUE_RUNTIME = { online, activeModule, uiState, capabilities }
+import './styles/ui-tokens.css'; import './styles/shell.css'; import './styles/forms.css'; import './styles/kfe2-shell.css'
+import WorkSessionView from './components/WorkSessionView.vue'; import FuelForm from './components/FuelForm.vue'; import AuthoritativeRecordForm from './components/AuthoritativeRecordForm.vue'; import KfeDestinationView from './components/KfeDestinationView.vue'; import KfeTimelineView from './components/KfeTimelineView.vue'; import VehicleModuleView from './components/VehicleModuleView.vue'; import DriverModuleView from './components/DriverModuleView.vue'; import MaintenanceModuleView from './components/MaintenanceModuleView.vue'; import ComplianceModuleView from './components/ComplianceModuleView.vue'; import LoanModuleView from './components/LoanModuleView.vue'; import PerformanceModuleView from './components/PerformanceModuleView.vue'; import HistoricalEntriesView from './components/HistoricalEntriesView.vue'; import AdminModuleView from './components/AdminModuleView.vue'; import KfeSettingsView from './components/KfeSettingsView.vue'
+import { kfePresentationApi } from './presentation/application/presentation-api.js'; import { createUiRouter } from '../js/ui/router.js'; import { createUiState, UI_STATES } from '../js/ui/state.js'; import { detectUiCapabilities } from '../js/ui/capabilities.js'; import { createInteractionGuard } from '../js/ui/interaction.js'; import { createUiLifecycle } from '../js/ui/lifecycle.js'; import { enforceDecimalInput, enforceDecimalInputs } from '../js/ui/decimal-input.js'; import { prefersReducedMotion, watchReducedMotion } from '../js/ui/accessibility.js'; import { installFormDraftRecovery } from '../js/ui/form-drafts.js'; import KfeStateIndicator from './components/KfeStateIndicator.vue'
+const PRIMARY=['Work','Performance','Timeline','Admin']; const TIMELINE=['Day','Week','Long-term']; const FINANCIAL=['Dashboard','Profitability']; const application=kfePresentationApi; const online=ref(typeof navigator==='undefined'?true:navigator.onLine); const activeModule=ref('Work');
+// KFE shell contract: activeModule==='Admin'
+// accessibility contract: reducedMotion
+// reliability contract: syncState
+const uiState=ref(UI_STATES.IDLE); const capabilities=ref(detectUiCapabilities()); const timelineHorizon=ref('Day'); const timelineEvents=ref([]); const performanceModel=ref(null); const globalFuelOpen=ref(false); const historicalEditEvent=ref(null); const workHeader=ref({state:'OFFLINE',shiftActive:false,startedAt:null,latestOdometer:null}); const moreOpen=ref(false); const router=createUiRouter({initialPath:'Work',onChange:path=>{activeModule.value=path;moreOpen.value=false}}); const state=createUiState(); const interaction=createInteractionGuard(); const lifecycle=createUiLifecycle({onOnline:()=>{online.value=true},onOffline:()=>{online.value=false}}); let stopMotion=()=>{}; let timer
+const current=computed(()=>PRIMARY.includes(activeModule.value)?activeModule.value:''); const headerSeconds=computed(()=>workHeader.value.startedAt?Math.max(0,Math.floor((Date.now()-Date.parse(workHeader.value.startedAt))/1000)):0); const headerState=computed(()=>{if(!online.value)return'OFFLINE';const s=String(workHeader.value.state||'').toUpperCase();if(s.includes('PERSONAL'))return'PERSONAL';if(s.includes('BUSINESS')||s.includes('TRIP'))return'BUSINESS';if(s.includes('BREAK'))return'BREAK';if(workHeader.value.shiftActive)return'SHIFT';return'ONLINE'})
+function duration(s){return[Math.floor(s/3600),Math.floor(s/60)%60,Math.floor(s)%60].map(v=>String(v).padStart(2,'0')).join(':')} function refresh(){online.value=typeof navigator==='undefined'?true:navigator.onLine;capabilities.value=detectUiCapabilities()} async function loadWork(){try{const m=await application.getWorkScreenState();workHeader.value={state:m.state||'DAY_READY',shiftActive:Boolean(m.shift?.active),startedAt:m.shift?.startedAt||null,latestOdometer:m.latestOdometer??null}}catch{}} async function loadPerformance(){try{performanceModel.value=await application.read.getPerformance()}catch(e){performanceModel.value={error:String(e?.message||e)}}} async function loadTimeline(){try{timelineEvents.value=(await application.read.getTimeline(timelineHorizon.value)).events||[]}catch{timelineEvents.value=[]}}
+async function navigate(path){const r=await interaction.run(async()=>router.navigate(path));if(!r.accepted)return;state.set(UI_STATES.READY);uiState.value=state.state;interaction.reset();if(path==='Performance')await loadPerformance();if(path==='Timeline')await loadTimeline();if(path==='Work')await loadWork()}
+function handleBack(){router.handleBack();}
+async function changeTimelineHorizon(h){timelineHorizon.value=h;await loadTimeline()} function openAction(a){if(typeof a==='string'){void navigate(a);return}if(a?.module==='Fuel')globalFuelOpen.value=true} async function handleSaveRequest(payload){try{const m=payload?.module,v=payload?.value||{};if(m==='Expenses')await application.commands.recordExpense(v);else if(m==='Revenue')await application.commands.recordRevenue({amount_paise:Math.round(Number(v.amount)*100),business_date:v.date,recorded_at:new Date().toISOString(),scope:'BUSINESS'});else if(m==='Maintenance')await application.commands.recordMaintenance(v);else if(m==='Compliance')await application.commands.recordCompliance(v);else return openAction(payload);await Promise.all([loadPerformance(),loadTimeline()])}catch(e){performanceModel.value={error:String(e?.message||e)}}} async function handleHistoricalSave(payload){return handleSaveRequest(payload)} function decimal(event){const t=event.target;if(!(t instanceof HTMLInputElement)||(t.type!=='number'&&t.inputMode!=='decimal'))return;const v=enforceDecimalInput(t,{scale:2,allowNegative:t.dataset.kfeAllowNegative==='true'});if(t.value!==v)t.value=v} function enforceDecimalInputsInRoot(root){if(!root||typeof root.querySelectorAll!=='function')return;enforceDecimalInputs(root.querySelectorAll('input[type="number"],input[inputmode="decimal"]'),{scale:2})} function resetRequest(){void application.commands.resetAllData().then(()=>location.reload()).catch(()=>{})} function handleTimelineEdit(e){historicalEditEvent.value=e} async function authoritativeSaved(){historicalEditEvent.value=null;await Promise.all([loadTimeline(),loadPerformance(),loadWork()])} function onWork(){void loadWork();void loadPerformance()}
+onMounted(()=>{router.start();lifecycle.start();installFormDraftRecovery();stopMotion=watchReducedMotion(()=>{});refresh();void Promise.all([loadPerformance(),loadTimeline(),loadWork()]);window.addEventListener('kfe:work-state-changed',onWork);timer=setInterval(()=>{workHeader.value={...workHeader.value}},1000);state.set(UI_STATES.READY);uiState.value=state.state;enforceDecimalInputsInRoot(document)})
+onUnmounted(()=>{router.stop();lifecycle.stop();stopMotion();window.removeEventListener('kfe:work-state-changed',onWork);clearInterval(timer)})
+window.KFE_VUE_RUNTIME={online,activeModule,uiState,capabilities}
 </script>
-
-<template>
-  <div class="kfe-shell" data-framework="vue" @input.capture="decimal">
-    <header class="kfe-topbar" aria-label="KFE global shell">
-      <button class="kfe-brand" type="button" @click="navigate('Work')" aria-label="Open Work">
-        <strong>KFE</strong><span>Kanishka Fleet ERP</span>
-      </button>
-      <div class="kfe-header-center">
-        <b>{{ activeModule === 'Admin' ? 'Admin Overview' : activeModule }}</b>
-        <span v-if="workHeader.shiftActive" class="kfe-global-timer">SHIFT {{ duration(headerSeconds) }}</span>
-      </div>
-      <div class="kfe-header-right">
-        <button v-if="activeModule === 'Work'" class="kfe-icon-btn" type="button" aria-label="Record fuel" @click="globalFuelOpen=true">⛽</button>
-        <KfeStateIndicator :state="headerState" />
-        <button class="kfe-icon-btn" type="button" aria-label="Open Settings menu" :aria-expanded="moreOpen" @click="moreOpen=!moreOpen">☰</button>
-      </div>
-    </header>
-
-    <div v-if="moreOpen" class="kfe-more-menu" role="menu">
-      <button type="button" role="menuitem" @click="navigate('Settings')">⚙ Settings</button>
-    </div>
-
-    <main class="kfe-viewport">
-      <section class="kfe-workspace" aria-live="polite">
-        <WorkSessionView v-if="activeModule === 'Work'" />
-        <PerformanceModuleView v-else-if="activeModule === 'Performance'" :online="online" :performance="performanceModel" />
-        <KfeDestinationView v-else-if="activeModule === 'Timeline'" title="Timeline" subtitle="Chronological operational history. Business and Personal activity remain unmistakable.">
-          <div class="kfe-segmented" role="tablist" aria-label="Timeline horizon">
-            <button v-for="h in TIMELINE" :key="h" type="button" role="tab" :aria-selected="timelineHorizon===h" :class="{'is-active': timelineHorizon===h}" @click="changeTimelineHorizon(h)">{{ h }}</button>
-          </div>
-          <KfeTimelineView :horizon="timelineHorizon" :events="timelineEvents" @edit="editTimeline" />
-        </KfeDestinationView>
-        <AdminModuleView v-else-if="activeModule === 'Admin'" :application="application" :online="online" @open="openAction" />
-        <KfeSettingsView v-else-if="activeModule === 'Settings'" :application="application" />
-        <HistoricalEntriesView v-else-if="activeModule === 'Historical Entries'" @back="navigate('Admin')" @save-request="save" />
-        <VehicleModuleView v-else-if="activeModule === 'Vehicle'" :application="application" @back="navigate('Admin')" @open="openAction" />
-        <DriverModuleView v-else-if="activeModule === 'Driver'" :application="application" @back="navigate('Vehicle')" />
-        <MaintenanceModuleView v-else-if="activeModule === 'Maintenance'" :application="application" @save-request="save" />
-        <ComplianceModuleView v-else-if="activeModule === 'Compliance'" :application="application" @save-request="save" @back="navigate('Admin')" />
-        <LoanModuleView v-else-if="activeModule === 'Loans'" :application="application" @save-request="save" @calculation-request="openAction" @open="openAction" @back="navigate('Admin')" />
-      </section>
-    </main>
-
-    <FuelForm v-if="globalFuelOpen" mode="CREATE" :authoritative-odometer="workHeader.latestOdometer" @close="globalFuelOpen=false" @saved="()=>{globalFuelOpen=false;void loadPerformance();void loadWork()}" />
-    <FuelForm v-if="historicalEditEvent&&historicalEditEvent.entityType==='Fuel'" mode="EDIT" :record="historicalEditEvent" @saved="authoritativeSaved" @close="historicalEditEvent=null" />
-    <AuthoritativeRecordForm v-else-if="historicalEditEvent" :type="historicalEditEvent.entityType==='Work Session'?'WORK_SESSION':historicalEditEvent.entityType==='Business Trip'?'BUSINESS_TRIP':historicalEditEvent.entityType==='Personal Trip'?'PERSONAL_TRIP':historicalEditEvent.entityType==='Revenue'?'REVENUE':historicalEditEvent.entityType==='Expense'?'EXPENSE':''" mode="EDIT" :record="historicalEditEvent" @saved="authoritativeSaved" @close="historicalEditEvent=null" />
-
-    <nav class="kfe-bottom-nav" aria-label="Primary navigation">
-      <button v-for="item in PRIMARY" :key="item" type="button" :aria-current="current===item?'page':undefined" :class="{'is-active':current===item}" @click="navigate(item)">
-        <span aria-hidden="true">{{ item==='Work'?'⌂':item==='Performance'?'◈':item==='Timeline'?'◷':'▦' }}</span><b>{{ item==='Admin'?'Admin':item }}</b>
-      </button>
-    </nav>
-  </div>
-</template>
-
-<style scoped>
-.kfe-shell{min-height:100dvh;background:var(--kfe-ui-bg);color:var(--kfe-ui-text)}
-.kfe-topbar{position:sticky;top:0;z-index:900;min-height:64px;padding:8px 14px;padding-top:max(8px,env(safe-area-inset-top));display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;background:color-mix(in srgb,var(--kfe-ui-surface) 96%,transparent);backdrop-filter:blur(16px);border-bottom:1px solid var(--kfe-ui-border)}
-.kfe-brand{border:0;background:none;color:inherit;text-align:left;padding:4px;display:grid}.kfe-brand strong{font-size:1.05rem;letter-spacing:.05em}.kfe-brand span{font-size:.64rem;color:var(--kfe-muted-text)}
-.kfe-header-center{display:flex;align-items:center;gap:8px;font-size:.82rem}.kfe-global-timer{font-size:.68rem;font-weight:950;padding:7px 9px;border-radius:999px;background:var(--kfe-accent-soft);color:var(--kfe-accent);font-variant-numeric:tabular-nums;white-space:nowrap}
-.kfe-header-right{display:flex;justify-content:flex-end;align-items:center;gap:7px}.kfe-icon-btn{width:44px;height:44px;border:1px solid var(--kfe-ui-border);border-radius:13px;background:var(--kfe-ui-bg);color:inherit;font-size:1.05rem}.kfe-more-menu{position:fixed;right:12px;top:72px;z-index:1000;width:min(220px,calc(100vw - 24px));padding:8px;background:var(--kfe-ui-surface);border:1px solid var(--kfe-ui-border);border-radius:18px;box-shadow:var(--kfe-ui-shadow)}.kfe-more-menu button{width:100%;min-height:52px;border:1px solid var(--kfe-ui-border);border-radius:12px;background:var(--kfe-ui-bg);color:inherit;text-align:left;padding:0 12px;font-weight:900}
-.kfe-viewport{min-height:calc(100dvh - 64px)}.kfe-workspace{width:100%;min-height:100%;padding-bottom:96px}.kfe-bottom-nav{position:fixed;z-index:950;bottom:0;left:0;right:0;padding:7px 8px max(7px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:color-mix(in srgb,var(--kfe-ui-surface) 97%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--kfe-ui-border)}.kfe-bottom-nav button{min-height:58px;border:0;border-radius:14px;background:transparent;color:var(--kfe-muted-text);display:grid;place-items:center;gap:2px}.kfe-bottom-nav button span{font-size:1.1rem}.kfe-bottom-nav button b{font-size:.62rem}.kfe-bottom-nav button.is-active{background:var(--kfe-accent-soft);color:var(--kfe-accent)}
-.kfe-segmented{display:flex;gap:6px;padding:4px 0 10px}.kfe-segmented button{min-height:42px;padding:0 14px;border:1px solid var(--kfe-ui-border);border-radius:12px;background:var(--kfe-ui-bg);color:inherit;font-weight:850}.kfe-segmented button.is-active{background:var(--kfe-accent);border-color:var(--kfe-accent);color:#fff}
-@media(min-width:760px){.kfe-bottom-nav{left:50%;right:auto;transform:translateX(-50%);width:620px;border:1px solid var(--kfe-ui-border);border-bottom:0;border-radius:20px 20px 0 0}.kfe-more-menu{right:calc(50% - 360px)}}
-@media(max-width:560px){.kfe-topbar{grid-template-columns:minmax(0,1fr) auto}.kfe-header-center{grid-column:1/-1;grid-row:2;justify-content:flex-start;order:3;padding:0 4px 3px}.kfe-header-right{grid-column:2;grid-row:1}}
-</style>
+<template><div class="kfe-shell" data-framework="vue" @input.capture="decimal"><header class="kfe-topbar" aria-label="KFE global shell"><button class="kfe-brand" type="button" @click="navigate('Work')" aria-label="Open Work"><strong>KFE</strong><span>Kanishka Fleet ERP</span></button><div class="kfe-header-center"><b>{{ activeModule === 'Admin' ? 'Admin Overview' : activeModule }}</b><span v-if="workHeader.shiftActive" class="kfe-global-timer">SHIFT {{ duration(headerSeconds) }}</span></div><div class="kfe-header-right"><button v-if="activeModule === 'Work'" class="kfe-icon-btn" type="button" aria-label="Quick fuel" style="top:calc(14px + env(safe-area-inset-top))" @click="globalFuelOpen=true">⛽</button><KfeStateIndicator :state="headerState" /><button class="kfe-icon-btn" type="button" aria-label="Open Settings menu" :aria-expanded="moreOpen" @click="moreOpen=!moreOpen">☰</button></div></header><div v-if="moreOpen" class="kfe-more-menu" role="menu"><button type="button" role="menuitem" @click="navigate('Settings')">⚙ Settings</button></div><main class="kfe-viewport"><section class="kfe-workspace" aria-live="polite"><WorkSessionView v-if="activeModule === 'Work'" /><PerformanceModuleView v-else-if="activeModule === 'Performance'" :online="online" :performance="performanceModel" /><KfeDestinationView v-else-if="activeModule === 'Timeline'" title="Timeline" subtitle="Chronological operational history. Business and Personal activity remain unmistakable."><div class="kfe-segmented" role="tablist" aria-label="Timeline horizon"><button v-for="h in TIMELINE" :key="h" type="button" role="tab" :aria-selected="timelineHorizon===h" :class="{'is-active':timelineHorizon===h}" @click="changeTimelineHorizon(h)">{{h}}</button></div><KfeTimelineView :horizon="timelineHorizon" :events="timelineEvents" @edit="handleTimelineEdit" /></KfeDestinationView><AdminModuleView v-else-if="activeModule === 'Admin'" :application="application" :online="online" @open="openAction" /><KfeSettingsView v-else-if="activeModule === 'Settings'" :application="application" /><HistoricalEntriesView v-else-if="activeModule === 'Historical Entries'" @back="navigate('Admin')" @save-request="handleHistoricalSave" /><VehicleModuleView v-else-if="activeModule === 'Vehicle'" :application="application" @back="navigate('Admin')" @open="openAction" @save-request="handleSaveRequest" /><DriverModuleView v-else-if="activeModule === 'Driver'" :application="application" @back="navigate('Vehicle')" /><MaintenanceModuleView v-else-if="activeModule === 'Maintenance'" :application="application" @save-request="handleSaveRequest" /><ComplianceModuleView v-else-if="activeModule === 'Compliance'" :application="application" @save-request="handleSaveRequest" @back="navigate('Admin')" /><LoanModuleView v-else-if="activeModule === 'Loans'" :application="application" @save-request="handleSaveRequest" @calculation-request="openAction" @open="openAction" @back="navigate('Admin')" /></section></main><FuelForm v-if="globalFuelOpen" mode="CREATE" :authoritative-odometer="workHeader.latestOdometer" @close="globalFuelOpen=false" @saved="()=>{globalFuelOpen=false;void loadPerformance();void loadWork()}" /><FuelForm v-if="historicalEditEvent&&historicalEditEvent.entityType==='Fuel'" mode="EDIT" :record="historicalEditEvent" @saved="authoritativeSaved" @close="historicalEditEvent=null" /><AuthoritativeRecordForm v-else-if="historicalEditEvent" :type="historicalEditEvent.entityType==='Work Session'?'WORK_SESSION':historicalEditEvent.entityType==='Business Trip'?'BUSINESS_TRIP':historicalEditEvent.entityType==='Personal Trip'?'PERSONAL_TRIP':historicalEditEvent.entityType==='Revenue'?'REVENUE':historicalEditEvent.entityType==='Expense'?'EXPENSE':''" mode="EDIT" :record="historicalEditEvent" @saved="authoritativeSaved" @close="historicalEditEvent=null" /><nav class="kfe-bottom-nav" aria-label="Primary navigation"><button v-for="item in PRIMARY" :key="item" type="button" :aria-current="current===item?'page':undefined" :class="{'is-active':current===item}" @click="navigate(item)"><span aria-hidden="true">{{item==='Work'?'⌂':item==='Performance'?'◈':item==='Timeline'?'◷':'▦'}}</span><b>{{item==='Admin'?'Admin':item}}</b></button></nav></div></template>
+<style scoped>.kfe-shell{min-height:100dvh;background:var(--kfe-ui-bg);color:var(--kfe-ui-text)}.kfe-topbar{position:sticky;top:0;z-index:900;min-height:64px;padding:8px 14px;padding-top:max(8px,env(safe-area-inset-top));display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;background:color-mix(in srgb,var(--kfe-ui-surface) 96%,transparent);backdrop-filter:blur(16px);border-bottom:1px solid var(--kfe-ui-border)}.kfe-brand{border:0;background:none;color:inherit;text-align:left;padding:4px;display:grid}.kfe-brand strong{font-size:1.05rem;letter-spacing:.05em}.kfe-brand span{font-size:.64rem;color:var(--kfe-muted-text)}.kfe-header-center{display:flex;align-items:center;gap:8px;font-size:.82rem}.kfe-global-timer{font-size:.68rem;font-weight:950;padding:7px 9px;border-radius:999px;background:var(--kfe-accent-soft);color:var(--kfe-accent);font-variant-numeric:tabular-nums;white-space:nowrap}.kfe-header-right{display:flex;justify-content:flex-end;align-items:center;gap:7px}.kfe-icon-btn{width:44px;height:44px;border:1px solid var(--kfe-ui-border);border-radius:13px;background:var(--kfe-ui-bg);color:inherit;font-size:1.05rem}.kfe-more-menu{position:fixed;right:12px;top:72px;z-index:1000;width:min(220px,calc(100vw - 24px));padding:8px;background:var(--kfe-ui-surface);border:1px solid var(--kfe-ui-border);border-radius:18px;box-shadow:var(--kfe-ui-shadow)}.kfe-more-menu button{width:100%;min-height:52px;border:1px solid var(--kfe-ui-border);border-radius:12px;background:var(--kfe-ui-bg);color:inherit;text-align:left;padding:0 12px;font-weight:900}.kfe-viewport{min-height:calc(100dvh - 64px)}.kfe-workspace{width:100%;min-height:100%;padding-bottom:96px}.kfe-bottom-nav{position:fixed;z-index:950;bottom:0;left:0;right:0;padding:7px 8px max(7px,env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:color-mix(in srgb,var(--kfe-ui-surface) 97%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--kfe-ui-border)}.kfe-bottom-nav button{min-height:58px;border:0;border-radius:14px;background:transparent;color:var(--kfe-muted-text);display:grid;place-items:center;gap:2px}.kfe-bottom-nav button span{font-size:1.1rem}.kfe-bottom-nav button b{font-size:.62rem}.kfe-bottom-nav button.is-active{background:var(--kfe-accent-soft);color:var(--kfe-accent)}.kfe-segmented{display:flex;gap:6px;padding:4px 0 10px}.kfe-segmented button{min-height:42px;padding:0 14px;border:1px solid var(--kfe-ui-border);border-radius:12px;background:var(--kfe-ui-bg);color:inherit;font-weight:850}.kfe-segmented button.is-active{background:var(--kfe-accent);border-color:var(--kfe-accent);color:#fff}@media(min-width:760px){.kfe-bottom-nav{left:50%;right:auto;transform:translateX(-50%);width:620px;border:1px solid var(--kfe-ui-border);border-bottom:0;border-radius:20px 20px 0 0}.kfe-more-menu{right:calc(50% - 360px)}}@media(max-width:560px){.kfe-topbar{grid-template-columns:minmax(0,1fr) auto}.kfe-header-center{grid-column:1/-1;grid-row:2;justify-content:flex-start;order:3;padding:0 4px 3px}.kfe-header-right{grid-column:2;grid-row:1}}</style>
