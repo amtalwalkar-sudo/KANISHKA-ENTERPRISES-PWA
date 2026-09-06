@@ -54,7 +54,6 @@ async function save(value) {
     activeAction.value = '';
     savedMessage.value = `${props.module} record saved.`;
     await load();
-    emit('save-request', { module: props.module, value });
   } catch (e) { error.value = String(e?.message || e); }
 }
 watch(() => props.module, () => { activeAction.value = ''; savedMessage.value = ''; void load(); });
