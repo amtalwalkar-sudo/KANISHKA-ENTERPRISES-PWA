@@ -1,12 +1,15 @@
-/* Soothing scenic shell backdrop. The ERP remains on opaque token-driven surfaces for readability. */
+/* KFE scenic backdrop: the road scene stays visible around readable ERP surfaces. */
 .driver-shell{position:relative;isolation:isolate;background:transparent!important;overflow-x:hidden}
 .driver-shell::before{content:"";position:fixed;inset:0;z-index:0;background-image:url('/kfe-mountain-drive.svg');background-position:center center;background-size:cover;background-repeat:no-repeat;transform:translateZ(0);pointer-events:none}
-.driver-shell::after{content:"";position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,color-mix(in srgb,var(--kfe-ui-bg) 26%,transparent),color-mix(in srgb,var(--kfe-ui-bg) 58%,transparent) 48%,color-mix(in srgb,var(--kfe-ui-bg) 78%,transparent));pointer-events:none}
+.driver-shell::after{content:"";position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,rgba(245,247,251,.12),rgba(245,247,251,.30) 46%,rgba(245,247,251,.50));pointer-events:none}
 .driver-content{position:relative;z-index:1}
-.driver-header,.quick-dock,.shell-menu,.system-status{backdrop-filter:blur(22px) saturate(125%)!important}
-.driver-header{background:color-mix(in srgb,var(--shell-surface,var(--kfe-ui-surface)) 90%,transparent)!important}
-.quick-dock,.shell-menu{background:color-mix(in srgb,var(--shell-surface,var(--kfe-ui-surface)) 91%,transparent)!important}
-.content-surface{background:transparent!important}
-.kfe-workspace .card,.kfe-workspace .module-card,.kfe-workspace .panel,.kfe-workspace .section-card,.kfe-workspace .summary-card,.kfe-workspace .metric-card,.kfe-workspace .form-card,.kfe-workspace .settings-card,.kfe-workspace .record-card,.kfe-workspace .timeline-card,.kfe-workspace .stat-card{background:color-mix(in srgb,var(--kfe-ui-surface) 94%,transparent)}
-@media(max-width:560px){.driver-shell::before{background-position:center top}.driver-shell::after{background:linear-gradient(180deg,color-mix(in srgb,var(--kfe-ui-bg) 32%,transparent),color-mix(in srgb,var(--kfe-ui-bg) 70%,transparent) 58%,color-mix(in srgb,var(--kfe-ui-bg) 86%,transparent))}}
+.content-surface,.content-surface .kfe-shell,.content-surface .kfe-viewport,.content-surface .kfe-workspace,.content-surface .kfe-work-session{background:transparent!important}
+.driver-header,.quick-dock,.shell-menu,.system-status{backdrop-filter:blur(22px) saturate(125%)!important;-webkit-backdrop-filter:blur(22px) saturate(125%)!important}
+.driver-header{background:color-mix(in srgb,var(--shell-surface,#101419) 84%,transparent)!important}
+.quick-dock{background:color-mix(in srgb,var(--shell-surface,#101419) 78%,transparent)!important}
+.shell-menu{background:color-mix(in srgb,var(--shell-surface,#101419) 88%,transparent)!important}
+.system-status{background:color-mix(in srgb,var(--shell-surface,#101419) 62%,transparent)!important;border-radius:999px;padding:6px 10px}
+.kfe-work-session .work-state-panel,.kfe-work-session .day-start-input-card,.kfe-work-session .welcome-card,.kfe-work-session .shift-summary-card,.kfe-work-session .ready-status span,.kfe-work-session .waiting-metrics div{background:color-mix(in srgb,var(--kfe-ui-surface) 78%,transparent)!important;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.kfe-work-session .kfe-swipe-bar{background:rgba(15,23,42,.76)!important;backdrop-filter:blur(14px) saturate(135%);-webkit-backdrop-filter:blur(14px) saturate(135%)}
+@media(max-width:560px){.driver-shell::before{background-position:center top}.driver-shell::after{background:linear-gradient(180deg,rgba(245,247,251,.16),rgba(245,247,251,.34) 48%,rgba(245,247,251,.54))}.kfe-work-session .work-state-panel,.kfe-work-session .welcome-card,.kfe-work-session .shift-summary-card{background:color-mix(in srgb,var(--kfe-ui-surface) 74%,transparent)!important}}
 @media(prefers-reduced-motion:reduce){.driver-shell::before{transform:none}}
