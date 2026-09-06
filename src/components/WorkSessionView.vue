@@ -14,6 +14,7 @@ const busy = ref(false)
 const error = ref('')
 const notice = ref('')
 const model = ref(null)
+const workSummary = ref(null)
 const form = ref(null)
 const endDayConfirm = ref(false)
 const now = ref(Date.now())
@@ -47,6 +48,13 @@ const tripElapsed = computed(() => activeTrip.value?.startedAt ? Math.max(0, Mat
 const shiftTripCount = computed(() => activeShift.value?.tripCount || 0)
 const unreviewedOcrRides = computed(() => Array.isArray(model.value?.unreviewedOcrRides) ? model.value.unreviewedOcrRides : [])
 const unreviewedOcrRideCount = computed(() => unreviewedOcrRides.value.length)
+const dayEnded = computed(() => screenState.value === 'DAY_ENDED')
+const shiftSummaryCards = computed(() => [
+  { label: 'Kms run', value: workSummary.value?.kmsRun == null ? '—' : `${workSummary.value.kmsRun} km` },
+  { label: 'Dead kms', value: workSummary.value?.deadKms == null ? '—' : `${workSummary.value.deadKms} km` },
+  { label: 'Revenue', value: workSummary.value?.revenuePaise == null ? '—' : `₹${(Number(workSummary.value.revenuePaise) / 100).toFixed(2)}` },
+  { label: 'Target', value: workSummary.value?.targetPaise == null ? '—' : `₹${(Number(workSummary.value.targetPaise) / 100).toFixed(2)}` },
+])
 
 function duration(seconds) {
   const value = Math.max(0, Number(seconds) || 0)
@@ -120,8 +128,11 @@ function closeForm() {
 }
 async function load() {
   loading.value = true
-  try { model.value = await application.getWorkScreenState(); publishDriverState() }
-  catch (e) { error.value = String(e?.message || e) }
+  try {
+    model.value = await application.getWorkScreenState()
+    workSummary.value = model.value?.state === 'DAY_ENDED' ? await application.getWorkSummary() : null
+    publishDriverState()
+  } catch (e) { error.value = String(e?.message || e) }
   finally { loading.value = false }
 }
 async function dispatch(type, payload = {}) {
@@ -199,23 +210,24 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
     <div v-if="loading" class="work-loading" role="status">Loading Work…</div>
     <template v-else>
       <header class="work-header">
-        <div>
-          <p class="kfe-eyebrow">Operational cockpit</p>
-          <h1 id="work-title">Work</h1>
-          <p>Today · <span class="state-badge">{{ screenState.replaceAll('_', ' ') }}</span></p>
-        </div>
-        <div class="work-header-status">
-          <button type="button" class="theme-toggle-btn" @click="cycleTheme" aria-label="Toggle Night Mode Theme">[{{ theme }}]</button>
-          <span class="work-shift-mini">SHIFT {{ activeShift ? duration(shiftElapsed) : '—' }}</span>
-        </div>
+        <div><p class="kfe-eyebrow">Operational cockpit</p><h1 id="work-title">Work</h1><p>Today · <span class="state-badge">{{ screenState.replaceAll('_', ' ') }}</span></p></div>
+        <div class="work-header-status"><button type="button" class="theme-toggle-btn" @click="cycleTheme" aria-label="Toggle Night Mode Theme">[{{ theme }}]</button><span class="work-shift-mini">SHIFT {{ activeShift ? duration(shiftElapsed) : '—' }}</span></div>
       </header>
       <div v-if="error" class="work-error" role="alert">{{ error }}</div>
       <div v-if="notice" class="work-notice" role="status">✓ {{ notice }}</div>
       <main class="work-main">
-        <section v-if="screenState === 'DAY_START' || screenState === 'DAY_ENDED'" class="work-state-panel day-start-panel">
-          <p class="kfe-eyebrow">{{ screenState === 'DAY_ENDED' ? 'DAY ENDED' : 'START OF DAY' }}</p>
-          <h2>{{ screenState === 'DAY_ENDED' ? 'Ready for the next operational day' : 'Ready for operation' }}</h2>
-          <p class="muted">{{ latestOdometer == null ? 'Enter the odometer to establish the first authoritative reading.' : 'Your latest authoritative odometer is prefilled when you start the day.' }}</p>
+        <section v-if="screenState === 'DAY_START'" class="work-state-panel day-start-panel start-of-day-panel">
+          <div class="welcome-card" role="banner"><span class="kfe-eyebrow">WELCOME</span><h2>Hello, Welcome to Kanishka Enterprises</h2></div>
+          <p class="kfe-eyebrow">START OF DAY</p>
+          <h2>Ready for operation</h2>
+          <p class="muted">{{ latestOdometer == null ? 'Enter the odometer to establish the first authoritative reading.' : 'Your latest authoritative odometer is ready for the day-start flow.' }}</p>
+        </section>
+        <section v-else-if="screenState === 'DAY_ENDED'" class="work-state-panel day-start-panel day-ended-panel">
+          <p class="kfe-eyebrow">DAY ENDED</p>
+          <h2>Shift summary</h2>
+          <div class="shift-summary-grid" aria-label="Completed day shift summary">
+            <article v-for="card in shiftSummaryCards" :key="card.label" class="shift-summary-card"><span>{{ card.label }}</span><strong>{{ card.value }}</strong></article>
+          </div>
         </section>
         <section v-else-if="screenState === 'DAY_READY'" class="work-state-panel ready-panel">
           <p class="kfe-eyebrow">READY FOR OPERATION</p>
@@ -224,49 +236,15 @@ onUnmounted(() => { clearInterval(timer); window.removeEventListener('keydown', 
           <button class="end-day-button" type="button" :disabled="busy || !canEndDay" @click="requestEndDay">End day</button>
         </section>
         <section v-else-if="screenState === 'SHIFT_WAITING'" class="work-state-panel waiting-panel">
-          <p class="kfe-eyebrow">SHIFT ACTIVE</p>
-          <div class="waiting-metrics"><div><span>Trips</span><strong>{{ shiftTripCount }}</strong></div><div><span>Shift time</span><strong>{{ duration(shiftElapsed) }}</strong></div></div>
-          <p class="waiting-copy">Waiting for the next ride.</p>
+          <p class="kfe-eyebrow">SHIFT ACTIVE</p><div class="waiting-metrics"><div><span>Trips</span><strong>{{ shiftTripCount }}</strong></div><div><span>Shift time</span><strong>{{ duration(shiftElapsed) }}</strong></div></div><p class="waiting-copy">Waiting for the next ride.</p>
         </section>
-        <section v-else-if="screenState === 'BUSINESS_TRIP'" class="work-state-panel trip-panel business-trip-card">
-          <p class="kfe-eyebrow">BUSINESS TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Trip active</p>
-        </section>
-        <section v-else-if="screenState === 'PERSONAL_TRIP'" class="work-state-panel trip-panel personal-trip-card">
-          <p class="kfe-eyebrow">PERSONAL TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Personal trip active</p>
-        </section>
+        <section v-else-if="screenState === 'BUSINESS_TRIP'" class="work-state-panel trip-panel business-trip-card"><p class="kfe-eyebrow">BUSINESS TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Trip active</p></section>
+        <section v-else-if="screenState === 'PERSONAL_TRIP'" class="work-state-panel trip-panel personal-trip-card"><p class="kfe-eyebrow">PERSONAL TRIP</p><div class="trip-timer">{{ duration(tripElapsed) }}</div><p class="muted">Personal trip active</p></section>
       </main>
       <WorkBreakControl />
-      <WorkSessionActions
-        :form="form" :screen-state="screenState" :busy="busy"
-        :day-allocation-valid="dayAllocationValid" :personal-allocation-valid="personalAllocationValid"
-        :personal-end-valid="personalEndValid" :shift-end-valid="shiftEndValid" :shift-revenue-valid="shiftRevenueValid"
-        @swipe="handleSwipe"
-      />
-      <WorkSessionForm
-        v-if="form" :form="form" :busy="busy" :latest-odometer="latestOdometer" :day-diff="dayDiff"
-        :day-start-odometer="dayStartOdometer" :day-business-km="dayBusinessKm" :day-personal-km="dayPersonalKm"
-        :personal-diff="personalDiff" :personal-start-odometer="personalStartOdometer"
-        :personal-business-km="personalBusinessKm" :personal-personal-km="personalPersonalKm"
-        :personal-end-odometer="personalEndOdometer" :personal-end-valid="personalEndValid"
-        :personal-toll="personalToll" :personal-parking="personalParking" :shift-revenue="shiftRevenue"
-        :shift-end-odometer="shiftEndOdometer" :shift-end-valid="shiftEndValid" :shift-toll="shiftToll"
-        :shift-parking="shiftParking" :shift-toll-not-included="shiftTollNotIncluded"
-        :shift-parking-not-included="shiftParkingNotIncluded" :unreviewed-ocr-ride-count="unreviewedOcrRideCount"
-        @close="closeForm" @open-ocr-review="openOcrReview"
-        @update:day-start-odometer="dayStartOdometer = $event" @update:day-business-km="dayBusinessKm = $event"
-        @update:day-personal-km="dayPersonalKm = $event" @update:personal-start-odometer="personalStartOdometer = $event"
-        @update:personal-business-km="personalBusinessKm = $event" @update:personal-personal-km="personalPersonalKm = $event"
-        @update:personal-end-odometer="personalEndOdometer = $event" @update:personal-toll="personalToll = $event"
-        @update:personal-parking="personalParking = $event" @update:shift-revenue="shiftRevenue = $event"
-        @update:shift-end-odometer="shiftEndOdometer = $event" @update:shift-toll="shiftToll = $event"
-        @update:shift-parking="shiftParking = $event" @update:shift-toll-not-included="shiftTollNotIncluded = $event"
-        @update:shift-parking-not-included="shiftParkingNotIncluded = $event"
-      />
-      <WorkSessionOverlays
-        :ocr-review-open="ocrReviewOpen" :end-day-confirm="endDayConfirm" :busy="busy"
-        :unreviewed-ocr-rides="unreviewedOcrRides" :unreviewed-ocr-ride-count="unreviewedOcrRideCount"
-        @close-ocr-review="ocrReviewOpen = false" @confirm-end-day="confirmEndDay" @cancel-end-day="endDayConfirm = false"
-      />
+      <WorkSessionActions :form="form" :screen-state="screenState" :busy="busy" :day-allocation-valid="dayAllocationValid" :personal-allocation-valid="personalAllocationValid" :personal-end-valid="personalEndValid" :shift-end-valid="shiftEndValid" :shift-revenue-valid="shiftRevenueValid" @swipe="handleSwipe" />
+      <WorkSessionForm v-if="form" :form="form" :busy="busy" :latest-odometer="latestOdometer" :day-diff="dayDiff" :day-start-odometer="dayStartOdometer" :day-business-km="dayBusinessKm" :day-personal-km="dayPersonalKm" :personal-diff="personalDiff" :personal-start-odometer="personalStartOdometer" :personal-business-km="personalBusinessKm" :personal-personal-km="personalPersonalKm" :personal-end-odometer="personalEndOdometer" :personal-end-valid="personalEndValid" :personal-toll="personalToll" :personal-parking="personalParking" :shift-revenue="shiftRevenue" :shift-end-odometer="shiftEndOdometer" :shift-end-valid="shiftEndValid" :shift-toll="shiftToll" :shift-parking="shiftParking" :shift-toll-not-included="shiftTollNotIncluded" :shift-parking-not-included="shiftParkingNotIncluded" :unreviewed-ocr-ride-count="unreviewedOcrRideCount" @close="closeForm" @open-ocr-review="openOcrReview" @update:day-start-odometer="dayStartOdometer = $event" @update:day-business-km="dayBusinessKm = $event" @update:day-personal-km="dayPersonalKm = $event" @update:personal-start-odometer="personalStartOdometer = $event" @update:personal-business-km="personalBusinessKm = $event" @update:personal-personal-km="personalPersonalKm = $event" @update:personal-end-odometer="personalEndOdometer = $event" @update:personal-toll="personalToll = $event" @update:personal-parking="personalParking = $event" @update:shift-revenue="shiftRevenue = $event" @update:shift-end-odometer="shiftEndOdometer = $event" @update:shift-toll="shiftToll = $event" @update:shift-parking="shiftParking = $event" @update:shift-toll-not-included="shiftTollNotIncluded = $event" @update:shift-parking-not-included="shiftParkingNotIncluded = $event" />
+      <WorkSessionOverlays :ocr-review-open="ocrReviewOpen" :end-day-confirm="endDayConfirm" :busy="busy" :unreviewed-ocr-rides="unreviewedOcrRides" :unreviewed-ocr-ride-count="unreviewedOcrRideCount" @close-ocr-review="ocrReviewOpen = false" @confirm-end-day="confirmEndDay" @cancel-end-day="endDayConfirm = false" />
     </template>
   </section>
 </template>

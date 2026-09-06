@@ -8,6 +8,7 @@
     "dev": "vite",
     "dev:https": "vite --host 0.0.0.0 --https",
     "build": "vite build",
+    "test": "node js/testing/work-screen-ui-contract.mjs",
     "preview": "vite preview",
     "validate:shell-resolver": "node js/testing/shell-resolver-contract.mjs",
     "validate:replaceable-shell": "node js/testing/replaceable-shell-contract.mjs",
