@@ -1,12 +1,30 @@
-import { assertShellContract, KFE_SHELL_CONTRACT_VERSION, KFE_SHELL_NAMES } from './shell-contract.js';
+import {
+  assertShellContract,
+  KFE_SHELL_CONTRACT_VERSION,
+  KFE_SHELL_NAMES,
+} from './shell-contract.js';
 import CurrentShell from './shells/current/CurrentShell.vue';
 
 const registry = new Map();
 
 function registerShell(shell) {
   assertShellContract(shell);
-  if (registry.has(shell.name)) throw new Error(`KFE shell "${shell.name}" is already registered.`);
-  registry.set(shell.name, Object.freeze(shell));
+  if (registry.has(shell.name)) {
+    throw new Error(`KFE shell "${shell.name}" is already registered.`);
+  }
+  registry.set(shell.name, Object.freeze({
+    ...shell,
+    metadata: Object.freeze({
+      role: 'driver-centric-pwa-shell',
+      interaction: 'mounted-mobile-single-hand',
+      darkModeDefault: true,
+      minimumTouchTarget: 56,
+      glanceScale: 1.5,
+      offlineFirst: true,
+      contractVersion: KFE_SHELL_CONTRACT_VERSION,
+      ...(shell.metadata || {}),
+    }),
+  }));
 }
 
 registerShell({
