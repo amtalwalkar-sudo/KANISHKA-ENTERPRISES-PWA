@@ -1,13 +1,27 @@
 <script setup>
 import { computed } from 'vue'
 import KfeStatePanel from './KfeStatePanel.vue'
-const props=defineProps({ online:{type:Boolean,default:true}, performance:{type:Object,default:null} })
+
+const props=defineProps({online:{type:Boolean,default:true},performance:{type:Object,default:null}})
 const emit=defineEmits(['refresh'])
 const money=v=>v==null?'—':`₹${(Number(v)/100).toFixed(2)}`
 const number=(v,s='')=>v==null?'—':`${Number(v).toFixed(s?1:0)}${s}`
 const valueState=v=>v==null?'unavailable':'actual'
-const core=computed(()=>[{label:'Revenue',value:money(props.performance?.revenuePaise),state:valueState(props.performance?.revenuePaise)},{label:'Fuel',value:money(props.performance?.expenseBreakdown?.fuelPaise),state:valueState(props.performance?.expenseBreakdown?.fuelPaise)},{label:'Maintenance',value:money(props.performance?.expenseBreakdown?.maintenancePaise),state:valueState(props.performance?.expenseBreakdown?.maintenancePaise)},{label:'Other',value:money(props.performance?.expenseBreakdown?.otherPaise),state:valueState(props.performance?.expenseBreakdown?.otherPaise)},{label:'Operating Result / Balance',value:money(props.performance?.balancePaise),state:valueState(props.performance?.balancePaise)}])
-const vehicleCards=computed(()=>[{label:'Business KM',value:number(props.performance?.businessKm,' km'),note:'Business use only.'},{label:'Revenue / KM',value:money(props.performance?.revenuePerKmPaise),note:'Authoritative business revenue and KM.'},{label:'Running Cost / KM',value:money(props.performance?.runningCostPerKmPaise),note:'Authoritative allocated running costs.'},{label:'Work Time',value:props.performance?.workSeconds==null?'—':number(props.performance.workSeconds/3600,' h'),note:'Recorded work time.'}])
+const breakdown=computed(()=>props.performance?.expenseBreakdown||{})
+const costCards=computed(()=>[
+  {label:'Fuel',value:money(breakdown.value.fuelPaise)},
+  {label:'Maintenance',value:money(breakdown.value.maintenancePaise)},
+  {label:'Business Expenses',value:money(breakdown.value.businessExpensePaise??breakdown.value.expensesPaise)},
+  {label:'Loan Payments',value:money(breakdown.value.loanPaise)}
+])
+const vehicleCards=computed(()=>[
+  {label:'Business KM',value:number(props.performance?.businessKm,' km'),note:'Business use only.'},
+  {label:'Revenue / KM',value:money(props.performance?.revenuePerKmPaise),note:'Authoritative business revenue and KM.'},
+  {label:'Fuel / KM',value:money(props.performance?.fuelPerKmPaise),note:'Authoritative business fuel and KM.'},
+  {label:'Maintenance / KM',value:money(props.performance?.maintenancePerKmPaise),note:'Authoritative allocated maintenance and KM.'},
+  {label:'Running Cost / KM',value:money(props.performance?.runningCostPerKmPaise),note:'Authoritative allocated running costs.'},
+  {label:'Work Time',value:props.performance?.workSeconds==null?'—':number(props.performance.workSeconds/3600,' h'),note:'Recorded work time.'}
+])
 const brief=computed(()=>props.performance?.brief??'Today’s Position will become understandable as authoritative activity is recorded.')
 const why=computed(()=>props.performance?.why??'No interpretation is manufactured from missing data.')
 </script>
@@ -19,7 +33,8 @@ const why=computed(()=>props.performance?.why??'No interpretation is manufacture
 <article class="kfe-performance-brief"><span class="kfe-card-label">TODAY’S POSITION</span><strong>{{brief}}</strong><p>{{why}}</p></article>
 <section class="kfe-cycle" aria-label="Performance cycle"><span class="is-active" aria-current="true">Daily</span><span>Weekly</span><span>Monthly</span></section>
 <section class="kfe-section"><div class="kfe-section-title"><div><span class="kfe-card-label">VEHICLE</span><h2>Usage</h2></div><span class="kfe-read-only">Read only</span></div><div class="kfe-vehicle-grid"><article v-for="item in vehicleCards" :key="item.label" class="kfe-performance-card"><span>{{item.label}}</span><strong>{{item.value}}</strong><small>{{item.note}}</small></article></div></section>
-<section class="kfe-section"><div class="kfe-section-title"><div><span class="kfe-card-label">FINANCIAL FLOW</span><h2>Operating position</h2></div></div><div class="kfe-flow"><article v-for="item in core" :key="item.label" class="kfe-flow-card"><span>{{item.label}}</span><strong>{{item.value}}</strong><small>{{item.state==='actual'?'Authoritative':'unavailable'}}</small></article></div><p class="kfe-flow-note">Revenue → Fuel / Maintenance / Other → Operating Result / Balance. Values come from the authoritative performance read model; this screen does not recalculate them.</p></section>
+<section class="kfe-section"><div class="kfe-section-title"><div><span class="kfe-card-label">FINANCIAL FLOW</span><h2>Operating position</h2></div></div><div class="kfe-flow"><article class="kfe-flow-card"><span>Revenue</span><strong>{{money(performance?.revenuePaise)}}</strong><small>{{valueState(performance?.revenuePaise)==='actual'?'Authoritative':'unavailable'}}</small></article><article class="kfe-flow-card"><span>Running Cost</span><strong>{{money(performance?.runningCostPaise)}}</strong><small>{{valueState(performance?.runningCostPaise)==='actual'?'Authoritative':'unavailable'}}</small></article><article class="kfe-flow-card"><span>Balance</span><strong>{{money(performance?.balancePaise)}}</strong><small>{{valueState(performance?.balancePaise)==='actual'?'Authoritative':'unavailable'}}</small></article></div><p class="kfe-flow-note">Revenue → Fuel / Maintenance / Business Expenses → Running Cost → Balance. Values come from the authoritative performance read model; this screen does not recalculate them.</p></section>
+<section class="kfe-section"><div class="kfe-section-title"><div><span class="kfe-card-label">COST CONTEXT</span><h2>Authoritative components</h2></div></div><div class="kfe-flow"><article v-for="item in costCards" :key="item.label" class="kfe-flow-card"><span>{{item.label}}</span><strong>{{item.value}}</strong><small>Shown only when supplied by the authoritative read model.</small></article></div></section>
 <article class="kfe-performance-why"><span class="kfe-card-label">HISTORY & CONTEXT</span><strong>{{why}}</strong><p>History & context remain authoritative. Missing inputs remain unavailable rather than being converted to zero.</p></article>
 </template>
 <KfeStatePanel v-if="!props.online" state="offline" title="Offline — operational" message="Performance continues from valid local authoritative data." />
