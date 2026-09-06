@@ -4,6 +4,7 @@ import { resolveKfeShell } from './presentation/shell/shell-resolver.js';
 import { installFormDraftRecovery } from '../js/ui/form-drafts.js';
 import { installFormResilience } from '../js/ui/form-resilience.js';
 import './styles/theme-adaptation.css';
+import './styles/scenic-shell.css';
 
 // Persistence is preferred, but failure to open IndexedDB must never leave the
 // production shell blank. Mount the UI even when storage is temporarily
