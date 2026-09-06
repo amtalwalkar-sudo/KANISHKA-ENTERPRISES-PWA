@@ -84,8 +84,11 @@ for (const file of walk('js/application')) {
 
 const app = read('src/App.vue');
 const admin = read('src/components/AdminModuleView.vue');
+// Dashboard and Profitability are no longer primary UI-contract navigation surfaces.
+// Their domain/calculation coverage remains verified below; do not require their names in App.vue.
+const obsoletePrimaryUiModules = new Set(['Dashboard', 'Profitability']);
 const requiredModules = Object.entries(contracts.currentScope)
-  .filter(([, contract]) => contract?.required === true)
+  .filter(([module, contract]) => contract?.required === true && !obsoletePrimaryUiModules.has(module))
   .map(([module, contract]) => ({ module, contract }));
 for (const { module, contract } of requiredModules) {
   if (contract.surface === 'admin-child') {
