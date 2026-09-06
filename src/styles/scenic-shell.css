@@ -7,6 +7,6 @@
 .driver-header{background:color-mix(in srgb,var(--shell-surface,var(--kfe-ui-surface)) 90%,transparent)!important}
 .quick-dock,.shell-menu{background:color-mix(in srgb,var(--shell-surface,var(--kfe-ui-surface)) 91%,transparent)!important}
 .content-surface{background:transparent!important}
-:deep(.kfe-workspace .card),:deep(.kfe-workspace .module-card),:deep(.kfe-workspace .panel),:deep(.kfe-workspace .section-card),:deep(.kfe-workspace .summary-card),:deep(.kfe-workspace .metric-card),:deep(.kfe-workspace .form-card),:deep(.kfe-workspace .settings-card),:deep(.kfe-workspace .record-card),:deep(.kfe-workspace .timeline-card),:deep(.kfe-workspace .stat-card){background:color-mix(in srgb,var(--kfe-ui-surface) 94%,transparent)}
+.kfe-workspace .card,.kfe-workspace .module-card,.kfe-workspace .panel,.kfe-workspace .section-card,.kfe-workspace .summary-card,.kfe-workspace .metric-card,.kfe-workspace .form-card,.kfe-workspace .settings-card,.kfe-workspace .record-card,.kfe-workspace .timeline-card,.kfe-workspace .stat-card{background:color-mix(in srgb,var(--kfe-ui-surface) 94%,transparent)}
 @media(max-width:560px){.driver-shell::before{background-position:center top}.driver-shell::after{background:linear-gradient(180deg,color-mix(in srgb,var(--kfe-ui-bg) 32%,transparent),color-mix(in srgb,var(--kfe-ui-bg) 70%,transparent) 58%,color-mix(in srgb,var(--kfe-ui-bg) 86%,transparent))}}
 @media(prefers-reduced-motion:reduce){.driver-shell::before{transform:none}}
