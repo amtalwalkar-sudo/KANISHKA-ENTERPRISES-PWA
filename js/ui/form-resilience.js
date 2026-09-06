@@ -1,0 +1,130 @@
+const FIELD_HINTS = [
+  { test: /(^|[-_])(pin|otp|password)([-_]|$)/i, inputmode: 'numeric', autocomplete: 'one-time-code' },
+  { test: /email/i, inputmode: 'email', autocomplete: 'email' },
+  { test: /(phone|mobile|tel)/i, inputmode: 'tel', autocomplete: 'tel' },
+  { test: /(odometer|kilomet(er|re)|km|distance|quantity|count)/i, inputmode: 'numeric', autocomplete: 'off' },
+  { test: /(amount|revenue|price|cost|expense|toll|parking|rate|interest|emi)/i, inputmode: 'decimal', autocomplete: 'off' },
+  { test: /(date|day)/i, inputmode: 'numeric', autocomplete: 'off' },
+];
+
+function formRoot(element) {
+  return element?.closest?.('form,[data-kfe-draft-form="true"],.work-form-card') || null;
+}
+
+function isException(element) {
+  const root = formRoot(element);
+  return Boolean(root?.dataset.formType === 'compact' || root?.dataset.formType === 'search' || root?.closest?.('[data-form-type="compact"],[role="search"]'));
+}
+
+function controlLabel(element) {
+  const id = element?.id;
+  if (id) {
+    const label = [...document.querySelectorAll('label')].find((candidate) => candidate.htmlFor === id);
+    if (label) return label.textContent || '';
+  }
+  return element?.closest?.('label')?.textContent || `${element?.name || ''} ${element?.placeholder || ''}`;
+}
+
+function enhanceControls(root = document) {
+  root.querySelectorAll?.('input,select,textarea').forEach((element) => {
+    if (element.disabled || element.type === 'file' || element.type === 'hidden' || element.type === 'checkbox' || element.type === 'radio') return;
+    const identity = `${element.name || ''} ${element.id || ''} ${controlLabel(element)}`;
+    const hint = FIELD_HINTS.find((candidate) => candidate.test.test(identity));
+    if (!element.getAttribute('inputmode') && hint) element.setAttribute('inputmode', hint.inputmode);
+    if (!element.getAttribute('autocomplete') && hint) element.setAttribute('autocomplete', hint.autocomplete);
+    if (!element.getAttribute('autocomplete') && !hint) element.setAttribute('autocomplete', 'off');
+  });
+}
+
+function updateViewportVars() {
+  const vv = window.visualViewport;
+  const height = vv?.height || window.innerHeight;
+  const keyboardInset = vv ? Math.max(0, window.innerHeight - vv.height - Math.max(0, vv.offsetTop)) : 0;
+  document.documentElement.style.setProperty('--kfe-viewport-height', `${Math.round(height)}px`);
+  document.documentElement.style.setProperty('--kfe-keyboard-inset', `${Math.round(keyboardInset)}px`);
+}
+
+function focusControl(element) {
+  if (!element || isException(element)) return;
+  window.setTimeout(() => {
+    try {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    } catch {
+      element.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+    }
+  }, 80);
+}
+
+function validateNativeField(element) {
+  if (!element?.willValidate || !element.form || element.form.noValidate) return;
+  const field = element.closest('.kfe-form-field,.form-field,[data-form-field]') || element.parentElement;
+  if (!field) return;
+  let message = field.querySelector('.kfe-form-error[data-kfe-native-error="true"]');
+  if (!element.validity.valid) {
+    if (!message) {
+      message = document.createElement('p');
+      message.className = 'kfe-form-error';
+      message.dataset.kfeNativeError = 'true';
+      message.setAttribute('aria-live', 'polite');
+      field.append(message);
+    }
+    message.textContent = element.validationMessage;
+    field.classList.add('has-error');
+    element.setAttribute('aria-invalid', 'true');
+  } else if (message) {
+    message.remove();
+    field.classList.remove('has-error');
+    element.removeAttribute('aria-invalid');
+  }
+}
+
+function hapticError() {
+  if (navigator.vibrate) navigator.vibrate([18, 24, 18]);
+}
+
+let installed = false;
+export function installFormResilience() {
+  if (installed) return;
+  installed = true;
+  updateViewportVars();
+  enhanceControls(document);
+
+  const viewport = window.visualViewport;
+  viewport?.addEventListener('resize', updateViewportVars, { passive: true });
+  viewport?.addEventListener('scroll', updateViewportVars, { passive: true });
+  window.addEventListener('resize', updateViewportVars, { passive: true });
+
+  document.addEventListener('focusin', (event) => {
+    const element = event.target?.matches?.('input,select,textarea,button,[role="button"]') ? event.target : null;
+    if (!element) return;
+    updateViewportVars();
+    focusControl(element);
+  });
+
+  document.addEventListener('input', (event) => {
+    const element = event.target;
+    if (!element?.matches?.('input,select,textarea')) return;
+    window.clearTimeout(element.__kfeValidationTimer);
+    element.__kfeValidationTimer = window.setTimeout(() => validateNativeField(element), 250);
+  });
+
+  document.addEventListener('blur', (event) => {
+    const element = event.target;
+    if (element?.matches?.('input,select,textarea')) validateNativeField(element);
+  }, true);
+
+  document.addEventListener('invalid', (event) => {
+    validateNativeField(event.target);
+    hapticError();
+    focusControl(event.target);
+  }, true);
+
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      record.addedNodes.forEach((node) => {
+        if (node instanceof Element) enhanceControls(node);
+      });
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+}
