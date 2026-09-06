@@ -23,7 +23,7 @@ async function saveFuel(page,{odometer,price,amount},expectedCount){await fill(p
 
 try{
  const {page}=await freshContext();
- await expectBar(page,'← START PERSONAL TRIP START DAY →');await swipe(page,bar(page),'LEFT');await fill(page,'Odometer',5);await fill(page,'Business KM',0);await fill(page,'Personal KM',5);await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'PERSONAL_TRIP');
+ await expectBar(page,'← START PERSONAL TRIP START DAY →');await swipe(page,bar(page),'LEFT');await fill(page,'Odometer',5);await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'PERSONAL_TRIP');
  await expectBar(page,'END PERSONAL TRIP →');await swipe(page,bar(page),'RIGHT');await fill(page,'End odometer',10);await expectBar(page,'CLOSE PERSONAL TRIP →');await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'DAY_START');
  await expectBar(page,'← START PERSONAL TRIP START DAY →');await swipe(page,bar(page),'RIGHT');await fill(page,'Start odometer',20);await fill(page,'Business KM',7);await fill(page,'Personal KM',3);await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'DAY_READY');
  await expectBar(page,'← START PERSONAL TRIP START BUSINESS SHIFT →');await swipe(page,bar(page),'LEFT');await fill(page,'Start odometer',22);await fill(page,'Business KM',1);await fill(page,'Personal KM',1);await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'PERSONAL_TRIP');
