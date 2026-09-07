@@ -12,9 +12,21 @@ export function openKfeDb(){
   dbPromise=new Promise((resolve,reject)=>{
     if(typeof indexedDB==='undefined'){dbPromise=null;return reject(new Error('IndexedDB unavailable'));}
     const request=indexedDB.open(DB_NAME,DB_VERSION);
-    request.onupgradeneeded=()=>ensureStores(request.result);
-    request.onsuccess=()=>{const db=request.result;db.onversionchange=()=>{db.close();dbPromise=null;};resolve(db);};
-    request.onerror=()=>{dbPromise=null;reject(request.error||new Error('IndexedDB open failed'));};
+    let settled=false;
+    const fail=error=>{if(settled)return;settled=true;dbPromise=null;reject(error);};
+    request.onupgradeneeded=()=>{
+      try{ensureStores(request.result);}
+      catch(error){fail(error);try{request.transaction?.abort();}catch{}}
+    };
+    request.onblocked=()=>fail(new Error(`IndexedDB upgrade blocked for ${DB_NAME} v${DB_VERSION}; another connection must close before migration can continue`));
+    request.onsuccess=()=>{
+      if(settled)return;
+      settled=true;
+      const db=request.result;
+      db.onversionchange=()=>{db.close();dbPromise=null;};
+      resolve(db);
+    };
+    request.onerror=()=>fail(request.error||new Error('IndexedDB open failed'));
   });
   return dbPromise;
 }
