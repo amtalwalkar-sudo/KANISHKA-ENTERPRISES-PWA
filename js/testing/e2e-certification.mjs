@@ -14,21 +14,16 @@ async function route(name){
 }
 
 try{
-  await route('Work');
-  assert.deepEqual(await page.locator('.quick-dock button').allTextContents(),['Work','Performance','Timeline','Admin']);
-  assert.equal(await page.locator('.empty-module[aria-label="Work"]').count(),1);
+  await route('Performance');
+  assert.deepEqual(await page.locator('.quick-dock button').allTextContents(),['Performance','Admin']);
+  assert.equal(await page.locator('.quick-dock button.active').textContent(),'Performance');
+  assert.equal(await page.locator('.empty-module').count(),0);
   assert.equal(await page.locator('.kfe-swipe-bar').count(),0);
   assert.equal(await page.locator('[data-kfe-action]').count(),0);
 
   await page.getByRole('button',{name:'Settings'}).click();
   assert.deepEqual(await page.getByRole('menuitem').allTextContents(),['Backup','Restore','Data reset']);
   await page.getByRole('button',{name:'Settings'}).click();
-
-  await route('Timeline');
-  assert.equal(await page.locator('.empty-module[aria-label="Timeline"]').count(),1);
-
-  await route('Performance');
-  assert.equal(await page.locator('.quick-dock button.active').textContent(),'Performance');
 
   await route('Admin');
   assert.equal(await page.locator('.quick-dock button.active').textContent(),'Admin');
@@ -48,5 +43,5 @@ try{
   });
   assert.deepEqual(result,{maintenance:true,compliance:true,expense:true,revenue:true,loan:true});
   assert.deepEqual(errors,[]);
-  console.log('PASS: current-shell browser certification, settings boundary, clean Work/Timeline presentation, Performance/Admin routing, and core financial application contracts');
+  console.log('PASS: current-shell browser certification, settings boundary, clean active presentation surfaces, Performance/Admin routing, and core financial application contracts');
 }finally{await context.close();await browser.close()}
