@@ -4,14 +4,12 @@ import {createKfeApplication} from '../application/kfe.js';
 
 const appSource=fs.readFileSync(new URL('../application/kfe.js',import.meta.url),'utf8');
 const uiSource=fs.readFileSync(new URL('../../src/components/WorkSessionView.vue',import.meta.url),'utf8');
-const swipeSource=fs.readFileSync(new URL('../../src/components/KfeSwipeBar.vue',import.meta.url),'utf8');
 const rootSource=fs.readFileSync(new URL('../../src/App.vue',import.meta.url),'utf8');
 assert.equal(appSource.includes("../core/hardened-db.js"),false);
 assert.equal(uiSource.includes("../../js/core/"),false);
 assert.match(uiSource,/createUiCommand\(type\s*,\s*payload\)/);
 for (const command of ['START_SHIFT','START_TRIP','END_TRIP','END_SHIFT','START_DAY','START_PERSONAL_TRIP','END_PERSONAL_TRIP','END_DAY']) assert.match(uiSource,new RegExp(command));
-assert.match(swipeSource,/pointerdown/);
-assert.match(swipeSource,/pointerup/);
+assert.doesNotMatch(uiSource,/kfe-swipe-bar|KfeSwipeBar|pointerdown|pointerup/);
 assert.match(rootSource,/WorkSessionView/);
 assert.match(rootSource,/kfe:work-state-changed/);
 
@@ -39,7 +37,7 @@ await app.endShift({id:shift.id,endOdometer:120,revenuePaise:10000},'phase4-shif
 await app.endDay({},'phase4-day-end');
 assert.equal((await app.getWorkScreenState()).day.status,'COMPLETED');
 console.log('PASS UI reaches application command boundary');
-console.log('PASS reusable swipe boundary preserves scroll safety and accessibility');
+console.log('PASS clean Work canvas has no obsolete swipe boundary');
 console.log('PASS Work Day → Shift → Business Trip → Shift → Day lifecycle');
 console.log('PASS business trips persist authoritative start/end odometers');
 console.log('PASS persistence-ready application orchestration');
