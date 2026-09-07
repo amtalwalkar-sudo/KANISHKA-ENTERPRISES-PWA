@@ -3,17 +3,17 @@ import {createUiCommand,createPresentationState,isUiCommand} from '../applicatio
 import {createCommandDispatcher} from '../application/command-dispatcher.js';
 import './settings-contract.mjs';
 
-const command=createUiCommand('SELECT_MODULE',{module:'Work'});
+const command=createUiCommand('SELECT_MODULE',{module:'Performance'});
 assert.equal(command.version,1);
 assert.equal(command.type,'SELECT_MODULE');
-assert.equal(command.payload.module,'Work');
+assert.equal(command.payload.module,'Performance');
 assert.equal(isUiCommand(command),true);
-assert.throws(()=>createUiCommand('RUN_BUSINESS_CALCULATION'),/Unsupported UI command/);
+assert.throws(()=>createUiCommand('START_DAY'),/Unsupported UI command/);
 assert.equal(createPresentationState(null).dataConfidenceState,'UNKNOWN');
 const seen=[];
 const dispatch=createCommandDispatcher({SELECT_MODULE:async payload=>{seen.push(payload);return 'ok';}});
 assert.equal(await dispatch(command),'ok');
-assert.deepEqual(seen,[{module:'Work'}]);
+assert.deepEqual(seen,[{module:'Performance'}]);
 await assert.rejects(()=>dispatch({version:1,type:'SELECT_MODULE',payload:null}),/Invalid UI command/);
 await assert.rejects(()=>dispatch(createUiCommand('RETRY')),/No application handler/);
 console.log('PHASE_3_UI_ERP_CONTRACT=PASS');
