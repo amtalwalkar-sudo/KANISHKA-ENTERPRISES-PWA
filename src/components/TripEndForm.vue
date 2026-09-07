@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { enforceDecimalInputs } from '../../js/ui/decimal-input.js'
 
-const props = defineProps({ startOdometer: { type: [Number, String], default: null }, busy: { type: Boolean, default: false } })
+const props = defineProps({ startOdometer: { type: [Number, String], default: null }, busy: { type: Boolean, default: false }, tripType: { type: String, default: 'BUSINESS' } })
 const emit = defineEmits(['close', 'submitted'])
 const endOdometer = ref('')
 const error = ref('')
@@ -19,7 +19,7 @@ onMounted(() => { sanitize(); inputRef.value?.addEventListener('input', sanitize
   <div class="work-form-overlay" role="dialog" aria-modal="true" aria-labelledby="trip-end-title">
     <div class="work-form-card">
       <div class="drawer-header">
-        <p class="kfe-eyebrow">END BUSINESS TRIP</p>
+        <p class="kfe-eyebrow">END TRIP</p>
         <h2 id="trip-end-title">End Trip</h2>
         <button type="button" class="close-drawer-btn" data-kfe-action="cancel-end-trip" aria-label="Cancel" @click="$emit('close')">Cancel</button>
       </div>
