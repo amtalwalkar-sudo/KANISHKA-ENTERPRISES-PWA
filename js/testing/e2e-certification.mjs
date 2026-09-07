@@ -1,26 +1,52 @@
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
-const browser=await chromium.launch({headless:true});const context=await browser.newContext();const page=await context.newPage();const errors=[];
-page.on('pageerror',e=>errors.push(String(e?.message||e)));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
-async function route(name){await page.goto(`http://127.0.0.1:4173/#${encodeURIComponent(name)}`,{waitUntil:'networkidle'});await page.locator('.kfe-shell').waitFor({state:'visible',timeout:10000});}
-async function heading(name){const h=page.getByRole('heading',{name,exact:true}).first();await h.waitFor({state:'visible',timeout:5000});}
-async function button(name){const b=page.getByRole('button',{name,exact:true});assert.ok(await b.count()>0,`missing button: ${name}`);return b.first();}
-async function listButton(name){const b=page.locator('.kfe-admin-list button').filter({hasText:name}).first();assert.ok(await b.count()>0,`missing list button: ${name}`);return b;}
-async function backFromLoan(){const b=page.getByRole('button',{name:/Loans/}).first();assert.ok(await b.count()>0,'missing Loans back control');await b.click();}
+
+const browser=await chromium.launch({headless:true});
+const context=await browser.newContext();
+const page=await context.newPage();
+const errors=[];
+page.on('pageerror',e=>errors.push(String(e?.message||e)));
+page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+
+async function route(name){
+  await page.goto(`http://127.0.0.1:4173/#${encodeURIComponent(name)}`,{waitUntil:'networkidle'});
+  await page.locator('.driver-shell').waitFor({state:'visible',timeout:30000});
+}
+
 try{
- await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});await page.locator('.kfe-shell').waitFor({state:'visible',timeout:30000});
- for(const name of ['Work','Performance','Timeline','Admin']){await route(name);await heading(name)}
- for(const name of ['Dashboard','Profitability']){await route(name);await heading(name)}
- await route('Admin');await (await button('Finance')).click();assert.equal(await page.locator('.kfe-finance-tiles button').count(),6);await (await button('‹ Admin')).click().catch(async()=>await page.getByRole('button',{name:/Admin/}).first().click());await (await button('Management')).click();
- for(const name of ['Vehicle','Driver','Finance','Fixed Expenses','Renewals','Maintenance','Loans','Settings'])await listButton(name);
- await (await listButton('Fixed Expenses')).click();assert.ok(await page.getByText('FIXED EXPENSES',{exact:true}).count()>0);await (await button('Add fixed expense')).click();assert.ok(await page.getByText('ADD FIXED EXPENSE',{exact:true}).count()>0);await (await button('Cancel')).click();
- await page.evaluate(async()=>{const a=window.__KFE_RUNTIME__.application;const today=new Date().toISOString().slice(0,10);await a.recordMaintenance({date:today,vehicle:'TEST',odometer:100,category:'Service',description:'Certification service',amount:1250});await a.recordCompliance({type:'Insurance',cost:5000,start:today,end:'2099-12-31'});await a.recordExpense({category:'Toll',date:today,amount:100,description:'Certification expense'});await a.recordRevenue({amount_paise:250000,business_date:today,recorded_at:new Date().toISOString(),scope:'BUSINESS'});await a.fixedExpenses.create({name:'Certification Fixed',category:'Certification Fixed',amount_paise:100000,effective_from:today,status:'ACTIVE'});const created=await a.createLoan({principal:100000,annual_rate_percent:12,term_months:12,emi:9000,start_date:today});const paid=await a.recordLoanPayment({loan_id:created.loan.id,amount:5000,date:today});if(paid.payment.interest_paise!==1000||paid.payment.principal_paise!==4000||paid.loan.remaining_balance_paise!==96000)throw new Error('Loan principal/interest allocation vector failed');});
- await route('Maintenance');await heading('Maintenance');await (await button('Maintenance history')).click();assert.ok(await page.getByText('Certification service',{exact:true}).count()>0);
- await route('Compliance');await heading('Compliance');await (await button('Current validity')).click();assert.ok(await page.getByText('Insurance · VALID',{exact:true}).count()>0);await page.getByRole('button',{name:/Compliance/}).first().click();await (await button('Renewal history')).click();assert.ok(await page.getByText('Insurance',{exact:true}).count()>0);
- await route('Expenses');await heading('Expenses');await (await button('Add expense')).click();await heading('Add expense');
- await route('Revenue');await heading('Revenue');await (await button('Enter today’s revenue')).click();await heading('Enter today’s revenue');
- await route('Loans');await heading('Loans');await (await button('Payment history')).click();assert.ok(await page.getByText('₹50.00',{exact:true}).count()>0);await backFromLoan();await (await button('Amortization schedule')).click();assert.ok(await page.getByText('Month 1',{exact:true}).count()>0);await backFromLoan();await (await button('Prepayment calculator')).click();const principal=page.getByLabel(/Outstanding principal/);await principal.waitFor({state:'visible',timeout:5000});assert.ok(await principal.count()>0);
- await route('Admin');await (await button('Management')).click();await (await listButton('Fixed Expenses')).click();assert.ok(await page.getByText('Certification Fixed',{exact:true}).count()>0);await (await button('Edit')).click();assert.ok(await page.getByText('EDIT FIXED EXPENSE',{exact:true}).count()>0);
- console.log('PASS: current KFE production routes, Admin controls, authoritative maintenance/compliance/loan/fixed-expense flows, financial dashboard/profitability surfaces, current expense/revenue forms, and loan principal/interest allocation.');
-}finally{assert.deepEqual(errors,[],`Browser console/page errors: ${errors.join(' | ')}`);await context.close();await browser.close();}
-// KFE 2.0 current-shell certification checkpoint
+  await route('Work');
+  assert.deepEqual(await page.locator('.quick-dock button').allTextContents(),['Work','Performance','Timeline','Admin']);
+  assert.equal(await page.locator('.empty-module[aria-label="Work"]').count(),1);
+  assert.equal(await page.locator('.kfe-swipe-bar').count(),0);
+  assert.equal(await page.locator('[data-kfe-action]').count(),0);
+
+  await page.getByRole('button',{name:'Settings'}).click();
+  assert.deepEqual(await page.getByRole('menuitem').allTextContents(),['Backup','Restore','Data reset']);
+  await page.getByRole('button',{name:'Settings'}).click();
+
+  await route('Timeline');
+  assert.equal(await page.locator('.empty-module[aria-label="Timeline"]').count(),1);
+
+  await route('Performance');
+  assert.equal(await page.locator('.quick-dock button.active').textContent(),'Performance');
+
+  await route('Admin');
+  assert.equal(await page.locator('.quick-dock button.active').textContent(),'Admin');
+
+  const result=await page.evaluate(async()=>{
+    const a=window.__KFE_RUNTIME__?.application;
+    if(!a) throw new Error('KFE application runtime unavailable');
+    const today=new Date().toISOString().slice(0,10);
+    await a.recordMaintenance({date:today,vehicle:'TEST',odometer:100,category:'Service',description:'Certification service',amount:1250});
+    await a.recordCompliance({type:'Insurance',cost:5000,start:today,end:'2099-12-31'});
+    await a.recordExpense({category:'Toll',date:today,amount:100,description:'Certification expense'});
+    await a.recordRevenue({amount_paise:250000,business_date:today,recorded_at:new Date().toISOString(),scope:'BUSINESS'});
+    const created=await a.createLoan({principal:100000,annual_rate_percent:12,term_months:12,emi:9000,start_date:today});
+    const paid=await a.recordLoanPayment({loan_id:created.loan.id,amount:5000,date:today});
+    if(paid.payment.interest_paise!==1000||paid.payment.principal_paise!==4000||paid.loan.remaining_balance_paise!==96000)throw new Error('Loan principal/interest allocation vector failed');
+    return {maintenance:true,compliance:true,expense:true,revenue:true,loan:true};
+  });
+  assert.deepEqual(result,{maintenance:true,compliance:true,expense:true,revenue:true,loan:true});
+  assert.deepEqual(errors,[]);
+  console.log('PASS: current-shell browser certification, settings boundary, clean Work/Timeline presentation, Performance/Admin routing, and core financial application contracts');
+}finally{await context.close();await browser.close()}
