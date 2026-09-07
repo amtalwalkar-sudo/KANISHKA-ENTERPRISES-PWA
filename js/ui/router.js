@@ -1,4 +1,4 @@
-const DEFAULT_ROUTE='Work';
+const DEFAULT_ROUTE='Performance';
 const ROUTE_HISTORY_KEY='kfe:ui-route-history';
 
 function normalize(path){
