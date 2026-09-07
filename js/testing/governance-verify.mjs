@@ -101,8 +101,8 @@ for (const { module, contract } of requiredModules) {
 }
 if (contracts.currentScope.Driver?.required === true) {
   if (!/DriverModuleView/.test(app)) fail('DriverModuleView is required by the UI contract but is not wired into App.vue');
-  const vehicle = read('src/components/VehicleModuleView.vue');
-  if (!/emit\('open', 'Driver'\)/.test(vehicle)) fail("VehicleModuleView must emit open/Driver according to the UI contract");
+  const vehicleRole = read('src/components/VehicleModuleRole.vue');
+  if (!/emit\('open', 'Driver'\)/.test(vehicleRole)) fail("VehicleModuleRole must emit open/Driver according to the UI contract");
 }
 if (!/save-request/.test(read('src/components/HistoricalEntriesView.vue'))) fail('Historical Entries save-request contract missing');
 
@@ -114,7 +114,7 @@ for (const file of [...walk('src'), ...walk('js/domain'), ...walk('js/applicatio
 const sw = read('service-worker.js');
 const shellMatch = sw.match(/const APP_SHELL=\[(.*?)\];/s);
 if (!shellMatch) fail('service-worker APP_SHELL declaration missing');
-const paths = [...shellMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]).filter(p => p.startsWith('./'));
+const paths = [...shellMatch[1].matchAll(/[\'"]([^\'"]+)[\'"]/g)].map(m => m[1]).filter(p => p.startsWith('./'));
 for (const asset of paths) {
   const normalized = asset.replace(/^\.\//, '');
   if (normalized !== '' && !exists(normalized)) fail(`service-worker APP_SHELL references missing asset: ${asset}`);
