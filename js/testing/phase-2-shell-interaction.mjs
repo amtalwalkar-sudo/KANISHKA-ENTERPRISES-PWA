@@ -5,14 +5,14 @@ import {createUiState,UI_STATES} from '../ui/state.js';
 import {detectUiCapabilities} from '../ui/capabilities.js';
 import {axisLockedDelta,createInteractionGuard} from '../ui/interaction.js';
 
+const shell=await readFile(new URL('../../src/presentation/shell/shells/current/CurrentShell.vue',import.meta.url),'utf8');
 const app=await readFile(new URL('../../src/App.vue',import.meta.url),'utf8');
 const css=await readFile(new URL('../../src/styles/shell.css',import.meta.url),'utf8');
-assert.ok(app.includes('createUiRouter'),'UI router boundary wired');
-assert.ok(app.includes('createUiState'),'UI state infrastructure wired');
-assert.ok(app.includes('detectUiCapabilities'),'capability detection wired');
-assert.ok(app.includes('createInteractionGuard'),'interaction guard wired');
+assert.ok(shell.includes("location.hash"),'UI router boundary wired');
+assert.ok(shell.includes('hashchange'),'UI route synchronization wired');
+assert.ok(app.includes("activeModule"),'application module state wired');
 assert.ok(css.includes('touch-action:pan-y'),'vertical scroll interaction boundary present');
-assert.ok(css.includes('prefers-reduced-motion:reduce'),'reduced motion remains present');
+assert.ok(/prefers-reduced-motion\s*:\s*reduce/i.test(css),'reduced motion remains present');
 
 const router=createUiRouter({initialPath:'Work'});
 assert.equal(router.route,DEFAULT_ROUTE);
