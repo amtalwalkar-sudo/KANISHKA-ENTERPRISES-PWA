@@ -33,14 +33,18 @@ assert.equal((shell.match(/<main/g)||[]).length,1,'structural shell must have on
 assert.doesNotMatch(shell,/kfe-swipe-bar|KfeSwipeBar|Tax Reserve|tax reserve/i);
 assert.doesNotMatch(shell,/Fleet|Reports|Analytics|GPS|OCR|Advisor/);
 
-// App is intentionally a clean module canvas: Work and Timeline are blank,
-// while Performance and Admin remain the active functional surfaces.
+// App is the production module canvas: Work, Performance, Timeline, and Admin
+// are mounted as real functional surfaces selected by the active module route.
 assert.match(app,/activeModule/);
+assert.match(app,/WorkSessionView/);
 assert.match(app,/PerformanceModuleView/);
+assert.match(app,/KfeTimelineView/);
 assert.match(app,/AdminModuleView/);
 assert.match(app,/activeModule === 'Work'/);
+assert.match(app,/activeModule === 'Performance'/);
 assert.match(app,/activeModule === 'Timeline'/);
-assert.match(app,/class="empty-module"/);
+assert.match(app,/activeModule === 'Admin'/);
+assert.doesNotMatch(app,/class="empty-module"/);
 assert.doesNotMatch(app,/FuelForm/);
 assert.doesNotMatch(app,/VehicleModuleView|MaintenanceModuleView|ComplianceModuleView|LoanModuleView/);
 assert.doesNotMatch(app,/HistoricalEntriesView/);
@@ -48,7 +52,7 @@ assert.doesNotMatch(app,/FuelQuickEntry|FuelQuickAction|Quick fuel/i);
 assert.doesNotMatch(app,/Tax Reserve|tax reserve/i);
 
 // Preserve the underlying navigation/timeline contracts without requiring legacy
-// presentation components to be mounted in the clean shell.
+// presentation components to be mounted in the current shell.
 assert.match(navigation,/Work.*Performance.*Timeline.*Admin/s);
 assert.doesNotMatch(navigation,/More/);
 assert.match(navigation,/TIMELINE_HORIZONS=Object\.freeze\(\['Day','Week','Long-term'\]\)/);
@@ -77,4 +81,4 @@ assert.match(contracts,/analytics: false/);
 assert.doesNotMatch(css,/Tax Reserve|tax reserve/i);
 
 console.log('Phase 6 UI shell contract: PASS');
-console.log('CurrentShell boundary, clean Work/Timeline canvas, Performance/Admin surfaces, navigation/timeline foundations, settings actions, and underlying ERP contracts verified.');
+console.log('CurrentShell boundary, production Work/Performance/Timeline/Admin surfaces, navigation/timeline foundations, settings actions, and underlying ERP contracts verified.');
