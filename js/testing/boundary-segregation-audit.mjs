@@ -24,7 +24,11 @@ const presentationBoundaries={
   'src/components/LoanModuleView.vue':'src/components/LoanModuleRole.vue'
 };
 
-for(const [publicPath,implementationPath] of Object.entries({...applicationBoundaries,...presentationBoundaries})){
+const boundaries={...applicationBoundaries,...presentationBoundaries};
+const escapeRegExp=value=>value.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&');
+const relativePath=path=>path.startsWith('js/')?`../${path.slice(3)}`:`../../${path}`;
+
+for(const [publicPath,implementationPath] of Object.entries(boundaries)){
   const publicSource=await read(publicPath);
   const implementationSource=await read(implementationPath);
   assert.ok(publicSource.length<1000,`${publicPath} is no longer a thin public boundary`);
@@ -36,19 +40,26 @@ const testFiles=(await readdir(new URL('../../js/testing/',import.meta.url),{wit
   .filter(entry=>entry.isFile()&&entry.name.endsWith('.mjs'))
   .map(entry=>entry.name);
 
-const boundaries={...applicationBoundaries,...presentationBoundaries};
+// Detect both direct filesystem reads and the common local `read(path)` helper
+// used by validation sources. This closes the exact blind spot where a test can
+// inspect a thin boundary indirectly while bypassing the old static-read regex.
+const readsPath=(source,path)=>{
+  const escaped=escapeRegExp(path);
+  const relative=escapeRegExp(relativePath(path));
+  return [
+    new RegExp(`(?:readFileSync|readFile)\\([^\\n]*['"]${escaped}['"]`).test(source),
+    new RegExp(`read\\(\\s*['"]${escaped}['"]\\s*\\)`).test(source),
+    new RegExp(`new URL\\(\\s*[`+'"'+`']${relative}[`+'"'+`']`).test(source),
+    new RegExp(`(?:path\\.join|join)\\([^\\n]*['"]${escaped}['"]`).test(source)
+  ].some(Boolean);
+};
+
 const stale=[];
 for(const name of testFiles){
   const source=await read(`js/testing/${name}`);
   for(const [publicPath,implementationPath] of Object.entries(boundaries)){
-    const relative=(path)=>path.startsWith('js/')?`../${path.slice(3)}`:`../../${path}`;
-    const escaped=(value)=>value.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&');
-    const publicDirectRead=new RegExp(`(?:readFileSync|readFile)\\([^\\n]*${escaped(publicPath)}`).test(source)
-      || new RegExp(`new URL\\(['"]${escaped(relative(publicPath))}`).test(source);
-    if(!publicDirectRead) continue;
-    const implementationDirectRead=new RegExp(`(?:readFileSync|readFile)\\([^\\n]*${escaped(implementationPath)}`).test(source)
-      || new RegExp(`new URL\\(['"]${escaped(relative(implementationPath))}`).test(source);
-    if(!implementationDirectRead) stale.push(`${name} inspects thin boundary ${publicPath} without inspecting implementation ${implementationPath}`);
+    if(!readsPath(source,publicPath)) continue;
+    if(!readsPath(source,implementationPath)) stale.push(`${name} inspects thin boundary ${publicPath} without inspecting implementation ${implementationPath}`);
   }
 }
 
