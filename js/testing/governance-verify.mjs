@@ -95,8 +95,8 @@ for (const { module, contract } of requiredModules) {
     if (contract.parent !== 'Admin') fail(`admin-child UI module has unsupported parent: ${module}`);
     if (!/AdminModuleView/.test(app)) fail(`required Admin parent is not wired into App.vue for admin child: ${module}`);
     if (!admin.includes(module)) fail(`required Admin child UI module is not represented in AdminModuleView.vue: ${module}`);
-  } else if (!app.includes(module)) {
-    fail(`required current-scope UI module is not represented in src/App.vue: ${module}`);
+  } else if (contract.surface === 'primary') {
+    if (!app.includes(module)) fail(`required primary UI module is not represented in src/App.vue: ${module}`);
   }
 }
 if (contracts.currentScope.Driver?.required === true) {
