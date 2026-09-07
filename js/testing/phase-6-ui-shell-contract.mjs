@@ -1,32 +1,80 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+
 const navigation = read('js/ui/navigation.js');
 const timeline = read('js/ui/timeline.js');
 const app = read('src/App.vue');
-const shell = read('src/styles/shell.css');
-const forms = read('src/components/KfeFormShell.vue');
-const fuel = read('src/components/FuelForm.vue');
-const drafts = read('js/ui/form-drafts.js');
-const work = read('src/components/WorkSessionView.vue');
-const vehicle = read('src/components/VehicleModuleView.vue');
-const driver = read('src/components/DriverModuleView.vue');
-const maintenance = read('src/components/MaintenanceModuleView.vue');
-const compliance = read('src/components/ComplianceModuleView.vue');
-const loan = read('src/components/LoanModuleView.vue');
-const modules = read('src/components/KfeModuleView.vue');
-const historical = read('src/components/HistoricalEntriesView.vue');
+const shell = read('src/presentation/shell/shells/current/CurrentShell.vue');
+const css = read('src/styles/shell.css');
 const performance = read('src/components/PerformanceModuleView.vue');
 const admin = read('src/components/AdminModuleView.vue');
-const loanBoundary = read('js/application/loan-module.js');
 const loanDomain = read('js/domain/loans.js');
 const loanRepository = read('js/application/loan-repository.js');
 const contracts = read('js/ui/module-contracts.js');
-assert.match(navigation,/Work.*Performance.*Timeline.*Admin/s);assert.doesNotMatch(navigation,/More/);assert.match(navigation,/TIMELINE_HORIZONS=Object\.freeze\(\['Day','Week','Long-term'\]\)/);assert.doesNotMatch(navigation,/Status/);assert.doesNotMatch(navigation,/Today.*Month.*Year/s);assert.doesNotMatch(navigation,/Fleet|Reports|Analytics|GPS|OCR|Advisor/);assert.match(timeline,/occurredAt/);assert.match(timeline,/sort\(\(a,b\)/);assert.match(timeline,/filter\(e=>\{if\(!e\.occurredAt\)return false/);assert.doesNotMatch(app,/Tax Reserve|tax reserve/i);assert.doesNotMatch(shell,/Tax Reserve|tax reserve/i);assert.match(forms,/Unsaved draft/);assert.doesNotMatch(forms,/localStorage/);assert.match(forms,/clearFormDraft/);assert.match(forms,/hasFormDraft/);assert.match(forms,/emit\('save'/);
-assert.match(app,/FuelForm/);assert.doesNotMatch(app,/aria-label="Quick fuel"/);assert.doesNotMatch(app,/FuelQuickEntry|FuelQuickAction/);assert.match(work,/work-canvas/);assert.match(work,/currentState/);assert.match(work,/latestOdometer/);assert.match(work,/action-bar/);assert.match(work,/bottom-nav/);assert.match(work,/data-kfe-action/);assert.match(work,/createUiCommand/);assert.doesNotMatch(work,/kfe-swipe-bar|KfeSwipeBar|data-kfe-draft-form/);assert.doesNotMatch(work,/FuelQuickEntry|FuelQuickAction/);assert.match(fuel,/Quick Fuel/);assert.match(fuel,/Odometer/);assert.match(fuel,/Fuel price per litre\/kg/);assert.match(fuel,/Refuelled kg/);assert.match(fuel,/recordFuel/);assert.match(fuel,/saveHistoricalCorrection/);assert.match(fuel,/data-kfe-draft-form/);assert.match(fuel,/kfe-qf-swipe-track/);assert.match(drafts,/localStorage/);assert.match(drafts,/visibilitychange/);assert.match(drafts,/pagehide/);assert.match(drafts,/clearFormDraft/);
-assert.match(performance,/Today’s Position/);assert.match(performance,/Revenue/);assert.match(performance,/Running Cost/);assert.match(performance,/Balance/);assert.match(performance,/History & context/);assert.match(performance,/Authoritative/);assert.match(performance,/unavailable/);assert.doesNotMatch(performance,/Tomorrow target|Status unavailable/i);
-for(const text of ['CURRENT STATE','ATTENTION','INSIGHT','PROFITABILITY','BREAK-EVEN','Month View','Finance','Management','View Timeline','getAdminState'])assert.match(admin,new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));assert.doesNotMatch(admin,/indexedDB|localStorage|sessionStorage/);assert.match(app,/AdminModuleView/);assert.match(app,/activeModule==='Admin'/);assert.match(admin,/Settings/);
-assert.match(vehicle,/Acquisition Date/);assert.match(vehicle,/Retirement Date/);assert.match(vehicle,/saveVehicle/);assert.match(vehicle,/emit\(\s*['"]open['"]\s*,\s*['"]Driver['"]\s*\)/);assert.doesNotMatch(vehicle,/Activated|activation tab/i);assert.doesNotMatch(vehicle,/Fleet|fleet management/i);assert.doesNotMatch(vehicle,/Promise\.resolve|saved\.value\s*=\s*true/);assert.match(driver,/Current vehicle/);assert.match(driver,/Assign \/ Reassign/);assert.match(driver,/@save="saveAssignment"/);assert.doesNotMatch(driver,/Online time|Number of rides|Revenue generated|analytics/i);assert.match(maintenance,/Category/);assert.match(maintenance,/Odometer/);assert.match(maintenance,/Receipt \/ reference/);assert.match(maintenance,/save-request/);assert.doesNotMatch(maintenance,/Promise\.resolve|saved\.value\s*=\s*true/);assert.match(compliance,/Renewal type/);assert.match(compliance,/Validity start/);assert.match(compliance,/Validity end/);assert.match(compliance,/save-request/);assert.doesNotMatch(compliance,/renewedButUnpaid|renewed-but-unpaid|renewed_unpaid|paymentStatus\s*[:=]\s*['\"]?renewed/i);
-assert.match(app,/LoanModuleView/);assert.match(app,/activeModule\s*===\s*['"]Loans['"]/);assert.match(app,/HistoricalEntriesView/);assert.match(app,/activeModule\s*===\s*['"]Historical Entries['"]/);assert.match(app,/HistoricalEntriesView[\s\S]*@save-request="handleHistoricalSave"/);assert.match(historical,/Historical Day/);assert.match(historical,/Historical Fuel/);assert.match(historical,/save-request/);const requiredModules=['Vehicle','Driver','Fuel','Expenses','Revenue','Loans','Maintenance','Compliance','Historical Entries'];for(const module of requiredModules)assert.match(app,new RegExp(module.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));assert.match(admin,/Settings/);
-assert.match(loan,/Loan status/);assert.match(loan,/EMI/);assert.match(loan,/Outstanding balance/);assert.match(loan,/Vehicle association/);assert.match(loan,/Payment history/);assert.match(loan,/Amortization schedule/);assert.match(loan,/Prepayment calculator/);assert.match(loan,/Zero/);assert.match(loan,/calculation-request/);assert.doesNotMatch(loan,/function\s+(amortize|calculateAmortization|calculatePrepayment)\b/);assert.doesNotMatch(loan,/principalComponent\s*=|interestComponent\s*=|remainingBalance\s*=.*\/|Math\.(round|min|max).*balance/i);assert.match(loanBoundary,/createLoanApplicationBoundary/);assert.match(loanRepository,/LOAN_PAYMENT_STORE/);assert.match(loanDomain,/amortize/);assert.match(loanDomain,/applyPrepayment/);assert.doesNotMatch(modules,/Tax Reserve|tax reserve/i);assert.match(contracts,/vehicle:/);assert.match(contracts,/driver:/);assert.match(contracts,/analytics: false/);
-console.log('Phase 6 UI shell contract: PASS');console.log('Navigation, Admin replacement, Performance routing, module routing, Historical Entries wiring, timeline chronology, shared draft recovery, Fuel module boundary, clean Work canvas, vehicle/driver lifecycle, maintenance, compliance, loan presentation/domain separation, and Tax Reserve exclusion verified.');
+
+// Current presentation boundary: CurrentShell owns the header, primary navigation,
+// settings actions, and single structural viewport. App.vue owns only the module canvas.
+assert.match(shell,/Work.*Performance.*Timeline.*Admin/s);
+assert.doesNotMatch(shell,/More/);
+assert.match(shell,/Settings/);
+assert.match(shell,/Backup/);
+assert.match(shell,/Restore/);
+assert.match(shell,/Data reset/);
+assert.match(shell,/createObjectURL/);
+assert.match(shell,/restoreBackup/);
+assert.match(shell,/resetAllData/);
+assert.match(shell,/location\.hash/);
+assert.match(shell,/hashchange/);
+assert.match(shell,/<header/);
+assert.match(shell,/<main/);
+assert.match(shell,/<nav/);
+assert.equal((shell.match(/<main/g)||[]).length,1,'structural shell must have one main viewport');
+assert.doesNotMatch(shell,/kfe-swipe-bar|KfeSwipeBar|Tax Reserve|tax reserve/i);
+assert.doesNotMatch(shell,/Fleet|Reports|Analytics|GPS|OCR|Advisor/);
+
+// App is intentionally a clean module canvas: Work and Timeline are blank,
+// while Performance and Admin remain the active functional surfaces.
+assert.match(app,/activeModule/);
+assert.match(app,/PerformanceModuleView/);
+assert.match(app,/AdminModuleView/);
+assert.match(app,/activeModule === 'Work'/);
+assert.match(app,/activeModule === 'Timeline'/);
+assert.match(app,/class="empty-module"/);
+assert.doesNotMatch(app,/FuelForm/);
+assert.doesNotMatch(app,/VehicleModuleView|MaintenanceModuleView|ComplianceModuleView|LoanModuleView/);
+assert.doesNotMatch(app,/HistoricalEntriesView/);
+assert.doesNotMatch(app,/FuelQuickEntry|FuelQuickAction|Quick fuel/i);
+assert.doesNotMatch(app,/Tax Reserve|tax reserve/i);
+
+// Preserve the underlying navigation/timeline contracts without requiring legacy
+// presentation components to be mounted in the clean shell.
+assert.match(navigation,/Work.*Performance.*Timeline.*Admin/s);
+assert.doesNotMatch(navigation,/More/);
+assert.match(navigation,/TIMELINE_HORIZONS=Object\.freeze\(\['Day','Week','Long-term'\]\)/);
+assert.doesNotMatch(navigation,/Status/);
+assert.doesNotMatch(navigation,/Today.*Month.*Year/s);
+assert.doesNotMatch(navigation,/Fleet|Reports|Analytics|GPS|OCR|Advisor/);
+assert.match(timeline,/occurredAt/);
+assert.match(timeline,/sort\(\(a,b\)/);
+assert.match(timeline,/filter\(e=>\{if\(!e\.occurredAt\)return false/);
+
+// Performance and Admin remain functional surfaces beneath the neutral shell.
+for(const text of ['Today’s Position','Revenue','Running Cost','Balance','History & context','Authoritative','unavailable']) assert.match(performance,new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+assert.doesNotMatch(performance,/Tomorrow target|Status unavailable/i);
+for(const text of ['CURRENT STATE','ATTENTION','INSIGHT','PROFITABILITY','BREAK-EVEN','Month View','Finance','Management','View Timeline','getAdminState']) assert.match(admin,new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+assert.doesNotMatch(admin,/indexedDB|localStorage|sessionStorage/);
+assert.match(admin,/Settings/);
+
+// Business contracts remain below the presentation boundary.
+assert.match(loanRepository,/LOAN_PAYMENT_STORE/);
+assert.match(loanDomain,/amortize/);
+assert.match(loanDomain,/applyPrepayment/);
+assert.doesNotMatch(contracts,/taxReserve|Tax Reserve/);
+assert.match(contracts,/vehicle:/);
+assert.match(contracts,/driver:/);
+assert.match(contracts,/analytics: false/);
+assert.doesNotMatch(css,/Tax Reserve|tax reserve/i);
+
+console.log('Phase 6 UI shell contract: PASS');
+console.log('CurrentShell boundary, clean Work/Timeline canvas, Performance/Admin surfaces, navigation/timeline foundations, settings actions, and underlying ERP contracts verified.');
