@@ -11,6 +11,6 @@ assert.ok(css.includes('env(safe-area-inset-top'),'top safe-area handling missin
 assert.ok(css.includes('env(safe-area-inset-bottom'),'bottom safe-area handling missing');
 assert.ok(css.includes('overscroll-behavior-y:contain'),'viewport overscroll containment missing');
 assert.ok(css.includes('min-width:48px')&&css.includes('min-height:48px'),'touch target foundation missing');
-assert.ok(css.includes('prefers-reduced-motion:reduce'),'reduced-motion foundation missing');
+assert.ok(/prefers-reduced-motion\s*:\s*reduce/i.test(css),'reduced-motion foundation missing');
 assert.equal((shell.match(/<main/g)||[]).length,1,'structural shell must have one main viewport');
 console.log('PHASE_1_STRUCTURAL_PWA_SHELL=PASS');
