@@ -15,19 +15,20 @@ on:
         options: [fast, full]
 
 concurrency:
-  group: kfe-single-ci
+  group: kfe-single-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
   pull-requests: read
-  pages: write
-  id-token: write
 
 jobs:
+  # PRs and explicitly requested fast runs use targeted validation.
+  # main is intentionally excluded: full-validation is authoritative there
+  # and no longer waits for a duplicate fast pass.
   fast-check:
     name: Fast fix check
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'fast') }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -36,14 +37,19 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 2
+
       - name: Setup Node 20
         uses: actions/setup-node@v5
         with:
           node-version: 20
+          cache: npm
+
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
       - name: Build application
         run: GITHUB_ACTIONS=true npm run build
+
       - name: Establish fast-gate state identity
         shell: bash
         env:
@@ -59,6 +65,7 @@ jobs:
           echo "KFE_OBSERVED_CODE_SHA=$observed_sha" >> "$GITHUB_ENV"
           echo "KFE_CI_RUN_SHA=$observed_sha" >> "$GITHUB_ENV"
           echo "KFE_STATE_STATUS=FRESH" >> "$GITHUB_ENV"
+
       - name: Run targeted fast checks
         shell: bash
         env:
@@ -68,6 +75,7 @@ jobs:
           set -euo pipefail
           run=()
           need_browser=false
+
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             run+=(validate:kfe-screen-contract validate:foundation-preflight validate:governance)
           else
@@ -97,26 +105,41 @@ jobs:
               esac
             done
           fi
+
           if ((${#run[@]} == 0)); then run+=(validate:kfe-screen-contract); fi
           mapfile -t unique < <(printf '%s\n' "${run[@]}" | awk '!seen[$0]++')
+
           if [[ "$need_browser" == true ]]; then
             npx playwright install --with-deps chromium
             nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
-            for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
+            for i in $(seq 1 30); do
+              curl -fsS http://127.0.0.1:4173/ >/dev/null && break
+              sleep 1
+            done
+            if ! curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              cat /tmp/kfe-vite.log
+              exit 1
+            fi
           fi
+
           for script in "${unique[@]}"; do
             echo "===== FAST CHECK: $script ====="
             npm run "$script"
           done
-          if [[ "$need_browser" == true ]]; then npm run validate:e2e; fi
+
           echo 'KFE_FAST_CHECK=PASS'
 
+  # main/full runs are independently authoritative. They do not depend on
+  # fast-check, avoiding duplicate build/setup/validation work.
   full-validation:
     name: Full validation and production publish
-    needs: fast-check
-    if: ${{ needs.fast-check.result == 'success' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')) }}
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full') }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -163,12 +186,14 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 20
+          cache: npm
+
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
       - name: Build application
         run: GITHUB_ACTIONS=true npm run build
-      - name: Install Chromium
-        run: timeout 600s npx playwright install --with-deps chromium
+
       - name: KFE Screen Contract gate
         run: npm run validate:kfe-screen-contract
       - name: Foundation Preflight — frozen 3-gate master CI
@@ -256,14 +281,30 @@ jobs:
           grep -q "importScripts('./js/pwa/sw-strategies.js')" service-worker.js
           grep -q "event.request.mode==='navigate'" service-worker.js
           grep -q "kfe-outbox-retry" service-worker.js
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Chromium for browser certification
+        run: timeout 600s npx playwright install --with-deps chromium
+
       - name: Start PWA for browser integration
         shell: bash
         run: |
           set -euo pipefail
           nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0
+            sleep 1
+          done
           cat /tmp/kfe-vite.log
           exit 1
+
       - name: Browser certification
         run: npm run validate:e2e
       - name: Legacy resilience and offline validation
