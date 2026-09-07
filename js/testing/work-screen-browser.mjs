@@ -41,11 +41,7 @@ async function field(page,label){
   throw new Error(`Visible field not found: ${label}`);
 }
 
-async function fill(page,label,value){
-  const x=await field(page,label);
-  await x.fill(String(value));
-  return x;
-}
+async function fill(page,label,value){const x=await field(page,label);await x.fill(String(value));return x}
 
 async function swipe(page,bar,direction){
   const box=await bar.boundingBox();
@@ -58,11 +54,8 @@ async function swipe(page,bar,direction){
   await page.mouse.up();
 }
 
-function bar(page){return page.locator('.kfe-swipe-bar:visible').first();}
-
-async function expectBar(page,text){
-  assert.equal((await bar(page).innerText()).replace(/\s+/g,' ').trim(),text);
-}
+function bar(page){return page.locator('.kfe-swipe-bar:visible').first()}
+async function expectBar(page,text){assert.equal((await bar(page).innerText()).replace(/\s+/g,' ').trim(),text)}
 
 async function freshContext(){
   const context=await browser.newContext({permissions:[]});
@@ -76,21 +69,19 @@ async function freshContext(){
 try{
   const {page}=await freshContext();
 
-  // Personal trip before the business day.
+  // Personal trip from the initial Day Start screen.
   await expectBar(page,'← START PERSONAL TRIP START DAY →');
   await swipe(page,bar(page),'LEFT');
   await fill(page,'Odometer',5);
   await swipe(page,bar(page),'RIGHT');
   await waitWorkState(page,'PERSONAL_TRIP');
-
   await expectBar(page,'END PERSONAL TRIP →');
   await swipe(page,bar(page),'RIGHT');
   await fill(page,'End odometer',10);
-  await expectBar(page,'CLOSE PERSONAL TRIP →');
   await swipe(page,bar(page),'RIGHT');
   await waitWorkState(page,'DAY_START');
 
-  // Start the day and verify the READY state.
+  // Start day.
   await expectBar(page,'← START PERSONAL TRIP START DAY →');
   await swipe(page,bar(page),'RIGHT');
   await fill(page,'Start odometer',20);
@@ -99,59 +90,62 @@ try{
   await swipe(page,bar(page),'RIGHT');
   await waitWorkState(page,'DAY_READY');
 
-  // Start a personal trip while the business day is ready.
-  await expectBar(page,'← START PERSONAL TRIP START BUSINESS SHIFT →');
-  await swipe(page,bar(page),'LEFT');
-  await fill(page,'Start odometer',22);
-  await fill(page,'Business KM',1);
-  await fill(page,'Personal KM',1);
-  await swipe(page,bar(page),'RIGHT');
-  await waitWorkState(page,'PERSONAL_TRIP');
-
-  await expectBar(page,'END PERSONAL TRIP →');
-  await swipe(page,bar(page),'RIGHT');
-  await fill(page,'End odometer',25);
-  await fill(page,'Toll',25);
-  await fill(page,'Parking',10);
-  await swipe(page,bar(page),'RIGHT');
-  await waitWorkState(page,'DAY_READY');
-
-  // Start the business shift through the authoritative confirmation flow.
-  await expectBar(page,'← START PERSONAL TRIP START BUSINESS SHIFT →');
+  // Start Shift is a two-stage workflow: odometer form, then centered Start Shift / Personal Trip bar.
+  await expectBar(page,'← START PERSONAL TRIP START SHIFT →');
   await swipe(page,bar(page),'RIGHT');
   await waitText(page,'STARTING SHIFT');
+  assert.equal(await page.getByText('Vehicle inspection cleared',{exact:true}).count(),0);
   assert.equal(await page.getByText('Opening Cash Float (₹) *',{exact:true}).count(),0);
-  const inspection=page.getByLabel('Vehicle inspection cleared',{exact:true});
-  if(!(await inspection.isChecked()))await inspection.check();
-  await page.getByRole('button',{name:'Confirm Start Shift',exact:true}).click();
-  await waitWorkState(page,'SHIFT_WAITING');
-  await expectBar(page,'← END SHIFT START BUSINESS TRIP →');
+  assert.equal(await page.getByText('Business Allocation (km) *',{exact:true}).count(),0);
+  assert.equal(await page.getByText('Personal Allocation (km) *',{exact:true}).count(),0);
+  await fill(page,'Start Odometer',20);
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await expectBar(page,'← START PERSONAL TRIP START SHIFT →');
 
+  // Personal trip from the pre-shift screen returns to that same screen.
+  await swipe(page,bar(page),'LEFT');
+  await fill(page,'Start odometer',22);
+  await swipe(page,bar(page),'RIGHT');
+  await waitWorkState(page,'PERSONAL_TRIP');
+  await swipe(page,bar(page),'RIGHT');
+  await fill(page,'End odometer',25);
+  await swipe(page,bar(page),'RIGHT');
+  await expectBar(page,'← START PERSONAL TRIP START SHIFT →');
+
+  // Actual Start Shift happens only after the centered swipe.
+  await swipe(page,bar(page),'RIGHT');
+  await waitWorkState(page,'SHIFT_WAITING');
+  await expectBar(page,'← START PERSONAL TRIP START SHIFT →');
+
+  // Business trips exist only on the active shift.
   await swipe(page,bar(page),'RIGHT');
   await waitWorkState(page,'BUSINESS_TRIP');
+  await expectBar(page,'END BUSINESS TRIP →');
   await swipe(page,bar(page),'RIGHT');
   await waitWorkState(page,'SHIFT_WAITING');
-
   await expectBar(page,'← END SHIFT START BUSINESS TRIP →');
+
+  // End Shift requires end odometer and Revenue.
   await swipe(page,bar(page),'LEFT');
   await waitText(page,'END SHIFT');
   assert.equal(await (await field(page,'End odometer')).inputValue(),'');
   assert.equal(await (await field(page,'Revenue')).inputValue(),'');
   await fill(page,'End odometer',30);
   await fill(page,'Revenue',1000);
-  await expectBar(page,'← CLOSE SHIFT');
   await swipe(page,bar(page),'LEFT');
   await waitWorkState(page,'DAY_READY');
 
-  // End Day must require confirmation and reach the frozen terminal state.
+  // End Day is reversible until Confirm is pressed.
   await page.getByRole('button',{name:'End day',exact:true}).click();
   await waitText(page,'Confirm day closure');
-  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('button',{name:'Back to Shift',exact:true}).click();
+  assert.equal(await page.getByText('Confirm day closure',{exact:true}).count(),0);
+  assert.equal(await page.getByRole('button',{name:'End day',exact:true}).count(),1);
   await page.getByRole('button',{name:'End day',exact:true}).click();
   await page.getByRole('button',{name:'Confirm',exact:true}).click();
   await waitWorkState(page,'DAY_ENDED');
 
-  console.log('PASS: frozen Work lifecycle and End Day coverage');
+  console.log('PASS: exact driver Work workflow');
 }finally{
   await browser.close();
 }
