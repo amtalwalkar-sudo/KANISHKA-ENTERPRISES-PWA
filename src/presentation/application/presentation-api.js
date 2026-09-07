@@ -16,17 +16,6 @@ export function createKfePresentationApi({ app = application, commandActions = a
         const shift = model.shift?.active ? model.shift : null;
         const screenState = String(model.state || 'DAY_START');
         const state = shift ? 'ACTIVE_SHIFT' : 'OFF_SHIFT';
-        let draftKeysRestored = [];
-        try {
-          const prefix = 'kfe:form-draft:v1:';
-          for (let i = 0; i < localStorage.length; i += 1) {
-            const key = localStorage.key(i);
-            if (!key?.startsWith(prefix)) continue;
-            const suffix = key.slice(prefix.length);
-            const draftKey = suffix.includes('|') ? suffix.split('|').pop() : suffix;
-            if (draftKey) draftKeysRestored.push(draftKey);
-          }
-        } catch { draftKeysRestored = []; }
         return {
           state,
           rehydrated: true,
@@ -39,7 +28,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
             previous_odometer_km: shift.previousOdometer == null && shift.previous_odometer_km == null ? null : Number(shift.previousOdometer ?? shift.previous_odometer_km),
             opening_cash_float_paise: Number(shift.openingCashFloatPaise ?? shift.opening_cash_float_paise ?? 0),
           } : null,
-          draft_keys_restored: [...new Set(draftKeysRestored)],
+          draft_keys_restored: [],
           state_source: 'LOCAL_DB',
           screen_state: screenState,
           state_error: null,
