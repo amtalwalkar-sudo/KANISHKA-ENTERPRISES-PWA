@@ -19,7 +19,8 @@ assert.equal(personal.value.tripKm,10);
 assert.equal(personal.value.businessDate,null);
 assert.equal(validateTripLifecycle(personalTrip,null),true);
 assert.throws(()=>validateTripLifecycle({...personalTrip,end_odometer:1119},null),/Odometer cannot decrease/);
-assert.throws(()=>validateTripLifecycle(personalTrip,{...shift,status:'OPEN'}),/cannot overlap an active business shift/);
+// Personal trips are permitted while a business shift is active; they remain outside business shift accounting.
+assert.equal(validateTripLifecycle(personalTrip,{...shift,status:'OPEN'}),true);
 assert.throws(()=>validateTripLifecycle({...businessTrip,start_at:'2026-08-28T22:50:00+05:30'},shift),/within its business shift/);
 
 const secondShift={...shift,id:'shift-2',start_at:'2026-08-29T09:00:00+05:30',end_at:'2026-08-29T13:00:00+05:30',start_odometer:1130,end_odometer:1210,business_date:'2026-08-29'};
