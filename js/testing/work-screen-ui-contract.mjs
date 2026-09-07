@@ -1,12 +1,10 @@
-import assert from 'node:assert:strict';
+import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 
 const shell=await fs.readFile(new URL('../../src/presentation/shell/shells/current/CurrentShell.vue',import.meta.url),'utf8');
 const app=await fs.readFile(new URL('../../src/App.vue',import.meta.url),'utf8');
 const css=await fs.readFile(new URL('../../src/styles/shell.css',import.meta.url),'utf8');
 
-// Work is intentionally a clean presentation canvas. Operational behavior is
-// tested below this boundary by the application/domain contracts.
 for(const token of ['Work','Performance','Timeline','Admin','Backup','Restore','Data reset']) assert.ok(shell.includes(token),`CurrentShell missing ${token}`);
 assert.ok(shell.includes('<header'),'CurrentShell header missing');
 assert.ok(shell.includes('<main'),'CurrentShell main missing');
