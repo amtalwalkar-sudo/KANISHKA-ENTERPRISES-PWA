@@ -10,7 +10,16 @@ export function createKfePresentationApi({ app = application, commandActions = a
     const businessDate = payload.business_date || startedAt.slice(0, 10);
     const startOdometerKm = Number(payload.start_odometer_km ?? payload.odometer);
     if (!Number.isFinite(startOdometerKm) || startOdometerKm < 0) throw new RangeError('Trip start odometer must be valid.');
-    return app.startTrip({ ...payload, trip_type: tripType, business_date: businessDate, start_odometer_km: startOdometerKm, started_at: startedAt, shift_id: tripType === 'BUSINESS' ? (payload.shift_id || null) : null });
+    if (tripType === 'PERSONAL' && payload.shift_id != null) throw new RangeError('Personal trips must not inherit a shift.');
+    if (tripType === 'BUSINESS' && !payload.shift_id) throw new RangeError('Business trips require the active shift id.');
+    return app.startTrip({
+      ...payload,
+      trip_type: tripType,
+      business_date: businessDate,
+      start_odometer_km: startOdometerKm,
+      started_at: startedAt,
+      shift_id: tripType === 'BUSINESS' ? payload.shift_id : null,
+    });
   }
 
   async function endTrip(payload = {}) {
@@ -18,9 +27,20 @@ export function createKfePresentationApi({ app = application, commandActions = a
     const tripType = String(payload.trip_type || payload.tripType || draft?.trip_type || '').toUpperCase();
     const tripId = payload.trip_id || payload.id || draft?.trip_id;
     const endOdometerKm = Number(payload.end_odometer_km ?? payload.endOdometer);
+    const startOdometerKm = Number(payload.start_odometer_km ?? draft?.start_odometer_km);
     if (!tripId) throw new Error('Active trip id is required.');
     if (!Number.isFinite(endOdometerKm) || endOdometerKm < 0) throw new RangeError('Trip end odometer must be valid.');
-    return app.endTrip({ ...payload, trip_type: tripType, trip_id: tripId, end_odometer_km: endOdometerKm });
+    if (Number.isFinite(startOdometerKm) && endOdometerKm < startOdometerKm) throw new RangeError('Trip end odometer cannot be below the trip start odometer.');
+    const endedAt = payload.ended_at || new Date().toISOString();
+    const total = Number.isFinite(startOdometerKm) ? endOdometerKm - startOdometerKm : payload.trip_total_km;
+    return app.endTrip({
+      ...payload,
+      trip_type: tripType,
+      trip_id: tripId,
+      end_odometer_km: endOdometerKm,
+      trip_total_km: total,
+      ended_at: endedAt,
+    });
   }
 
   const read = {
@@ -30,10 +50,36 @@ export function createKfePresentationApi({ app = application, commandActions = a
         const model = await app.getWorkScreenState(...args) || {};
         const shift = model.shift?.active ? model.shift : null;
         const localTrip = await app.activeTripDraft?.read?.();
-        const trip = localTrip || (model.trip?.active ? { trip_id: model.trip.id, trip_type: model.trip.tripType || model.trip.trip_type || (model.trip.scope === 'PERSONAL' ? 'PERSONAL' : 'BUSINESS'), shift_id: model.trip.shiftId ?? model.trip.shift_id ?? null, business_date: model.trip.businessDate ?? model.trip.business_date ?? null, start_odometer_km: Number(model.trip.startOdometer ?? model.trip.start_odometer), started_at: model.trip.startedAt ?? model.trip.started_at } : null);
+        const trip = localTrip || (model.trip?.active ? {
+          trip_id: model.trip.id,
+          trip_type: model.trip.tripType || model.trip.trip_type || (model.trip.scope === 'PERSONAL' ? 'PERSONAL' : 'BUSINESS'),
+          shift_id: model.trip.shiftId ?? model.trip.shift_id ?? null,
+          business_date: model.trip.businessDate ?? model.trip.business_date ?? null,
+          start_odometer_km: Number(model.trip.startOdometer ?? model.trip.start_odometer),
+          started_at: model.trip.startedAt ?? model.trip.started_at,
+        } : null);
         const screenState = String(model.state || 'DAY_START');
-        return { state: shift ? 'ACTIVE_SHIFT' : 'OFF_SHIFT', rehydrated: true, active_shift: shift ? { shift_id: shift.id, business_date: shift.businessDate ?? shift.business_date ?? null, started_at: shift.startedAt ?? shift.started_at ?? null, break_started_at: shift.breakStartedAt ?? shift.break_started_at ?? null, start_odometer_km: Number(shift.startOdometer ?? shift.start_odometer), previous_odometer_km: shift.previousOdometer == null && shift.previous_odometer_km == null ? null : Number(shift.previousOdometer ?? shift.previous_odometer_km) } : null, active_trip: trip, draft_keys_restored: trip && localTrip ? ['kfe_active_trip_draft'] : [], state_source: localTrip ? 'LOCAL_STORAGE' : 'LOCAL_DB', screen_state: screenState, state_error: null };
-      } catch (error) { return { state: 'OFF_SHIFT', rehydrated: true, active_shift: null, active_trip: null, draft_keys_restored: [], state_source: 'LOCAL_DB', screen_state: 'DAY_START', state_error: 'CORRUPTED', recovery_error: String(error?.message || error) }; }
+        const restoredFromLocalTrip = Boolean(localTrip);
+        return {
+          state: shift ? 'ACTIVE_SHIFT' : 'OFF_SHIFT',
+          rehydrated: restoredFromLocalTrip,
+          active_shift: shift ? {
+            shift_id: shift.id,
+            business_date: shift.businessDate ?? shift.business_date ?? null,
+            started_at: shift.startedAt ?? shift.started_at ?? null,
+            break_started_at: shift.breakStartedAt ?? shift.break_started_at ?? null,
+            start_odometer_km: Number(shift.startOdometer ?? shift.start_odometer),
+            previous_odometer_km: shift.previousOdometer == null && shift.previous_odometer_km == null ? null : Number(shift.previousOdometer ?? shift.previous_odometer_km),
+          } : null,
+          active_trip: trip,
+          draft_keys_restored: restoredFromLocalTrip ? ['kfe_active_trip_draft'] : [],
+          state_source: restoredFromLocalTrip ? 'LOCAL_STORAGE' : 'LOCAL_DB',
+          screen_state: screenState,
+          state_error: null,
+        };
+      } catch (error) {
+        return { state: 'OFF_SHIFT', rehydrated: false, active_shift: null, active_trip: null, draft_keys_restored: [], state_source: 'LOCAL_DB', screen_state: 'DAY_START', state_error: 'CORRUPTED', recovery_error: String(error?.message || error) };
+      }
     },
     getWorkSummary: (...args) => app.workSummary(...args), getPerformance: (...args) => app.getPerformance(...args), getTimeline: (...args) => app.getTimeline(...args), listFuel: (...args) => app.listFuel(...args), getAdminState: (...args) => app.getAdminState(...args), getLoanReadModel: (...args) => app.getLoanReadModel(...args), getSettings: (...args) => app.getSettings(...args),
   };
