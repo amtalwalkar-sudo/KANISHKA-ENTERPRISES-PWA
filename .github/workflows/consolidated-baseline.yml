@@ -23,9 +23,6 @@ permissions:
   pull-requests: read
 
 jobs:
-  # PRs and explicitly requested fast runs use targeted validation.
-  # main is intentionally excluded: full-validation is authoritative there
-  # and no longer waits for a duplicate fast pass.
   fast-check:
     name: Fast fix check
     if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'fast') }}
@@ -42,10 +39,9 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build application
         run: GITHUB_ACTIONS=true npm run build
@@ -129,8 +125,6 @@ jobs:
 
           echo 'KFE_FAST_CHECK=PASS'
 
-  # main/full runs are independently authoritative. They do not depend on
-  # fast-check, avoiding duplicate build/setup/validation work.
   full-validation:
     name: Full validation and production publish
     if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full') }}
@@ -186,10 +180,9 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build application
         run: GITHUB_ACTIONS=true npm run build
@@ -281,14 +274,6 @@ jobs:
           grep -q "importScripts('./js/pwa/sw-strategies.js')" service-worker.js
           grep -q "event.request.mode==='navigate'" service-worker.js
           grep -q "kfe-outbox-retry" service-worker.js
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            playwright-${{ runner.os }}-
 
       - name: Install Chromium for browser certification
         run: timeout 600s npx playwright install --with-deps chromium
