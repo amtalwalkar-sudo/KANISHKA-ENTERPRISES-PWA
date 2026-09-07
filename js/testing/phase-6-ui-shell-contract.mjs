@@ -1,4 +1,4 @@
-import assert from 'node:assert';
+import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const readAdminParts = () => fs.readdirSync(new URL('../../src/components/admin/', import.meta.url), { withFileTypes: true })
