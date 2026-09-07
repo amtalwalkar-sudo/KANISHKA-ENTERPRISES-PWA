@@ -5,16 +5,20 @@ import './styles/shell.css'
 import './styles/forms.css'
 import './styles/kfe2-shell.css'
 import { kfePresentationApi } from './presentation/application/presentation-api.js'
+import WorkSessionView from './components/WorkSessionView.vue'
 import PerformanceModuleView from './components/PerformanceModuleView.vue'
+import KfeTimelineView from './components/KfeTimelineView.vue'
 import AdminModuleView from './components/AdminModuleView.vue'
 
 const activeModule = ref('Work')
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
 const performanceModel = ref(null)
+const timelineModel = ref(null)
 
 function syncRoute() {
   const next = location.hash.slice(1)
   activeModule.value = ['Work', 'Performance', 'Timeline', 'Admin'].includes(next) ? next : 'Work'
+  if (activeModule.value === 'Timeline') void loadTimeline()
 }
 
 async function loadPerformance() {
@@ -22,6 +26,14 @@ async function loadPerformance() {
     performanceModel.value = await kfePresentationApi.read.getPerformance()
   } catch (error) {
     performanceModel.value = { error: String(error?.message || error) }
+  }
+}
+
+async function loadTimeline() {
+  try {
+    timelineModel.value = await kfePresentationApi.read.getTimeline('Day')
+  } catch (error) {
+    timelineModel.value = { events: [], error: String(error?.message || error) }
   }
 }
 
@@ -47,13 +59,17 @@ onUnmounted(() => {
   <div class="kfe-shell" data-framework="vue">
     <main class="kfe-viewport">
       <section class="kfe-workspace" aria-live="polite">
-        <div v-if="activeModule === 'Work'" class="empty-module" aria-label="Work" />
+        <WorkSessionView v-if="activeModule === 'Work'" />
         <PerformanceModuleView
           v-else-if="activeModule === 'Performance'"
           :online="online"
           :performance="performanceModel"
         />
-        <div v-else-if="activeModule === 'Timeline'" class="empty-module" aria-label="Timeline" />
+        <KfeTimelineView
+          v-else-if="activeModule === 'Timeline'"
+          horizon="Day"
+          :events="timelineModel?.events || []"
+        />
         <AdminModuleView
           v-else-if="activeModule === 'Admin'"
           :application="kfePresentationApi"
@@ -68,5 +84,4 @@ onUnmounted(() => {
 .kfe-shell { min-height: 100%; height: 100%; }
 .kfe-viewport { min-height: 100%; height: 100%; }
 .kfe-workspace { width: 100%; min-height: 100%; height: 100%; }
-.empty-module { width: 100%; min-height: 100%; height: 100%; }
 </style>
