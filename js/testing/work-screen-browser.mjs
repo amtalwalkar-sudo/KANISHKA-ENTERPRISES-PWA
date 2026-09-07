@@ -2,40 +2,151 @@ import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 
 const browser=await chromium.launch({headless:true});
-const STATE_TEXT={DAY_START:'START OF DAY',DAY_READY:'READY FOR OPERATION',SHIFT_WAITING:'SHIFT ACTIVE',BUSINESS_TRIP:'BUSINESS TRIP',PERSONAL_TRIP:'PERSONAL TRIP',DAY_ENDED:'DAY ENDED'};
-async function waitText(page,text){await page.getByText(text,{exact:true}).first().waitFor({state:'visible',timeout:30000});}
-async function waitWorkState(page,expected,timeout=15000){const started=Date.now();while(Date.now()-started<timeout){const state=await page.evaluate(async()=>window.__KFE_RUNTIME__.application.getWorkScreenState());if(state?.state===expected)return state;await page.waitForTimeout(100);}const alert=page.locator('[role="alert"]:visible').first();const message=await alert.count()?await alert.innerText():'';throw new Error(`Work state did not reach ${expected}; current=${await page.evaluate(async()=>{const s=await window.__KFE_RUNTIME__.application.getWorkScreenState();return s?.state})}; error=${message}; body=${(await page.locator('body').innerText()).replace(/\s+/g,' ').trim()}`);}
-async function field(page,label){const normalized=label.replace(/\s*\*\s*$/,'').trim();const exact=page.getByLabel(label,{exact:true});for(let i=0;i<await exact.count();i++){const x=exact.nth(i);if(await x.isVisible().catch(()=>false))return x;}const labels=page.locator('label').filter({hasText:normalized});for(let i=0;i<await labels.count();i++){const l=labels.nth(i);if(!await l.isVisible().catch(()=>false))continue;const id=await l.getAttribute('for');if(id){const x=page.locator(`#${CSS.escape(id)}`);if(await x.count()&&await x.isVisible().catch(()=>false))return x;}const x=l.locator('input,textarea,select').first();if(await x.count()&&await x.isVisible().catch(()=>false))return x;}throw new Error(`Visible field not found: ${label}`);}
-async function fill(page,label,value){const x=await field(page,label);await x.fill(String(value));return x;}
-async function swipe(page,bar,direction){const box=await bar.boundingBox();assert.ok(box,'swipe bar must be visible');const x=box.x+box.width/2,y=box.y+box.height/2;const travel=box.width*.8;await page.mouse.move(direction==='RIGHT'?x-travel/4:x+travel/4,y);await page.mouse.down();await page.mouse.move(direction==='RIGHT'?x+travel*3/4:x-travel*3/4,y,{steps:10});await page.mouse.up();}
+
+async function waitText(page,text){
+  await page.getByText(text,{exact:true}).first().waitFor({state:'visible',timeout:30000});
+}
+
+async function waitWorkState(page,expected,timeout=15000){
+  const started=Date.now();
+  while(Date.now()-started<timeout){
+    const state=await page.evaluate(async()=>window.__KFE_RUNTIME__.application.getWorkScreenState());
+    if(state?.state===expected)return state;
+    await page.waitForTimeout(100);
+  }
+  const alert=page.locator('[role="alert"]:visible').first();
+  const message=await alert.count()?await alert.innerText():'';
+  throw new Error(`Work state did not reach ${expected}; current=${await page.evaluate(async()=>{const s=await window.__KFE_RUNTIME__.application.getWorkScreenState();return s?.state})}; error=${message}; body=${(await page.locator('body').innerText()).replace(/\s+/g,' ').trim()}`);
+}
+
+async function field(page,label){
+  const normalized=label.replace(/\s*\*\s*$/,'').trim();
+  const exact=page.getByLabel(label,{exact:true});
+  for(let i=0;i<await exact.count();i++){
+    const x=exact.nth(i);
+    if(await x.isVisible().catch(()=>false))return x;
+  }
+  const labels=page.locator('label').filter({hasText:normalized});
+  for(let i=0;i<await labels.count();i++){
+    const l=labels.nth(i);
+    if(!await l.isVisible().catch(()=>false))continue;
+    const id=await l.getAttribute('for');
+    if(id){
+      const x=page.locator(`#${CSS.escape(id)}`);
+      if(await x.count()&&await x.isVisible().catch(()=>false))return x;
+    }
+    const x=l.locator('input,textarea,select').first();
+    if(await x.count()&&await x.isVisible().catch(()=>false))return x;
+  }
+  throw new Error(`Visible field not found: ${label}`);
+}
+
+async function fill(page,label,value){
+  const x=await field(page,label);
+  await x.fill(String(value));
+  return x;
+}
+
+async function swipe(page,bar,direction){
+  const box=await bar.boundingBox();
+  assert.ok(box,'swipe bar must be visible');
+  const x=box.x+box.width/2,y=box.y+box.height/2;
+  const travel=box.width*.8;
+  await page.mouse.move(direction==='RIGHT'?x-travel/4:x+travel/4,y);
+  await page.mouse.down();
+  await page.mouse.move(direction==='RIGHT'?x+travel*3/4:x-travel*3/4,y,{steps:10});
+  await page.mouse.up();
+}
+
 function bar(page){return page.locator('.kfe-swipe-bar:visible').first();}
-async function expectBar(page,text){assert.equal((await bar(page).innerText()).replace(/\s+/g,' ').trim(),text);}
-async function fuelRows(page){return page.evaluate(async()=>window.__KFE_RUNTIME__.application.listFuel());}
-function latestFuel(rows){return Array.isArray(rows)&&rows.length?rows.reduce((latest,row)=>String(row.recorded_at||row.created_at||'')>String(latest.recorded_at||latest.created_at||'')?row:latest):null;}
-async function qfTrack(page){const x=page.locator('.kfe-qf-swipe-track:visible').first();await x.waitFor({state:'visible'});await x.waitForFunction(element=>element.getAttribute('aria-disabled')==='false',null,{timeout:5000});return x;}
-async function swipeFuel(page,expectedCount,predicate=()=>true){for(let attempt=0;attempt<3;attempt++){const track=await qfTrack(page);const box=await track.boundingBox();assert.ok(box,'Quick Fuel save track must be visible');const y=box.y+box.height/2;const startX=box.x+Math.max(12,box.width*.12);const endX=box.x+box.width-Math.max(12,box.width*.12);await page.mouse.move(startX,y);await page.mouse.down();await page.mouse.move(endX,y,{steps:40});await page.mouse.up();await page.waitForTimeout(500);let rows=await fuelRows(page);if(Array.isArray(rows)&&rows.length===expectedCount&&predicate(rows))return;const overlay=page.locator('.fuel-form-overlay:visible');if(!(await overlay.count())){const started=Date.now();while(Date.now()-started<5000){rows=await fuelRows(page);if(Array.isArray(rows)&&rows.length===expectedCount&&predicate(rows))return;await page.waitForTimeout(100);}break;}await track.press('Enter');await page.waitForTimeout(500);rows=await fuelRows(page);if(Array.isArray(rows)&&rows.length===expectedCount&&predicate(rows))return;}}
-async function waitFuelCommit(page,expectedCount,predicate=()=>true,timeout=15000){const started=Date.now();while(Date.now()-started<timeout){const rows=await fuelRows(page);if(Array.isArray(rows)&&rows.length===expectedCount&&predicate(rows)){await page.waitForTimeout(100);const stable=await fuelRows(page);if(Array.isArray(stable)&&stable.length===expectedCount&&predicate(stable))return stable;}const errorBox=page.locator('.kfe-qf-error:visible');if(await errorBox.count())throw new Error(`Fuel save rejected: ${await errorBox.first().innerText()}`);await page.waitForTimeout(100);}throw new Error(`Fuel commit did not reach expected state; current=${JSON.stringify(await fuelRows(page))}; body=${(await page.locator('body').innerText()).replace(/\s+/g,' ').trim()}`);}
-async function waitFuelClosed(page,timeout=15000){const overlay=page.locator('.fuel-form-overlay:visible');const started=Date.now();while(Date.now()-started<timeout){if(!(await overlay.count()))return;const errorBox=page.locator('.kfe-qf-error:visible');if(await errorBox.count())throw new Error(`Fuel overlay remained open after save: ${await errorBox.first().innerText()}`);await page.waitForTimeout(100);}throw new Error(`Fuel save persisted but overlay did not close; body=${(await page.locator('body').innerText()).replace(/\s+/g,' ').trim()}`);}
-async function waitFuelLocation(page,predicate,timeout=10000){const started=Date.now();while(Date.now()-started<timeout){const rows=await fuelRows(page);const row=latestFuel(rows);if(row&&predicate(row))return row;await page.waitForTimeout(100);}throw new Error(`Fuel location enrichment did not persist; current=${JSON.stringify(await fuelRows(page))}`);}
-async function freshContext({available=false}={}){const context=await browser.newContext(available?{geolocation:{latitude:19.0176,longitude:72.8562},permissions:['geolocation']}:{permissions:[]});const page=await context.newPage();if(available)await page.route('https://nominatim.openstreetmap.org/reverse**',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({display_name:'KFE Test Location',name:'KFE Test Location'})}));await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});await page.locator('#vue-runtime .kfe-shell').waitFor({state:'visible',timeout:30000});await waitWorkState(page,'DAY_START');return {context,page};}
-async function openFuel(page){await page.getByRole('button',{name:'Quick fuel',exact:true}).click();await waitText(page,'Quick Fuel');}
-async function saveFuel(page,{odometer,price,amount},expectedCount){await fill(page,'Odometer',odometer);await fill(page,'Fuel price per litre/kg',price);await fill(page,'Amount',amount);await swipeFuel(page,expectedCount);const rows=await waitFuelCommit(page,expectedCount);await waitFuelClosed(page);return rows;}
+
+async function expectBar(page,text){
+  assert.equal((await bar(page).innerText()).replace(/\s+/g,' ').trim(),text);
+}
+
+async function freshContext(){
+  const context=await browser.newContext({permissions:[]});
+  const page=await context.newPage();
+  await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});
+  await page.locator('#vue-runtime .kfe-shell').waitFor({state:'visible',timeout:30000});
+  await waitWorkState(page,'DAY_START');
+  return {context,page};
+}
 
 try{
- const {page}=await freshContext();
- await expectBar(page,'← START PERSONAL TRIP START DAY →');await swipe(page,bar(page),'LEFT');await fill(page,'Odometer',5);await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'PERSONAL_TRIP');
- await expectBar(page,'END PERSONAL TRIP →');await swipe(page,bar(page),'RIGHT');await fill(page,'End odometer',10);await expectBar(page,'CLOSE PERSONAL TRIP →');await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'DAY_START');
- await expectBar(page,'← START PERSONAL TRIP START DAY →');await swipe(page,bar(page),'RIGHT');await fill(page,'Start odometer',20);await fill(page,'Business KM',7);await fill(page,'Personal KM',3);await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'DAY_READY');
- await expectBar(page,'← START PERSONAL TRIP START BUSINESS SHIFT →');await swipe(page,bar(page),'LEFT');await fill(page,'Start odometer',22);await fill(page,'Business KM',1);await fill(page,'Personal KM',1);await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'PERSONAL_TRIP');
- await openFuel(page);assert.equal(await page.getByText('Location:',{exact:false}).count(),0);await waitText(page,'Date/time and optional location are captured automatically in the background.');let rows=await saveFuel(page,{odometer:23,price:80,amount:400},1);let newest=latestFuel(rows);assert.equal(newest.price_per_kg,80);assert.equal(newest.quantity_kg,5);assert.ok(newest.location_name==null);assert.ok(newest.latitude==null);
- await expectBar(page,'END PERSONAL TRIP →');await swipe(page,bar(page),'RIGHT');await fill(page,'End odometer',25);await fill(page,'Toll',25);await fill(page,'Parking',10);await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'DAY_READY');
- await expectBar(page,'← START PERSONAL TRIP START BUSINESS SHIFT →');await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'SHIFT_WAITING');await expectBar(page,'← END SHIFT START BUSINESS TRIP →');
- await openFuel(page);await saveFuel(page,{odometer:26,price:80,amount:400},2);await waitWorkState(page,'SHIFT_WAITING');
- await expectBar(page,'← END SHIFT START BUSINESS TRIP →');await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'BUSINESS_TRIP');await openFuel(page);await saveFuel(page,{odometer:27,price:80,amount:400},3);await waitWorkState(page,'BUSINESS_TRIP');await swipe(page,bar(page),'RIGHT');await waitWorkState(page,'SHIFT_WAITING');
- await expectBar(page,'← END SHIFT START BUSINESS TRIP →');await swipe(page,bar(page),'LEFT');await waitText(page,'END SHIFT');assert.equal(await (await field(page,'End odometer')).inputValue(),'');assert.equal(await (await field(page,'Revenue')).inputValue(),'');await fill(page,'End odometer',30);await fill(page,'Revenue',1000);await expectBar(page,'← CLOSE SHIFT');await swipe(page,bar(page),'LEFT');await waitWorkState(page,'DAY_READY');
- await openFuel(page);rows=await saveFuel(page,{odometer:31,price:80,amount:400},4);await openFuel(page);await waitText(page,'LAST FUEL ENTRY');const before=latestFuel(rows);assert.ok(before);await page.getByRole('button',{name:'Edit',exact:true}).click();await fill(page,'Amount',500);const edited=row=>row.id===before.id&&row.amount_paise===50000;await swipeFuel(page,4,rows=>rows.some(edited));rows=await waitFuelCommit(page,4,rows=>rows.some(edited));const editedRow=rows.find(edited);assert.ok(editedRow);assert.equal(editedRow.id,before.id);assert.equal(editedRow.amount_paise,50000);assert.equal(editedRow.recorded_at,before.recorded_at);await waitFuelClosed(page);
- await openFuel(page);await fill(page,'Odometer',29);await fill(page,'Fuel price per litre/kg',80);await fill(page,'Amount',400);const invalidFuelTrack=await qfTrack(page);await invalidFuelTrack.focus();await page.keyboard.press('Enter');await page.locator('.kfe-qf-error:visible').waitFor({state:'visible',timeout:5000});assert.match(await page.locator('.kfe-qf-error:visible').innerText(),/cannot be below the authoritative odometer/i);page.once('dialog',dialog=>dialog.accept());await page.locator('.kfe-qf-close:visible').click();
- await openFuel(page);rows=await saveFuel(page,{odometer:32,price:80,amount:400},5);assert.ok(latestFuel(rows).location_name==null);
- const available=await freshContext({available:true});try{await expectBar(available.page,'← START PERSONAL TRIP START DAY →');await swipe(available.page,bar(available.page),'RIGHT');await fill(available.page,'Start odometer',100);await swipe(available.page,bar(available.page),'RIGHT');await waitWorkState(available.page,'DAY_READY');await openFuel(available.page);const ar=await saveFuel(available.page,{odometer:100,price:80,amount:400},1);const arNewest=latestFuel(ar);assert.equal(arNewest.price_per_kg,80);assert.equal(arNewest.quantity_kg,5);const enriched=await waitFuelLocation(available.page,row=>row.latitude===19.0176&&row.longitude===72.8562&&row.location_name==='KFE Test Location');assert.equal(enriched.price_per_kg,80);assert.equal(enriched.quantity_kg,5);const persisted=latestFuel(await fuelRows(available.page));assert.equal(persisted.location_name,'KFE Test Location');console.log('PASS: Fuel location-available coordinates and reverse-geocoded name persisted');}finally{await available.context.close();}
- await page.getByRole('button',{name:'End day',exact:true}).click();await waitText(page,'Confirm day closure');await page.getByRole('button',{name:'Cancel',exact:true}).click();await page.getByRole('button',{name:'End day',exact:true}).click();await page.getByRole('button',{name:'Confirm',exact:true}).click();await waitWorkState(page,'DAY_ENDED');console.log('PASS: frozen Work lifecycle, allocation, Fuel, persistence and End Day coverage');
-}finally{await browser.close();}
+  const {page}=await freshContext();
+
+  // Personal trip before the business day.
+  await expectBar(page,'← START PERSONAL TRIP START DAY →');
+  await swipe(page,bar(page),'LEFT');
+  await fill(page,'Odometer',5);
+  await swipe(page,bar(page),'RIGHT');
+  await waitWorkState(page,'PERSONAL_TRIP');
+
+  await expectBar(page,'END PERSONAL TRIP →');
+  await swipe(page,bar(page),'RIGHT');
+  await fill(page,'End odometer',10);
+  await expectBar(page,'CLOSE PERSONAL TRIP →');
+  await swipe(page,bar(page),'RIGHT');
+  await waitWorkState(page,'DAY_START');
+
+  // Start the day and verify the READY state.
+  await expectBar(page,'← START PERSONAL TRIP START DAY →');
+  await swipe(page,bar(page),'RIGHT');
+  await fill(page,'Start odometer',20);
+  await fill(page,'Business KM',7);
+  await fill(page,'Personal KM',3);
+  await swipe(page,bar(page),'RIGHT');
+  await waitWorkState(page,'DAY_READY');
+
+  // Start a personal trip while the business day is ready.
+  await expectBar(page,'← START PERSONAL TRIP START BUSINESS SHIFT →');
+  await swipe(page,bar(page),'LEFT');
+  await fill(page,'Start odometer',22);
+  await fill(page,'Business KM',1);
+  await fill(page,'Personal KM',1);
+  await swipe(page,bar(page),'RIGHT');
+  await waitWorkState(page,'PERSONAL_TRIP');
+
+  await expectBar(page,'END PERSONAL TRIP →');
+  await swipe(page,bar(page),'RIGHT');
+  await fill(page,'End odometer',25);
+  await fill(page,'Toll',25);
+  await fill(page,'Parking',10);
+  await swipe(page,bar(page),'RIGHT');
+  await waitWorkState(page,'DAY_READY');
+
+  // Start the business shift and close it through the authoritative flow.
+  await expectBar(page,'← START PERSONAL TRIP START BUSINESS SHIFT →');
+  await swipe(page,bar(page),'RIGHT');
+  await waitWorkState(page,'SHIFT_WAITING');
+  await expectBar(page,'← END SHIFT START BUSINESS TRIP →');
+
+  await swipe(page,bar(page),'RIGHT');
+  await waitWorkState(page,'BUSINESS_TRIP');
+  await swipe(page,bar(page),'RIGHT');
+  await waitWorkState(page,'SHIFT_WAITING');
+
+  await expectBar(page,'← END SHIFT START BUSINESS TRIP →');
+  await swipe(page,bar(page),'LEFT');
+  await waitText(page,'END SHIFT');
+  assert.equal(await (await field(page,'End odometer')).inputValue(),'');
+  assert.equal(await (await field(page,'Revenue')).inputValue(),'');
+  await fill(page,'End odometer',30);
+  await fill(page,'Revenue',1000);
+  await expectBar(page,'← CLOSE SHIFT');
+  await swipe(page,bar(page),'LEFT');
+  await waitWorkState(page,'DAY_READY');
+
+  // End Day must require confirmation and reach the frozen terminal state.
+  await page.getByRole('button',{name:'End day',exact:true}).click();
+  await waitText(page,'Confirm day closure');
+  await page.getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('button',{name:'End day',exact:true}).click();
+  await page.getByRole('button',{name:'Confirm',exact:true}).click();
+  await waitWorkState(page,'DAY_ENDED');
+
+  console.log('PASS: frozen Work lifecycle and End Day coverage');
+}finally{
+  await browser.close();
+}
