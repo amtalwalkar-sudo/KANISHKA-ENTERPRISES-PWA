@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+// View files are intentionally thin presentation adapters after segregation.
+// Implementation-specific UI contracts belong to their role components.
 const files = [
-  'src/components/VehicleModuleView.vue',
-  'src/components/DriverModuleView.vue'
+  'src/components/VehicleModuleRole.vue',
+  'src/components/DriverModuleRole.vue'
 ];
 
 const forbidden = [
