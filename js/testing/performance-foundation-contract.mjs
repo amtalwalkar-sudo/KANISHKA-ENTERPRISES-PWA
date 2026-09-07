@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const read=(path)=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
+const read=(path)=>fs.readFileSync(new URL(`../../${path}`,import.meta.url),'utf8');
 const app=read('src/App.vue');
 const performance=read('src/components/PerformanceModuleRole.vue');
-const navigation=read('ui/navigation.js');
-const models=read('application/read-model-composition.js');
-const application=read('application/kfe-application-facade.js');
+const navigation=read('js/ui/navigation.js');
+const models=read('js/application/read-model-composition.js');
+const application=read('js/application/kfe-application-facade.js');
 
 assert.match(app,/PerformanceModuleView/);
 assert.doesNotMatch(app,/StatusModuleView|activeModule==='Status'|activeModule===\"Status\"/);
