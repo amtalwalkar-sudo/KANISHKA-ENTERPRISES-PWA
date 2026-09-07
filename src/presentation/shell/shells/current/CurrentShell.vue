@@ -1,12 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import '../../../../styles/ui-tokens.css'
-import '../../../../styles/shell.css'
-import '../../../../styles/forms.css'
-import '../../../../styles/kfe2-shell.css'
+import App from '../../../../App.vue'
 import { kfePresentationApi } from '../../../application/presentation-api.js'
-import PerformanceModuleView from '../../../../components/PerformanceModuleView.vue'
-import AdminModuleView from '../../../../components/AdminModuleView.vue'
 
 const NAV = Object.freeze([
   { id: 'Performance', label: 'Performance' },
@@ -18,126 +13,56 @@ const menuOpen = ref(false)
 const busy = ref(false)
 const error = ref('')
 const fileInput = ref(null)
-const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
-const performanceModel = ref(null)
 
 const activeNav = computed(() => NAV.some((item) => item.id === route.value) ? route.value : 'Performance')
 
-function syncRoute() {
-  route.value = location.hash.slice(1) || 'Performance'
-}
-
+function syncRoute() { route.value = location.hash.slice(1) || 'Performance' }
 function navigate(path) {
   menuOpen.value = false
   const next = String(path || 'Performance')
-  if (location.hash.slice(1) === next) {
-    syncRoute()
-    return
-  }
+  if (location.hash.slice(1) === next) { syncRoute(); return }
   location.hash = next
 }
-
-function toggleSettings() {
-  error.value = ''
-  menuOpen.value = !menuOpen.value
-}
-
-async function loadPerformance() {
-  try {
-    performanceModel.value = await kfePresentationApi.read.getPerformance()
-  } catch (e) {
-    performanceModel.value = { error: String(e?.message || e) }
-  }
-}
-
-function handleOnline() { online.value = true }
-function handleOffline() { online.value = false }
-
+function toggleSettings() { error.value = ''; menuOpen.value = !menuOpen.value }
 async function backup() {
-  busy.value = true
-  error.value = ''
+  busy.value = true; error.value = ''
   try {
     const payload = await kfePresentationApi.exportBackup()
     const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `kfe-backup-${new Date().toISOString().slice(0, 10)}.json`
-    anchor.click()
-    URL.revokeObjectURL(url)
-    menuOpen.value = false
-  } catch (e) {
-    error.value = `Backup failed: ${String(e?.message || e)}`
-  } finally {
-    busy.value = false
-  }
+    anchor.href = url; anchor.download = `kfe-backup-${new Date().toISOString().slice(0, 10)}.json`; anchor.click()
+    URL.revokeObjectURL(url); menuOpen.value = false
+  } catch (e) { error.value = `Backup failed: ${String(e?.message || e)}` }
+  finally { busy.value = false }
 }
-
-function requestRestore() {
-  if (!busy.value) fileInput.value?.click()
-}
-
+function requestRestore() { if (!busy.value) fileInput.value?.click() }
 async function restore(event) {
-  const file = event.target.files?.[0]
-  event.target.value = ''
-  if (!file) return
-  busy.value = true
-  error.value = ''
+  const file = event.target.files?.[0]; event.target.value = ''; if (!file) return
+  busy.value = true; error.value = ''
   try {
     const payload = JSON.parse(await file.text())
     if (!payload || typeof payload !== 'object') throw new Error('This is not a valid KFE backup.')
     if (!confirm('Restore this backup? Existing local ERP data will be replaced.')) return
-    await kfePresentationApi.restoreBackup(payload)
-    location.reload()
-  } catch (e) {
-    error.value = `Restore failed: ${String(e?.message || e)}`
-  } finally {
-    busy.value = false
-  }
+    await kfePresentationApi.restoreBackup(payload); location.reload()
+  } catch (e) { error.value = `Restore failed: ${String(e?.message || e)}` }
+  finally { busy.value = false }
 }
-
 async function resetData() {
   if (!confirm('RESET ALL KFE DATA? This permanently removes local ERP records from this device.')) return
   if (!confirm('Final confirmation: erase all local ERP data?')) return
-  busy.value = true
-  error.value = ''
-  try {
-    await kfePresentationApi.resetAllData()
-    location.reload()
-  } catch (e) {
-    error.value = `Reset failed: ${String(e?.message || e)}`
-    busy.value = false
-  }
+  busy.value = true; error.value = ''
+  try { await kfePresentationApi.resetAllData(); location.reload() }
+  catch (e) { error.value = `Reset failed: ${String(e?.message || e)}`; busy.value = false }
 }
-
-onMounted(() => {
-  syncRoute()
-  window.addEventListener('hashchange', syncRoute)
-  window.addEventListener('online', handleOnline)
-  window.addEventListener('offline', handleOffline)
-  void loadPerformance()
-})
-
-onUnmounted(() => {
-  window.removeEventListener('hashchange', syncRoute)
-  window.removeEventListener('online', handleOnline)
-  window.removeEventListener('offline', handleOffline)
-})
+onMounted(() => window.addEventListener('hashchange', syncRoute))
+onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
 </script>
 
 <template>
   <div class="driver-shell">
     <header class="driver-header" aria-label="KFE header">
-      <button
-        class="settings-button"
-        type="button"
-        aria-label="Settings"
-        :aria-expanded="menuOpen"
-        aria-controls="settings-menu"
-        @click="toggleSettings"
-      >
-        <span aria-hidden="true">☰</span>
-      </button>
+      <button class="settings-button" type="button" aria-label="Settings" :aria-expanded="menuOpen" aria-controls="settings-menu" @click="toggleSettings"><span aria-hidden="true">☰</span></button>
       <div v-if="menuOpen" id="settings-menu" class="settings-menu" role="menu">
         <button type="button" role="menuitem" :disabled="busy" @click="backup">Backup</button>
         <button type="button" role="menuitem" :disabled="busy" @click="requestRestore">Restore</button>
@@ -145,40 +70,14 @@ onUnmounted(() => {
       </div>
       <input ref="fileInput" hidden type="file" accept="application/json,.json" @change="restore">
     </header>
-
     <main class="driver-content">
       <div class="content-surface">
         <p v-if="error" class="shell-error" role="alert">{{ error }}</p>
-        <div class="kfe-shell" data-framework="vue">
-          <main class="kfe-viewport">
-            <section class="kfe-workspace" aria-live="polite">
-              <PerformanceModuleView
-                v-if="activeNav === 'Performance'"
-                :online="online"
-                :performance="performanceModel"
-              />
-              <AdminModuleView
-                v-else-if="activeNav === 'Admin'"
-                :application="kfePresentationApi"
-                :online="online"
-              />
-            </section>
-          </main>
-        </div>
+        <App />
       </div>
     </main>
-
     <nav class="quick-dock" aria-label="Primary navigation">
-      <button
-        v-for="item in NAV"
-        :key="item.id"
-        type="button"
-        :class="{ active: activeNav === item.id }"
-        :aria-current="activeNav === item.id ? 'page' : undefined"
-        @click="navigate(item.id)"
-      >
-        {{ item.label }}
-      </button>
+      <button v-for="item in NAV" :key="item.id" type="button" :class="{ active: activeNav === item.id }" :aria-current="activeNav === item.id ? 'page' : undefined" @click="navigate(item.id)">{{ item.label }}</button>
     </nav>
   </div>
 </template>
@@ -200,7 +99,7 @@ onUnmounted(() => {
 .shell-error { position: fixed; top: calc(48px + env(safe-area-inset-top)); left: 8px; right: 8px; z-index: 11999; margin: 0; padding: 8px; border: 1px solid #ddd; background: #fff; font-size: .75rem; }
 :deep(.kfe-topbar), :deep(.kfe-bottom-nav) { display: none !important; }
 :deep(.kfe-shell) { min-height: 0 !important; height: 100% !important; overflow: hidden; }
-:deep(.kfe-viewport) { min-height: 0 !important; height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; }
+:deep(.kfe-viewport) { min-height: 0 !important; height: 100% !important; overflow-y: auto !important; overflow-x: hidden; }
 :deep(.kfe-workspace) { padding-bottom: 0 !important; }
 .quick-dock { position: fixed; inset: auto 0 0; z-index: 12000; min-height: calc(64px + env(safe-area-inset-bottom)); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; border-top: 1px solid #ddd; background: #fff; }
 .quick-dock button { min-height: 48px; border: 0; background: transparent; color: #555; font: inherit; font-size: .78rem; }
