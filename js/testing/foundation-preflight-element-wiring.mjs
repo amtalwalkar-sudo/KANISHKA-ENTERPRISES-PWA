@@ -22,15 +22,17 @@ const destinations = ['Work', 'Performance', 'Timeline', 'Admin'];
 for (const name of destinations) assert(app.includes(`'${name}'`), `Primary destination available: ${name}`);
 assert(!app.includes("'More'"), 'Obsolete More primary destination absent');
 assert(app.includes('activeModule'), 'App keeps a minimal module presentation boundary');
-assert(app.includes('class="empty-module" aria-label="Work"'), 'Work presentation surface is blank');
-assert(app.includes('class="empty-module" aria-label="Timeline"'), 'Timeline presentation surface is blank');
+assert(app.includes("import WorkSessionView from './components/WorkSessionView.vue'"), 'Work presentation component is imported');
+assert(app.includes('<WorkSessionView v-if="activeModule === \'Work\'" />'), 'Work presentation surface is wired to WorkSessionView');
+assert(app.includes("import KfeTimelineView from './components/KfeTimelineView.vue'"), 'Timeline presentation component is imported');
+assert(app.includes('<KfeTimelineView\n          v-else-if="activeModule === \'Timeline\'"'), 'Timeline presentation surface is wired to KfeTimelineView');
 assert(!app.includes('KfeSettingsView'), 'Legacy full Settings presentation is not mounted by App');
 assert(!app.includes('handleSaveRequest'), 'Legacy App save-request wiring is absent');
 assert(!app.includes('handleHistoricalSave'), 'Legacy App historical-save wiring is absent');
 assert(!app.includes('AuthoritativeRecordForm'), 'Legacy historical correction form is not mounted by App');
 
 const componentFiles = fs.readdirSync(components).filter((name) => name.endsWith('.vue'));
-const appImports = app.match(/import\s+(?:\{[^}]+\}|\w+)\s+from\s+['"]\.\/components\/([^'"]+\.vue)['"]/g) || [];
+const appImports = app.match(/import\s+(?:\{[^}]+\}|\w+)\s+from\s*['"]\.\/components\/([^'"]+\.vue)['"]/g) || [];
 for (const statement of appImports) {
   const match = statement.match(/\.\/components\/([^'"]+\.vue)/);
   if (match) assert(componentFiles.includes(match[1]), `App import resolves: ${match[1]}`);
