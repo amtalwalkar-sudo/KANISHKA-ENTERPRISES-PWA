@@ -1,22 +1,26 @@
-import assert from 'node:assert/strict';
+import assert from 'node:assert:strict';
 import fs from 'node:fs/promises';
-const view=await fs.readFile(new URL('../../src/components/WorkSessionView.vue',import.meta.url),'utf8');
-const css=await fs.readFile(new URL('../../src/components/work-session.css',import.meta.url),'utf8');
-const swipe=await fs.readFile(new URL('../../src/components/KfeSwipeBar.vue',import.meta.url),'utf8');
-assert.ok(view.includes('Hello, Welcome to Kanishka Enterprises'),'Start welcome missing.');
-assert.ok(view.includes("screenState === 'DAY_ENDED'"),'Day Ended branch missing.');
-for(const metric of ['Kms run','Dead kms','Revenue','Target']) assert.ok(view.includes(metric),`${metric} metric missing.`);
-assert.ok(view.includes("model.value?.state === 'DAY_ENDED' ? await application.getWorkSummary() : null"),'Summary must load only after day ended.');
-assert.ok(!view.includes('Ready for the next operational day'),'Legacy copy remains.');
-assert.ok(!view.includes('Your latest authoritative odometer is prefilled when you start the day.'),'Legacy odometer copy remains.');
-assert.ok(css.includes('.welcome-card')&&css.includes('.shift-summary-grid'),'Summary styling missing.');
-assert.ok(swipe.includes('pointerdown')&&swipe.includes('pointermove')&&swipe.includes('pointerup')&&swipe.includes('pointercancel'),'Pointer event contract missing.');
-assert.ok(swipe.includes('threshold=progress.value>=70'),'70% gesture threshold missing.');
-assert.ok(swipe.includes('navigator.vibrate?.([30,50])'),'Haptic completion missing.');
-assert.ok(swipe.includes('role="slider"')&&swipe.includes('aria-valuemin="0"')&&swipe.includes('aria-valuemax="100"')&&swipe.includes('aria-valuenow'),'ARIA slider contract missing.');
-assert.ok(swipe.includes('translate3d')===false,'Hardware transform belongs to CSS, not a duplicate standalone implementation.');
-assert.ok(css.includes('touch-action:none')&&css.includes('translate3d'),'Gesture/hardware CSS contract missing.');
-assert.ok(css.includes('swipe-chevron-wave')&&css.includes('backdrop-filter:blur(12px)'),'Visual swipe-bar contract missing.');
-assert.ok(css.includes('cubic-bezier(.175,.885,.32,1.275)'),'Spring bounce-back contract missing.');
-assert.ok(css.includes('--kfe-swipe-glow')&&css.includes('data-shell="fleet"')&&css.includes('data-shell="delivery"'),'Shell theme tokens missing.');
-console.log('PASS: Work screen and integrated multi-shell swipe action contracts');
+
+const shell=await fs.readFile(new URL('../../src/presentation/shell/shells/current/CurrentShell.vue',import.meta.url),'utf8');
+const app=await fs.readFile(new URL('../../src/App.vue',import.meta.url),'utf8');
+const css=await fs.readFile(new URL('../../src/styles/shell.css',import.meta.url),'utf8');
+
+// Work is intentionally a clean presentation canvas. Operational behavior is
+// tested below this boundary by the application/domain contracts.
+for(const token of ['Work','Performance','Timeline','Admin','Backup','Restore','Data reset']) assert.ok(shell.includes(token),`CurrentShell missing ${token}`);
+assert.ok(shell.includes('<header'),'CurrentShell header missing');
+assert.ok(shell.includes('<main'),'CurrentShell main missing');
+assert.ok(shell.includes('<nav'),'CurrentShell navigation missing');
+assert.equal((shell.match(/<main/g)||[]).length,1,'CurrentShell must have one main');
+assert.ok(shell.includes('location.hash')&&shell.includes('hashchange'),'CurrentShell route boundary missing');
+assert.ok(shell.includes('exportBackup')&&shell.includes('restoreBackup')&&shell.includes('resetAllData'),'Settings data actions missing');
+assert.doesNotMatch(shell,/kfe-swipe-bar|KfeSwipeBar|pointerdown|pointerup|Tax Reserve|tax reserve/i);
+
+assert.ok(app.includes("activeModule = ref('Work')"),'App must default to Work');
+for(const module of ['Work','Performance','Timeline','Admin']) assert.ok(app.includes(`activeModule === '${module}'`),`App missing ${module} canvas`);
+assert.ok(app.includes('PerformanceModuleView')&&app.includes('AdminModuleView'),'Functional Performance/Admin surfaces missing');
+assert.doesNotMatch(app,/WorkSessionView|FuelForm|VehicleModuleView|MaintenanceModuleView|ComplianceModuleView|LoanModuleView|HistoricalEntriesView|FuelQuickEntry|FuelQuickAction|kfe:work-state-changed|data-kfe-action|kfe-swipe-bar|KfeSwipeBar/i);
+
+assert.ok(css.includes('prefers-reduced-motion'),'Reduced-motion foundation missing');
+assert.ok(css.includes('min-width:48px')&&css.includes('min-height:48px'),'Touch target foundation missing');
+console.log('PASS: current Work presentation contract is a clean canvas with the four-module shell and no legacy Work UI');
