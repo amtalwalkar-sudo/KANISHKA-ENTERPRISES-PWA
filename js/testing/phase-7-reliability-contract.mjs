@@ -32,8 +32,9 @@ assert.match(decimal, /sanitizeDecimalInput/);
 assert.match(decimal, /isValidDecimalInput/);
 
 // The structural presentation boundary is CurrentShell, while App.vue remains
-// a clean module canvas and must not regain legacy reliability wiring.
-assert.match(shell, /Work.*Performance.*Timeline.*Admin/s);
+// a clean module canvas. The current production shell exposes only Performance/Admin.
+assert.match(shell, /Performance.*Admin/s);
+assert.doesNotMatch(shell, /Work.*Performance.*Timeline.*Admin/s);
 assert.match(shell, /Settings/);
 assert.match(shell, /Backup/);
 assert.match(shell, /Restore/);
