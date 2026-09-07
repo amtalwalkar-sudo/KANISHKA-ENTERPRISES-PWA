@@ -185,6 +185,13 @@ jobs:
           npm run validate:architecture
           npm run validate:foundation
           npm run validate:foundation-audit
+      - name: Refactor readiness contracts
+        run: |
+          npm run validate:shell-resolver
+          npm run validate:replaceable-shell
+          npm run validate:vehicle-driver-ui-decoupling
+          npm run validate:admin-screen
+          npm run validate:performance-foundation
       - name: Domain and lifecycle
         run: |
           npm run validate:domain
