@@ -116,9 +116,12 @@ try{
   await swipe(page,bar(page),'RIGHT');
   await waitWorkState(page,'DAY_READY');
 
-  // Start the business shift and close it through the authoritative flow.
+  // Start the business shift through the authoritative confirmation flow.
   await expectBar(page,'← START PERSONAL TRIP START BUSINESS SHIFT →');
   await swipe(page,bar(page),'RIGHT');
+  await waitText(page,'STARTING SHIFT');
+  await fill(page,'Opening Cash Float',0);
+  await page.getByRole('button',{name:'Confirm Start Shift',exact:true}).click();
   await waitWorkState(page,'SHIFT_WAITING');
   await expectBar(page,'← END SHIFT START BUSINESS TRIP →');
 
