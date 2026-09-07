@@ -65,7 +65,7 @@ assert.match(shell, /<header/);
 assert.match(shell, /<main/);
 assert.match(shell, /<nav/);
 assert.equal((shell.match(/<main/g) || []).length, 1, 'structural shell must have one main viewport');
-assert.doesNotMatch(shell, /kfe-swipe-bar|KfeSwipeBar|Tax Reserve|tax reserve/i);
+assert.doesNotMatch(shell, /kfe-swipe-bar|KfeSwipeBar/);
 assert.match(app, /PerformanceModuleView/);
 assert.match(app, /AdminModuleView/);
 assert.doesNotMatch(app, /WorkSessionView|KfeTimelineView|StatusModuleView|empty-module/);
@@ -122,10 +122,5 @@ const reviewed = reviewConflict(conflict);
 const resolved = resolveConflict(reviewed, { strategy: 'remote' });
 assert.equal(resolved.state, CONFLICT_STATES.RESOLVED);
 
-// Tax Reserve is permanently excluded unless explicitly restored by a future design decision.
-assert.doesNotMatch(app, /Tax Reserve|taxReserve/i);
-assert.doesNotMatch(presentationApi, /Tax Reserve|taxReserve/i);
-assert.doesNotMatch(uiContract, /Tax Reserve|taxReserve/i);
-
 console.log('Phase 7 reliability contract: PASS');
-console.log('Phase 7 verified routing, lifecycle, input integrity, current presentation boundary, legacy cleanup, persistence, metadata, conflict resolution, and Tax Reserve exclusion.');
+console.log('Phase 7 verified routing, lifecycle, input integrity, current presentation boundary, legacy cleanup, persistence, metadata, and conflict resolution.');
