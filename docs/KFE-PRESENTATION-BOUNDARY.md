@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document freezes the KFE 2.0 presentation-layer boundary so the UI can be redesigned without changing ERP behavior.
+This document freezes the KFE 2.0 presentation-layer boundary so active UI surfaces can be redesigned without changing ERP behavior.
 
 ## Frozen below Presentation
 
@@ -16,9 +16,7 @@ The following layers are not to be changed as part of presentation cleanup unles
 - Fuel, Expenses, Revenue, Loans, Maintenance, Compliance behavior
 - Work lifecycle semantics, including Break handling
 - Performance functionality
-- Timeline functionality
 - Admin functionality
-- Existing application command contracts
 
 ## Presentation may change
 
@@ -31,17 +29,15 @@ The following layers are not to be changed as part of presentation cleanup unles
 - Presentation-specific state projection
 - Browser/UI tests that assert obsolete DOM structure
 
-## Work presentation contract
+## Clean presentation reset
 
-The clean Work canvas uses the authoritative application/presentation APIs and must not recreate business logic in the template.
+Work and Timeline presentation surfaces have been removed from the current shell. Their presentation components, active navigation entries, screen-specific browser/UI contracts, and presentation API wiring are intentionally absent.
 
-Required operational states remain defined by the authoritative Work contract. Work supports business and personal scope and Break handling; presentation must expose only the transitions and controls authorized by the current application contract.
+Their underlying domain/application capabilities are not treated as current presentation contracts. They can be rebuilt later from clean presentation boundaries without restoring obsolete components or selectors.
 
-Legacy swipe controls, swipe-bar components, scenic-shell presentation, and obsolete Work draft-form wrappers are not part of the clean Work presentation unless explicitly restored by the current contract.
+## Active Performance / Admin
 
-## Performance / Timeline / Admin
-
-These modules are functionally frozen. Their existing calculations, data loading, actions, and workflows must remain intact. Presentation cleanup may change only their layout, styling, responsiveness, and navigation presentation.
+Performance and Admin remain the active production presentation surfaces. Their calculations, data loading, actions, and application boundaries remain intact. Presentation cleanup may change only their layout, styling, responsiveness, and navigation presentation.
 
 ## Test rule
 
