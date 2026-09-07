@@ -4,27 +4,25 @@ import App from '../../../../App.vue'
 import { kfePresentationApi } from '../../../application/presentation-api.js'
 
 const NAV = Object.freeze([
-  { id: 'Work', label: 'Work' },
   { id: 'Performance', label: 'Performance' },
-  { id: 'Timeline', label: 'Timeline' },
   { id: 'Admin', label: 'Admin' },
 ])
 
-const route = ref(location.hash.slice(1) || 'Work')
+const route = ref(location.hash.slice(1) || 'Performance')
 const menuOpen = ref(false)
 const busy = ref(false)
 const error = ref('')
 const fileInput = ref(null)
 
-const activeNav = computed(() => NAV.some((item) => item.id === route.value) ? route.value : 'Work')
+const activeNav = computed(() => NAV.some((item) => item.id === route.value) ? route.value : 'Performance')
 
 function syncRoute() {
-  route.value = location.hash.slice(1) || 'Work'
+  route.value = location.hash.slice(1) || 'Performance'
 }
 
 function navigate(path) {
   menuOpen.value = false
-  const next = String(path || 'Work')
+  const next = String(path || 'Performance')
   if (location.hash.slice(1) === next) {
     syncRoute()
     return
@@ -160,7 +158,7 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
 :deep(.kfe-shell) { min-height: 0 !important; height: 100% !important; overflow: hidden; }
 :deep(.kfe-viewport) { min-height: 0 !important; height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; }
 :deep(.kfe-workspace) { padding-bottom: 0 !important; }
-.quick-dock { position: fixed; inset: auto 0 0; z-index: 12000; min-height: calc(64px + env(safe-area-inset-bottom)); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; border-top: 1px solid #ddd; background: #fff; }
+.quick-dock { position: fixed; inset: auto 0 0; z-index: 12000; min-height: calc(64px + env(safe-area-inset-bottom)); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; border-top: 1px solid #ddd; background: #fff; }
 .quick-dock button { min-height: 48px; border: 0; background: transparent; color: #555; font: inherit; font-size: .78rem; }
 .quick-dock button.active { color: #111; font-weight: 700; }
 </style>
