@@ -1,13 +1,65 @@
 import fs from 'node:fs';
 import path from 'node:path';
-const root=process.cwd(),components=path.join(root,'src','components'),appPath=path.join(root,'src','App.vue'),failures=[],checks=[];
-const assert=(condition,message)=>{checks.push(message);if(!condition)failures.push(message);};const read=file=>fs.readFileSync(file,'utf8');
-assert(fs.existsSync(appPath),'App.vue exists');const app=read(appPath);assert(/import\s*\{\s*kfePresentationApi\s*\}\s*from\s*['"]\.\/presentation\/application\/presentation-api\.js['"]/.test(app),'Presentation imports the application through the presentation API boundary');assert(!/from\s+['"][^'"]*(?:repository|infrastructure|database)[^'"]*['"]/.test(app),'App.vue does not import repository/infrastructure/database modules directly');
-const destinations=['Work','Performance','Timeline','Admin'];for(const name of destinations)assert(app.includes(`'${name}'`),`Primary destination wired: ${name}`);assert(!app.includes("'More'"),'Obsolete More primary destination absent');
-const componentFiles=fs.readdirSync(components).filter(name=>name.endsWith('.vue'));const displayOnly=new Set(['KfeTimelineView.vue']);const productionScreens=['WorkSessionView.vue','PerformanceModuleView.vue','KfeTimelineView.vue','KfeModuleView.vue','KfeFinancialModuleView.vue','VehicleModuleView.vue','MaintenanceModuleView.vue','ComplianceModuleView.vue','LoanModuleView.vue','HistoricalEntriesView.vue','FuelHistoryView.vue','FuelForm.vue','AuthoritativeRecordForm.vue','AdminModuleView.vue'];
-for(const name of productionScreens){const file=path.join(components,name);assert(fs.existsSync(file),`Production screen exists: ${name}`);if(!fs.existsSync(file))continue;const text=read(file);assert(/<template(?:\s|>)/.test(text),`${name}: UI template renders`);assert(/<script(?:\s|>)/.test(text),`${name}: script boundary exists`);if(!displayOnly.has(name))assert(/@(?:click|submit|change|input|save-request|back|open|calculation-request|reset-request)/.test(text)||/defineEmits\s*\(/.test(text),`${name}: interactive/event surface exists`);}
-const eventWiring=[['VehicleModuleView','@save-request="handleSaveRequest"'],['MaintenanceModuleView','@save-request="handleSaveRequest"'],['ComplianceModuleView','@save-request="handleSaveRequest"'],['LoanModuleView','@save-request="handleSaveRequest"'],['HistoricalEntriesView','@save-request="handleHistoricalSave"'],['KfeTimelineView','@edit="handleHistoricalEdit"']];for(const [component,wiring] of eventWiring)assert(app.includes(wiring),`App event wiring present: ${component} ${wiring}`);
-assert(app.includes('AuthoritativeRecordForm'),'App wires the authoritative record form for historical corrections');assert(!app.includes('@fuel-edit="handleFuelEdit"'),'App does not retain duplicate Fuel edit wiring');
-const appImports=app.match(/import\s+(?:\{[^}]+\}|\w+)\s+from\s+['"]\.\/components\/([^'"]+\.vue)['"]/g)||[];for(const statement of appImports){const match=statement.match(/\.\/components\/([^'"]+\.vue)/);if(match)assert(componentFiles.includes(match[1]),`App import resolves: ${match[1]}`);}
-for(const name of componentFiles){const text=read(path.join(components,name));if(/from\s+['"][^'"]*(?:repository|infrastructure|database)[^'"]*['"]/.test(text))failures.push(`${name}: presentation must not import repository/infrastructure/database directly`);}
-console.log(`FOUNDATION_PREFLIGHT_ELEMENT_WIRING_CHECKS=${checks.length}`);if(failures.length){console.error('FOUNDATION_PREFLIGHT_ELEMENT_WIRING_FAILED');for(const f of failures)console.error(`- ${f}`);process.exit(1);}console.log('FOUNDATION_PREFLIGHT_ELEMENT_WIRING=PASS');
+
+const root = process.cwd();
+const components = path.join(root, 'src', 'components');
+const appPath = path.join(root, 'src', 'App.vue');
+const failures = [];
+const checks = [];
+
+const assert = (condition, message) => {
+  checks.push(message);
+  if (!condition) failures.push(message);
+};
+const read = (file) => fs.readFileSync(file, 'utf8');
+
+assert(fs.existsSync(appPath), 'App.vue exists');
+const app = read(appPath);
+assert(/import\s*\{\s*kfePresentationApi\s*\}\s*from\s*['"]\.\/presentation\/application\/presentation-api\.js['"]/.test(app), 'Presentation imports the application through the presentation API boundary');
+assert(!/from\s+['"][^'"]*(?:repository|infrastructure|database)[^'"]*['"]/.test(app), 'App.vue does not import repository/infrastructure/database modules directly');
+
+const destinations = ['Work', 'Performance', 'Timeline', 'Admin'];
+for (const name of destinations) assert(app.includes(`'${name}'`), `Primary destination available: ${name}`);
+assert(!app.includes("'More'"), 'Obsolete More primary destination absent');
+assert(app.includes('activeModule'), 'App keeps a minimal module presentation boundary');
+assert(app.includes('class="empty-module" aria-label="Work"'), 'Work presentation surface is blank');
+assert(app.includes('class="empty-module" aria-label="Timeline"'), 'Timeline presentation surface is blank');
+assert(!app.includes('KfeSettingsView'), 'Legacy full Settings presentation is not mounted by App');
+assert(!app.includes('handleSaveRequest'), 'Legacy App save-request wiring is absent');
+assert(!app.includes('handleHistoricalSave'), 'Legacy App historical-save wiring is absent');
+assert(!app.includes('AuthoritativeRecordForm'), 'Legacy historical correction form is not mounted by App');
+
+const componentFiles = fs.readdirSync(components).filter((name) => name.endsWith('.vue'));
+const appImports = app.match(/import\s+(?:\{[^}]+\}|\w+)\s+from\s+['"]\.\/components\/([^'"]+\.vue)['"]/g) || [];
+for (const statement of appImports) {
+  const match = statement.match(/\.\/components\/([^'"]+\.vue)/);
+  if (match) assert(componentFiles.includes(match[1]), `App import resolves: ${match[1]}`);
+}
+
+for (const name of componentFiles) {
+  const text = read(path.join(components, name));
+  if (/from\s+['"][^'"]*(?:repository|infrastructure|database)[^'"]*['"]/.test(text)) {
+    failures.push(`${name}: presentation must not import repository/infrastructure/database directly`);
+  }
+}
+
+const shellPath = path.join(root, 'src', 'presentation', 'shell', 'shells', 'current', 'CurrentShell.vue');
+assert(fs.existsSync(shellPath), 'Current shell exists');
+if (fs.existsSync(shellPath)) {
+  const shell = read(shellPath);
+  assert(shell.includes('Backup'), 'Settings menu exposes Backup');
+  assert(shell.includes('Restore'), 'Settings menu exposes Restore');
+  assert(shell.includes('Data reset'), 'Settings menu exposes Data reset');
+  assert(!shell.includes('openSettings'), 'Legacy full Settings navigation is absent');
+  for (const name of destinations) assert(shell.includes(`id: '${name}'`), `Bottom navigation available: ${name}`);
+  assert(!shell.includes('Theme'), 'Theme presentation is absent from the current shell');
+  assert(!shell.includes('ambient'), 'Ambient presentation is absent from the current shell');
+}
+
+console.log(`FOUNDATION_PREFLIGHT_ELEMENT_WIRING_CHECKS=${checks.length}`);
+if (failures.length) {
+  console.error('FOUNDATION_PREFLIGHT_ELEMENT_WIRING_FAILED');
+  for (const failure of failures) console.error(`- ${failure}`);
+  process.exit(1);
+}
+console.log('FOUNDATION_PREFLIGHT_ELEMENT_WIRING=PASS');
