@@ -10,6 +10,7 @@ assert.equal(uiSource.includes("../../js/core/"),false);
 assert.match(uiSource,/createUiCommand\(type\s*,\s*payload\)/);
 for (const command of ['START_SHIFT','START_TRIP','END_TRIP','END_SHIFT','START_DAY','START_PERSONAL_TRIP','END_PERSONAL_TRIP','END_DAY']) assert.match(uiSource,new RegExp(command));
 assert.doesNotMatch(uiSource,/kfe-swipe-bar|KfeSwipeBar|pointerdown|pointerup/);
+assert.match(uiSource,/data-kfe-action/);
 assert.match(rootSource,/WorkSessionView/);
 assert.match(rootSource,/kfe:work-state-changed/);
 
