@@ -10,31 +10,13 @@ const emit = defineEmits(['close', 'submitted'])
 
 const previousOdometerValue = ref(props.previousOdometer == null ? null : Number(props.previousOdometer))
 const startOdometer = ref(props.previousOdometer == null ? '' : String(props.previousOdometer))
-const businessKm = ref('0')
-const personalKm = ref('0')
-const vehicleInspectionCleared = ref(false)
 const submitting = ref(false)
 const error = ref('')
 
 const previousOdometer = computed(() => previousOdometerValue.value)
 const startValue = computed(() => Number(startOdometer.value))
-const gap = computed(() => previousOdometer.value == null ? 0 : Math.max(0, startValue.value - previousOdometer.value))
-const allocationValid = computed(() => {
-  const business = Number(businessKm.value)
-  const personal = Number(personalKm.value)
-  return Number.isInteger(business) && Number.isInteger(personal) && business >= 0 && personal >= 0 && business + personal === gap.value
-})
-const odometerValid = computed(() => Number.isInteger(startValue.value) && startValue.value > 0 && (previousOdometer.value == null || startValue.value >= previousOdometer.value))
-const canSubmit = computed(() => odometerValid.value && allocationValid.value && vehicleInspectionCleared.value && !submitting.value && !props.busy)
-
-function enforceDecimalInputs() {
-  document.querySelectorAll('[data-kfe-shift-state="STARTING_SHIFT"] input[type="number"]').forEach(input => {
-    input.addEventListener('input', event => {
-      const target = event.target
-      if (target instanceof HTMLInputElement && target.value.includes('.')) target.value = target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1')
-    })
-  })
-}
+const odometerValid = computed(() => Number.isInteger(startValue.value) && startValue.value >= 0 && (previousOdometer.value == null || startValue.value >= previousOdometer.value))
+const canSubmit = computed(() => odometerValid.value && !submitting.value && !props.busy)
 
 async function loadPreviousOdometer() {
   if (previousOdometer.value != null) return
@@ -50,39 +32,15 @@ async function loadPreviousOdometer() {
   }
 }
 
-async function submit() {
+function submit() {
   if (!canSubmit.value) return
   submitting.value = true
   error.value = ''
-  const now = new Date()
-  const startedAt = now.toISOString()
-  const businessDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  try {
-    await kfePresentationApi.startShift({
-      start_odometer_km: startValue.value,
-      previous_odometer_km: previousOdometer.value,
-      odometer_gap_km: gap.value,
-      business_km: Number(businessKm.value),
-      personal_km: Number(personalKm.value),
-      vehicle_inspection_cleared: true,
-      business_date: businessDate,
-      started_at: startedAt,
-      actionMode: 'SWIPE',
-      direction: 'RIGHT',
-    })
-    window.dispatchEvent(new CustomEvent('kfe:work-state-changed'))
-    emit('submitted')
-  } catch (cause) {
-    error.value = String(cause?.message || cause)
-  } finally {
-    submitting.value = false
-  }
+  emit('submitted', startValue.value)
+  submitting.value = false
 }
 
-onMounted(async () => {
-  await loadPreviousOdometer()
-  enforceDecimalInputs()
-})
+onMounted(loadPreviousOdometer)
 </script>
 
 <template>
@@ -95,22 +53,12 @@ onMounted(async () => {
       </div>
       <div v-if="error" class="work-error" role="alert">{{ error }}</div>
       <label data-kfe-field="start_odometer">Start Odometer (km) *
-        <input v-model="startOdometer" type="number" inputmode="numeric" min="1" step="1">
+        <input v-model="startOdometer" type="number" inputmode="numeric" min="0" step="1">
       </label>
-      <div data-kfe-field="odometer_gap_km" class="allocation-block"><span>Odometer Gap</span><strong>{{ gap }} km</strong></div>
-      <label data-kfe-field="business_km">Business Allocation (km) *
-        <input v-model="businessKm" type="number" inputmode="numeric" min="0" step="1">
-      </label>
-      <label data-kfe-field="personal_km">Personal Allocation (km) *
-        <input v-model="personalKm" type="number" inputmode="numeric" min="0" step="1">
-      </label>
-      <label data-kfe-field="vehicle_inspection_cleared" class="fare-checks">
-        <input v-model="vehicleInspectionCleared" type="checkbox">
-        Vehicle inspection cleared
-      </label>
+      <p class="muted">Enter the odometer reading for the shift. No inspection, cash float, or kilometre allocation is required here.</p>
       <div class="work-form-actions">
         <button type="button" data-kfe-action="cancel-start-shift" class="secondary-action touch-button-48" :disabled="submitting" @click="emit('close')">Cancel</button>
-        <button type="button" data-kfe-action="submit-start-shift" class="primary-action touch-button-48" :disabled="!canSubmit" @click="submit">Confirm Start Shift</button>
+        <button type="button" data-kfe-action="submit-start-shift" class="primary-action touch-button-48" :disabled="!canSubmit" @click="submit">Continue</button>
       </div>
     </div>
   </div>
