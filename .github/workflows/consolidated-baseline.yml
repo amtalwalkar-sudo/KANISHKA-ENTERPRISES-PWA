@@ -4,22 +4,98 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, ci/foundation-preflight-3-gates]
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Validation mode'
+        required: true
+        default: fast
+        type: choice
+        options: [fast, full]
 
 concurrency:
   group: kfe-single-ci
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: read
+  pages: write
 
 jobs:
-  validate:
-    name: KFE validation and Work Screen integration
+  fast-check:
+    name: Fast fix check
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'fast') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+      - name: Setup Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Build application
+        run: GITHUB_ACTIONS=false npm run build
+      - name: Run targeted fast checks
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          run=()
+          need_browser=false
+          for f in "${files[@]}"; do
+            case "$f" in
+              .github/*|package.json|package-lock.json|vite.config.*|index.html|service-worker.js|src/main.*)
+                run+=(validate:kfe-screen-contract validate:foundation-preflight validate:governance);;
+              js/core/*|js/services/*|js/testing/architecture-*|js/testing/clean-architecture-*)
+                run+=(validate:architecture validate:foundation validate:foundation-audit);;
+              js/domain/*|js/testing/domain-*|js/testing/*lifecycle*|js/testing/phase-i*|js/testing/phase-j*|js/testing/phase-k*|js/testing/phase-l*|js/testing/phase-m*|js/testing/phase-n*)
+                run+=(validate:domain);;
+              js/ui/*|src/components/*|src/App.vue|src/styles/*|js/testing/phase-1*|js/testing/phase-2*|js/testing/phase-3*|js/testing/phase-5*|js/testing/phase-6*)
+                run+=(validate:phase-1 validate:phase-2 validate:phase-3 validate:phase-5 validate:phase-5-module-contracts validate:phase-6-ui-shell);;
+              js/application/*|js/testing/*application*)
+                run+=(validate:phase-5-vehicle validate:phase-5-fuel-application validate:phase-5-expenses-application validate:phase-5-revenue-application validate:phase-5-loans-application validate:phase-5-renewals-compliance-application validate:phase-5-maintenance-application validate:phase-5-profitability-application validate:phase-5-dashboard-application);;
+              js/persistence/*|js/testing/*persistence*)
+                run+=(validate:phase-k);;
+              js/testing/*browser*|js/testing/work-screen-browser*|playwright.config.*|src/components/WorkSessionView.vue|js/testing/*work*)
+                run+=(validate:work-geolocation); need_browser=true;;
+              js/testing/*resilience*|js/testing/*offline*)
+                run+=(validate:phase-7-reliability);;
+              js/app.js)
+                run+=(validate:phase-4);;
+              *)
+                run+=(validate:kfe-screen-contract);;
+            esac
+          done
+          if ((${#run[@]} == 0)); then run+=(validate:kfe-screen-contract); fi
+          mapfile -t unique < <(printf '%s\n' "${run[@]}" | awk '!seen[$0]++')
+          if [[ "$need_browser" == true ]]; then
+            npx playwright install --with-deps chromium
+            nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
+            for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
+            npm run validate:work-screen-browser
+          fi
+          for script in "${unique[@]}"; do
+            echo "===== FAST CHECK: $script ====="
+            npm run "$script"
+          done
+          echo 'KFE_FAST_CHECK=PASS'
+
+  full-validation:
+    name: Full validation and production publish
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' && inputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - name: Resolve live repository state before checkout
         id: state
@@ -28,18 +104,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
-            event_sha="${{ github.event.pull_request.head.sha }}"
-          else
-            current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq '.object.sha')"
-            event_sha="${{ github.sha }}"
-          fi
-          if [[ -z "$current_sha" || -z "$event_sha" ]]; then
-            echo "STATE_MISMATCH: unable to resolve current and event revision"
-            exit 1
-          fi
-          if [[ "$current_sha" != "$event_sha" ]]; then
+          current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          event_sha="${{ github.sha }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then event_sha="$current_sha"; fi
+          if [[ -z "$current_sha" || -z "$event_sha" || "$current_sha" != "$event_sha" ]]; then
             echo "STATE_MISMATCH: live=$current_sha event=$event_sha"
             exit 1
           fi
@@ -59,24 +127,13 @@ jobs:
         run: |
           set -euo pipefail
           observed_sha="$(git rev-parse HEAD)"
-          if [[ "$observed_sha" != "$KFE_VALIDATED_SHA" ]]; then
-            echo "STATE_MISMATCH: checked_out=$observed_sha expected=$KFE_VALIDATED_SHA"
-            exit 1
-          fi
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
-          else
-            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          fi
-          if [[ "$live_sha" != "$observed_sha" ]]; then
-            echo "STATE_MISMATCH: live=$live_sha checked_out=$observed_sha"
-            exit 1
-          fi
-          echo "KFE_OBSERVED_CODE_SHA=$observed_sha" >> "$GITHUB_ENV"
+          if [[ "$observed_sha" != "$KFE_VALIDATED_SHA" ]]; then exit 1; fi
+          live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "$live_sha" != "$observed_sha" ]]; then exit 1; fi
           echo "KFE_VALIDATED_SHA=$observed_sha" >> "$GITHUB_ENV"
+          echo "KFE_OBSERVED_CODE_SHA=$observed_sha" >> "$GITHUB_ENV"
           echo "KFE_CI_RUN_SHA=$observed_sha" >> "$GITHUB_ENV"
           echo "KFE_STATE_STATUS=FRESH" >> "$GITHUB_ENV"
-          echo "KFE state synchronized: $observed_sha"
 
       - name: Setup Node 20
         uses: actions/setup-node@v5
@@ -189,15 +246,83 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.head.sha')"
-          else
-            live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          fi
+          live_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           if [[ "$live_sha" != "$KFE_VALIDATED_SHA" ]]; then
             echo "STATE_MISMATCH: repository advanced during validation. validated=$KFE_VALIDATED_SHA live=$live_sha"
             exit 1
           fi
-          echo "Final KFE state synchronization PASS: $KFE_VALIDATED_SHA"
-      - name: Final build verification
+      - name: Final production build
         run: GITHUB_ACTIONS=false npm run build
+
+      - name: Invalidate runtime cache for this deployment
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ steps.state.outputs.validated_sha }}
+        run: |
+          set -euo pipefail
+          CACHE_VERSION="kanishka-fleet-kfe2-${DEPLOY_SHA}"
+          sed -i "s/^const CACHE_NAME='[^']*';/const CACHE_NAME='${CACHE_VERSION}';/" dist/service-worker.js
+          grep -q "const CACHE_NAME='${CACHE_VERSION}';" dist/service-worker.js
+
+      - name: Verify production bundle
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ steps.state.outputs.validated_sha }}
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          test -s dist/manifest.json
+          test -s dist/service-worker.js
+          test -s dist/icon-192.png
+          test -s dist/icon-512.png
+          test -d dist/assets
+          grep -q '/KANISHKA-ENTERPRISES-PWA/' dist/index.html
+          grep -q '/assets/' dist/index.html
+          if grep -q '/src/main.js' dist/index.html; then exit 1; fi
+          grep -q "const CACHE_NAME='kanishka-fleet-kfe2-${DEPLOY_SHA}';" dist/service-worker.js
+          echo 'KFE_PRODUCTION_BUNDLE=PASS'
+
+      - name: Publish built runtime into configured Pages source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp dist/index.html ./index.html
+          cp dist/manifest.json ./manifest.json
+          cp dist/service-worker.js ./service-worker.js
+          cp dist/icon-192.png ./icon-192.png
+          cp dist/icon-512.png ./icon-512.png
+          rm -rf ./assets
+          cp -R dist/assets ./assets
+
+      - name: Commit published runtime
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html manifest.json service-worker.js icon-192.png icon-512.png assets
+          if git diff --cached --quiet; then
+            echo 'No published runtime changes.'
+          else
+            git commit -m 'build: publish KFE production runtime [skip ci]'
+            git push origin HEAD:main
+          fi
+
+      - name: Request GitHub Pages build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds" -H 'Accept: application/vnd.github+json'
+
+      - name: Report production URL
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pages_url="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq '.html_url')"
+          echo "KFE_PRODUCTION_URL=$pages_url" >> "$GITHUB_STEP_SUMMARY"
+          echo "Production URL: $pages_url"
