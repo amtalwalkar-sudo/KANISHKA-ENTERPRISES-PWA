@@ -8,12 +8,14 @@ const rootSource=fs.readFileSync(new URL('../../src/App.vue',import.meta.url),'u
 const shellSource=fs.readFileSync(new URL('../../src/presentation/shell/shells/current/CurrentShell.vue',import.meta.url),'utf8');
 
 // Work lifecycle behavior belongs to the application/domain boundary. The
-// current presentation intentionally keeps Work as a blank module canvas.
+// current production presentation mounts the authoritative Work surface while
+// keeping lifecycle semantics below the presentation boundary.
 assert.equal(appSource.includes("../core/hardened-db.js"),false);
 for (const command of ['startDay','startShift','startBusinessTrip','endBusinessTrip','endShift','endDay','getWorkScreenState']) assert.match(workApplication,new RegExp(`async function ${command}\\(`));
 assert.match(rootSource,/activeModule/);
 assert.match(rootSource,/activeModule === 'Work'/);
-assert.doesNotMatch(rootSource,/WorkSessionView|kfe:work-state-changed/);
+assert.match(rootSource,/WorkSessionView/);
+assert.match(rootSource,/kfePresentationApi/);
 assert.match(shellSource,/Work.*Performance.*Timeline.*Admin/s);
 assert.doesNotMatch(shellSource,/kfe-swipe-bar|KfeSwipeBar|pointerdown|pointerup/);
 
@@ -41,8 +43,8 @@ await app.endShift({id:shift.id,endOdometer:120},'phase4-shift-end');
 await app.endDay({},'phase4-day-end');
 assert.equal((await app.getWorkScreenState()).day.status,'COMPLETED');
 console.log('PASS application Work lifecycle reaches the command boundary');
-console.log('PASS clean Work canvas is intentionally presentation-free');
+console.log('PASS production Work surface is mounted at the presentation boundary');
 console.log('PASS Work Day → Shift → Business Trip → Shift → Day lifecycle');
 console.log('PASS business trips persist authoritative start/end odometers');
 console.log('PASS persistence-ready application orchestration');
-console.log('PASS Phase 4 Work Session vertical slice contract — clean presentation boundary');
+console.log('PASS Phase 4 Work Session vertical slice contract');
