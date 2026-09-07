@@ -72,7 +72,7 @@ const canEndDay = computed(() => screenState.value === 'DAY_READY' && !activeShi
 const activeStateThemeClass = computed(() => {
   if (form.value === 'SHIFT_END') return 'state-close'
   if (form.value === 'PERSONAL_START' || form.value === 'PERSONAL_END' || displayScreenState.value === 'PERSONAL_TRIP') return 'state-personal'
-  if (displayScreenState.value === 'SHIFT_WAITING' || displayScreenState.value === 'BUSINESS_TRIP') return 'state-business'
+  if (displayScreenState.value === 'SHIFT_WAITING' || displayScreenState.value === 'SHIFT' || displayScreenState.value === 'BUSINESS_TRIP') return 'state-business'
   return 'state-standby'
 })
 
@@ -116,7 +116,7 @@ async function load() {
   try {
     model.value = mergeRehydratedTrip(await application.getWorkScreenState())
     if (activeTrip.value) workflowStateOverride.value = activeTrip.value.tripType === 'PERSONAL' ? 'PERSONAL_TRIP' : 'BUSINESS_TRIP'
-    else if (screenState.value !== 'SHIFT_WAITING') workflowStateOverride.value = null
+    else if (workflowStateOverride.value !== 'SHIFT_WAITING') workflowStateOverride.value = null
     workSummary.value = model.value?.state === 'DAY_ENDED' ? await application.getWorkSummary() : null
     updateTripTimer()
     publishDriverState()
@@ -151,7 +151,7 @@ async function dispatch(type, payload = {}) {
     } else if (type === 'START_PERSONAL_TRIP') {
       const start = Number(payload.start_odometer_km ?? payload.odometer)
       if (!Number.isFinite(start)) throw new Error('A valid personal-trip start odometer is required.')
-      result = await application.startTrip({ trip_type: 'PERSONAL', shift_id: null, business_date: new Date().toISOString().slice(0, 10), start_odometer_km: start, prefilledOdometer: payload.prefilledOdometer, businessKm: 0, personalKm: 0, actionMode: payload.actionMode || 'SWIPE', direction: payload.direction || 'LEFT' })
+      result = await application.startTrip({ trip_type: 'PERSONAL', shift_id: activeShift.value?.id || null, business_date: new Date().toISOString().slice(0, 10), start_odometer_km: start, prefilledOdometer: payload.prefilledOdometer, businessKm: 0, personalKm: 0, actionMode: payload.actionMode || 'SWIPE', direction: payload.direction || 'LEFT' })
     } else if (type === 'END_PERSONAL_TRIP') {
       result = await application.endTrip({ trip_type: 'PERSONAL', trip_id: payload.id, end_odometer_km: payload.endOdometer, actionMode: payload.actionMode || 'SWIPE', direction: payload.direction || 'RIGHT' })
     } else {
@@ -206,20 +206,20 @@ async function confirmShiftEnd() {
   if (!shiftEndValid.value) return (error.value = 'End odometer cannot be below the shift start odometer.')
   await dispatch('END_SHIFT', { id: activeShift.value?.id, endOdometer: odometer, actionMode: 'SWIPE', direction: 'LEFT' })
 }
-async function cancelShiftStaging() {
-  if (busy.value || !activeShift.value || activeTrip.value) return
-  busy.value = true
+async function confirmShiftStaging() {
+  if (busy.value || displayScreenState.value !== 'SHIFT_WAITING' || activeShift.value || activeTrip.value) return
+  const startOdometer = stagedShiftOdometer.value ?? latestOdometer.value
+  if (!Number.isFinite(Number(startOdometer))) return (error.value = 'A latest authoritative odometer is required to start the shift.')
+  await dispatch('START_SHIFT', { startOdometer: Number(startOdometer), actionMode: 'BUTTON', direction: 'RIGHT' })
+}
+function cancelShiftStaging() {
+  if (busy.value || activeShift.value || activeTrip.value) return
+  stagedShiftOdometer.value = null
+  workflowStateOverride.value = null
+  form.value = null
   error.value = ''
-  try {
-    await application.undoWorkAction({ type: 'START_SHIFT', id: activeShift.value.id })
-    if (model.value?.day?.id) await application.undoWorkAction({ type: 'START_DAY', id: model.value.day.id })
-    stagedShiftOdometer.value = null
-    workflowStateOverride.value = null
-    form.value = null
-    await loadWorkState()
-    await load()
-  } catch (e) { error.value = String(e?.message || e) }
-  finally { busy.value = false }
+  notice.value = ''
+  publishDriverState()
 }
 function onStateAuthority(state) {
   if (state === 'SHIFT_WAITING' && !activeShift.value && !activeTrip.value) workflowStateOverride.value = 'SHIFT_WAITING'
@@ -231,9 +231,13 @@ function handleSwipe(payload) {
   if (action === 'START_DAY') return openForm('DAY_START')
   if (action === 'START_PERSONAL_TRIP') { personalTripReturnState.value = displayScreenState.value; return openForm('PERSONAL_START') }
   if (action === 'START_SHIFT') {
-    const startOdometer = stagedShiftOdometer.value ?? latestOdometer.value
-    return dispatch('START_SHIFT', { startOdometer, actionMode: 'SWIPE', direction: 'RIGHT' })
+    stagedShiftOdometer.value = latestOdometer.value == null ? null : Number(latestOdometer.value)
+    workflowStateOverride.value = 'SHIFT_WAITING'
+    notice.value = `Shift staged at ${stagedShiftOdometer.value ?? '—'} km. Confirm when ready.`
+    publishDriverState()
+    return
   }
+  if (action === 'CONFIRM_START_SHIFT') return confirmShiftStaging()
   if (action === 'START_TRIP') return dispatch('START_TRIP', { start_odometer_km: latestOdometer.value, actionMode: 'SWIPE', direction: 'RIGHT' })
   if (action === 'END_TRIP') return openForm('BUSINESS_END')
   if (action === 'END_PERSONAL_TRIP') return openForm('PERSONAL_END')
@@ -267,14 +271,18 @@ onUnmounted(() => { clearInterval(timer); clearInterval(tripTimer); window.remov
   <section class="kfe-work-session" :class="activeStateThemeClass" aria-labelledby="work-title" :data-kfe-shift-state="activeShift ? 'SHIFT' : (displayScreenState === 'SHIFT_WAITING' ? 'SHIFT_WAITING' : undefined)" :data-kfe-trip-state="activeTrip ? (activeTrip.scope === 'PERSONAL' ? 'IN_PERSONAL_TRIP' : 'IN_BUSINESS_TRIP') : undefined" :data-kfe-rehydrated="rehydrated ? 'true' : undefined" :data-kfe-state-source="stateSource" :data-kfe-state-error="stateError || undefined">
     <div v-if="loading" class="work-loading" role="status">Loading Work…</div>
     <template v-else>
-      <header class="work-header"><div><p class="kfe-eyebrow">Operational cockpit</p><h1 id="work-title">Work</h1><p>Today · <span class="state-badge">{{ displayScreenState.replaceAll('_', ' ') }}</span></p></div><div class="work-header-status"><span class="work-shift-mini">SHIFT {{ activeShift ? duration(shiftElapsed) : '—' }}</span></div></header>
-      <div v-if="error" class="work-error" role="alert">{{ error }}</div><div v-if="notice" class="work-notice" role="status">✓ {{ notice }}</div>
+      <header class="work-header">
+        <div><p class="kfe-eyebrow">Operational cockpit</p><h1 id="work-title">Work</h1><p>Today · <span class="state-badge">{{ displayScreenState.replaceAll('_', ' ') }}</span></p></div>
+        <div class="work-header-status"><span class="work-shift-mini">SHIFT {{ activeShift ? duration(shiftElapsed) : '—' }}</span></div>
+      </header>
+      <div v-if="error" class="work-error" role="alert">{{ error }}</div>
+      <div v-if="notice" class="work-notice" role="status">✓ {{ notice }}</div>
       <main class="work-main">
         <section v-if="displayScreenState === 'DAY_START'" class="work-state-panel day-start-panel start-of-day-panel"><div class="welcome-card" role="banner"><span class="kfe-eyebrow">WELCOME</span><h2>Hello, Welcome to Kanishka Enterprises</h2><p class="muted">{{ latestOdometer == null ? 'Enter the odometer to establish the first authoritative reading.' : 'Your latest authoritative odometer is ready for the day-start flow.' }}</p></div><p class="kfe-eyebrow">START OF DAY</p><h2>Ready for operation</h2></section>
-        <section v-else-if="displayScreenState === 'DAY_ENDED'" class="work-state-panel day-start-panel day-ended-panel"><p class="kfe-eyebrow">DAY ENDED</p><h2>Day complete</h2><div class="shift-summary-grid" aria-label="Completed day shift summary"><article v-for="card in [{label:'Kms run',value:workSummary?.kmsRun==null?'—':`${workSummary.kmsRun} km`},{label:'Dead kms',value:workSummary?.deadKms==null?'—':`${workSummary.deadKms} km`},{label:'Revenue',value:workSummary?.revenuePaise==null?'—':`₹${(Number(workSummary.revenuePaise)/100).toFixed(2)}`}]" :key="card.label" class="shift-summary-card"><span>{{ card.label }}</span><strong>{{ card.value }}</strong></article></div></section>
+        <section v-else-if="displayScreenState === 'DAY_ENDED'" class="work-state-panel day-start-panel day-ended-panel"><p class="kfe-eyebrow">DAY ENDED</p><h2>Day complete</h2><div class="shift-summary-grid" aria-label="Completed day shift summary"><article v-for="card in [{ label: 'Kms run', value: workSummary?.kmsRun == null ? '—' : `${workSummary.kmsRun} km` },{ label: 'Dead kms', value: workSummary?.deadKms == null ? '—' : `${workSummary.deadKms} km` },{ label: 'Revenue', value: workSummary?.revenuePaise == null ? '—' : `₹${(Number(workSummary.revenuePaise) / 100).toFixed(2)}` }]" :key="card.label" class="shift-summary-card"><span>{{ card.label }}</span><strong>{{ card.value }}</strong></article></div></section>
         <section v-else-if="displayScreenState === 'DAY_READY'" class="work-state-panel ready-panel"><p class="kfe-eyebrow">READY FOR OPERATION</p><div class="ready-odometer"><span>Odometer</span><strong>{{ latestOdometer }}</strong><small>km</small></div><div class="ready-status"><span>Shift: <b>NOT ACTIVE</b></span><span>Personal trip: <b>NOT ACTIVE</b></span></div><button class="end-day-button" type="button" :disabled="busy || !canEndDay" @click="requestEndDay">End day</button></section>
-        <section v-else-if="displayScreenState === 'SHIFT_WAITING' && !activeShift" class="work-state-panel waiting-panel"><p class="kfe-eyebrow">SHIFT WAITING</p><div class="waiting-metrics"><div><span>Odometer</span><strong>{{ stagedShiftOdometer ?? latestOdometer ?? '—' }}</strong></div></div><p class="waiting-copy">Shift is staged from the latest authoritative odometer.</p><button class="secondary-action touch-button-48" type="button" :disabled="busy" data-kfe-action="cancel-shift-staging" @click="cancelShiftStaging">Cancel</button></section>
-        <section v-else-if="displayScreenState === 'SHIFT_WAITING'" class="work-state-panel waiting-panel"><p class="kfe-eyebrow">SHIFT</p><div class="waiting-metrics"><div><span>Trips</span><strong>{{ shiftTripCount }}</strong></div><div><span>Shift time</span><strong>{{ duration(shiftElapsed) }}</strong></div></div><p class="waiting-copy">Shift is active. Start a Business Trip or take a Personal Trip.</p><button class="secondary-action touch-button-48" type="button" :disabled="busy || !!activeTrip" data-kfe-action="cancel-shift-staging" @click="cancelShiftStaging">Cancel</button></section>
+        <section v-else-if="displayScreenState === 'SHIFT_WAITING'" class="work-state-panel waiting-panel"><p class="kfe-eyebrow">SHIFT WAITING</p><div class="waiting-metrics"><div><span>Authoritative odometer</span><strong>{{ stagedShiftOdometer ?? latestOdometer ?? '—' }}</strong></div></div><p class="waiting-copy">Shift is staged. Personal mileage can still be logged before the shift is confirmed.</p><div class="work-form-actions"><button class="secondary-action touch-button-48" type="button" :disabled="busy" data-kfe-action="cancel-shift-staging" @click="cancelShiftStaging">Cancel</button><button class="primary-action touch-button-48" type="button" :disabled="busy || !Number.isFinite(Number(stagedShiftOdometer ?? latestOdometer))" data-kfe-action="confirm-start-shift" @click="confirmShiftStaging">Confirm Start Shift</button></div></section>
+        <section v-else-if="displayScreenState === 'SHIFT'" class="work-state-panel waiting-panel"><p class="kfe-eyebrow">SHIFT</p><div class="waiting-metrics"><div><span>Trips</span><strong>{{ shiftTripCount }}</strong></div><div><span>Shift time</span><strong>{{ duration(shiftElapsed) }}</strong></div></div><p class="waiting-copy">Shift is active. Start a Business Trip or take a Personal Trip.</p></section>
         <section v-else-if="displayScreenState === 'BUSINESS_TRIP'" class="work-state-panel trip-panel business-trip-card" role="region" aria-label="Active Business Trip"><p class="kfe-eyebrow">BUSINESS TRIP</p><div ref="tripTimerEl" class="trip-timer">00:00:00</div><p class="muted">Business trip active</p></section>
         <section v-else-if="displayScreenState === 'PERSONAL_TRIP'" class="work-state-panel trip-panel personal-trip-card" role="region" aria-label="Active Personal Trip"><p class="kfe-eyebrow">PERSONAL TRIP</p><div ref="tripTimerEl" class="trip-timer">00:00:00</div><p class="muted">Personal trip active</p></section>
       </main>
