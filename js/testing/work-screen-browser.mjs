@@ -2,21 +2,31 @@ import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 
 const browser=await chromium.launch({headless:true});
-async function waitRuntimeState(page,expected,timeout=15000){const started=Date.now();while(Date.now()-started<timeout){const state=await page.evaluate(async()=>window.__KFE_RUNTIME__.application.getWorkScreenState());if(state?.state===expected)return state;await page.waitForTimeout(100)}throw new Error(`Work runtime state did not reach ${expected}`)}
-async function resetBrowserData(page){await page.evaluate(async()=>{const app=window.__KFE_RUNTIME__.application;const snapshot=await app.exportBackup();for(const name of Object.keys(snapshot.stores))snapshot.stores[name]=[];await app.restoreBackup(snapshot)})}
-async function fresh(){const context=await browser.newContext({permissions:[]});const page=await context.newPage();await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});await page.locator('#vue-runtime .kfe-shell').waitFor({state:'visible',timeout:30000});await resetBrowserData(page);await waitRuntimeState(page,'DAY_START');return {context,page}}
+const context=await browser.newContext({permissions:[]});
+const page=await context.newPage();
+page.setDefaultTimeout(15000);
+
 try{
- const {page}=await fresh();
- assert.equal(await page.locator('.kfe-swipe-bar').count(),0);
- assert.equal(await page.locator('[data-kfe-trip-state]').count(),0);
- assert.equal(await page.locator('[data-kfe-action="START_PERSONAL_TRIP"]').count(),1);
- assert.equal(await page.locator('[data-kfe-action="START_SHIFT"]').count(),1);
- assert.equal(await page.locator('[data-kfe-action="select-work"]').count(),1);
- assert.equal(await page.locator('[data-kfe-action="select-fleet"]').count(),1);
- assert.equal(await page.locator('[data-kfe-action="select-expenses"]').count(),1);
- assert.equal(await page.locator('.state-badge[data-state="DAY_START"]').count(),1);
- assert.equal(await page.getByText('Revenue',{exact:true}).count(),0);
- assert.equal(await page.getByText('Break',{exact:true}).count(),0);
- assert.equal(await page.locator('[data-kfe-draft-form]').count(),0);
- console.log('PASS: clean Work canvas is mounted at DAY_START with semantic actions, no swipe bars, no break UI, no shift-closing finance coupling, and no legacy Work draft wrapper');
+  await page.goto('http://127.0.0.1:4173/',{waitUntil:'networkidle'});
+  await page.locator('.driver-shell').waitFor({state:'visible',timeout:30000});
+  const nav=page.locator('.quick-dock button');
+  assert.equal(await nav.count(),4,'Primary navigation must contain exactly four items');
+  assert.deepEqual(await nav.allTextContents(),['Work','Performance','Timeline','Admin']);
+  assert.equal(await page.locator('.driver-header').count(),1);
+  assert.equal(await page.getByRole('button',{name:'Settings'}).count(),1);
+  await page.getByRole('button',{name:'Settings'}).click();
+  assert.equal(await page.getByRole('menuitem').count(),3);
+  assert.deepEqual(await page.getByRole('menuitem').allTextContents(),['Backup','Restore','Data reset']);
+  await page.getByRole('button',{name:'Settings'}).click();
+  await page.getByRole('button',{name:'Performance',exact:true}).click();
+  await page.waitForTimeout(250);
+  assert.equal(await page.locator('.quick-dock button.active').textContent(),'Performance');
+  await page.getByRole('button',{name:'Timeline',exact:true}).click();
+  assert.equal(await page.locator('.empty-module[aria-label="Timeline"]').count(),1);
+  await page.getByRole('button',{name:'Work',exact:true}).click();
+  assert.equal(await page.locator('.empty-module[aria-label="Work"]').count(),1);
+  assert.equal(await page.locator('.kfe-swipe-bar').count(),0);
+  assert.equal(await page.locator('[data-kfe-action]').count(),0);
+  assert.equal(await page.locator('[data-kfe-draft-form]').count(),0);
+  console.log('PASS: current shell browser contract — four-module navigation, settings actions, blank Work/Timeline, and no legacy Work presentation');
 }finally{await browser.close()}
