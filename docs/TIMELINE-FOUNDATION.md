@@ -14,4 +14,6 @@ Work timestamps remain authoritative. GPS/location is displayed only when captur
 
 Timeline never creates, edits, corrects, or silently reinterprets source records. Missing or invalid values remain unavailable. Ordering is deterministic by authoritative occurrence time, then stable event identity.
 
-Break handling and Tax Reserve are not part of this contract.
+Break handling is part of the Work domain/application contract and may appear in Timeline when represented by an authoritative event. Timeline remains read-only and does not invent Break events or accounting effects.
+
+Tax Reserve is permanently excluded from KFE 2.0 and is not a Timeline concept.
