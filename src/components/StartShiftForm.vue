@@ -12,7 +12,6 @@ const previousOdometerValue = ref(props.previousOdometer == null ? null : Number
 const startOdometer = ref(props.previousOdometer == null ? '' : String(props.previousOdometer))
 const businessKm = ref('0')
 const personalKm = ref('0')
-const openingCashFloat = ref('0')
 const vehicleInspectionCleared = ref(false)
 const submitting = ref(false)
 const error = ref('')
@@ -25,9 +24,8 @@ const allocationValid = computed(() => {
   const personal = Number(personalKm.value)
   return Number.isInteger(business) && Number.isInteger(personal) && business >= 0 && personal >= 0 && business + personal === gap.value
 })
-const cashValid = computed(() => Number.isFinite(Number(openingCashFloat.value)) && Number(openingCashFloat.value) >= 0)
 const odometerValid = computed(() => Number.isInteger(startValue.value) && startValue.value > 0 && (previousOdometer.value == null || startValue.value >= previousOdometer.value))
-const canSubmit = computed(() => odometerValid.value && allocationValid.value && cashValid.value && vehicleInspectionCleared.value && !submitting.value && !props.busy)
+const canSubmit = computed(() => odometerValid.value && allocationValid.value && vehicleInspectionCleared.value && !submitting.value && !props.busy)
 
 function enforceDecimalInputs() {
   document.querySelectorAll('[data-kfe-shift-state="STARTING_SHIFT"] input[type="number"]').forEach(input => {
@@ -66,7 +64,6 @@ async function submit() {
       odometer_gap_km: gap.value,
       business_km: Number(businessKm.value),
       personal_km: Number(personalKm.value),
-      opening_cash_float_paise: Math.round(Number(openingCashFloat.value) * 100),
       vehicle_inspection_cleared: true,
       business_date: businessDate,
       started_at: startedAt,
@@ -106,9 +103,6 @@ onMounted(async () => {
       </label>
       <label data-kfe-field="personal_km">Personal Allocation (km) *
         <input v-model="personalKm" type="number" inputmode="numeric" min="0" step="1">
-      </label>
-      <label data-kfe-field="opening_cash_float">Opening Cash Float (₹) *
-        <input v-model="openingCashFloat" type="number" inputmode="decimal" min="0" step="0.01">
       </label>
       <label data-kfe-field="vehicle_inspection_cleared" class="fare-checks">
         <input v-model="vehicleInspectionCleared" type="checkbox">
