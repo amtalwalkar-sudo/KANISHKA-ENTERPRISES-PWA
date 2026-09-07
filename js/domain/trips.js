@@ -13,7 +13,6 @@ export function validateTripLifecycle(trip,shift=null){
   if(end<start)throw new RangeError('Trip end cannot precede trip start');
   if(trip.scope==='PERSONAL'){
     validateWorkOdometer(Number(trip.end_odometer),Number(trip.start_odometer));
-    if(shift?.status==='OPEN')throw new RangeError('Personal trip cannot overlap an active business shift');
     return true;
   }
   if(!shift||typeof shift!=='object')throw new TypeError('An active or completed business shift context is required');
@@ -25,8 +24,8 @@ export function validateTripLifecycle(trip,shift=null){
 
 export function calculateTrip(trip,shift){
   validateTripLifecycle(trip,shift);
-  const startOdometer=trip.scope==='PERSONAL'&&Number.isFinite(Number(trip.start_odometer))?Number(trip.start_odometer):null;
-  const endOdometer=trip.scope==='PERSONAL'&&Number.isFinite(Number(trip.end_odometer))?Number(trip.end_odometer):null;
+  const startOdometer=Number.isFinite(Number(trip.start_odometer))?Number(trip.start_odometer):null;
+  const endOdometer=Number.isFinite(Number(trip.end_odometer))?Number(trip.end_odometer):null;
   const tripKm=startOdometer!=null&&endOdometer!=null?endOdometer-startOdometer:null;
-  return result({tripKm,scope:trip.scope,startOdometer,endOdometer,startAt:trip.started_at||trip.start_at,endAt:trip.ended_at||trip.end_at,businessDate:trip.scope==='BUSINESS'?(shift.business_date||String(shift.started_at||shift.start_at).slice(0,10)):null},DATA.ACTUAL,[trip.id,shift?.id].filter(Boolean));
+  return result({tripKm,scope:trip.scope,startOdometer,endOdometer,startAt:trip.started_at||trip.start_at,endAt:trip.ended_at||trip.end_at,businessDate:trip.scope==='BUSINESS'?(shift?.business_date||String(shift?.started_at||shift?.start_at).slice(0,10)):null},DATA.ACTUAL,[trip.id,shift?.id].filter(Boolean));
 }
