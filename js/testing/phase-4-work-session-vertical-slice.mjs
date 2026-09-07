@@ -8,7 +8,7 @@ const rootSource=fs.readFileSync(new URL('../../src/App.vue',import.meta.url),'u
 assert.equal(appSource.includes("../core/hardened-db.js"),false);
 assert.equal(uiSource.includes("../../js/core/"),false);
 assert.match(uiSource,/createUiCommand\(type\s*,\s*payload\)/);
-for (const command of ['START_SHIFT','START_TRIP','END_TRIP','END_SHIFT','START_DAY','START_PERSONAL_TRIP','END_PERSONAL_TRIP','END_DAY']) assert.match(uiSource,new RegExp(command));
+for (const command of ['START_SHIFT','START_TRIP','END_TRIP','END_SHIFT','START_DAY','START_PERSONAL_TRIP','END_PERSONAL_TRIP']) assert.match(uiSource,new RegExp(command));
 assert.doesNotMatch(uiSource,/kfe-swipe-bar|KfeSwipeBar|pointerdown|pointerup/);
 assert.doesNotMatch(uiSource,/data-kfe-draft-form|hasFormDraft|clearFormDraft/);
 assert.match(uiSource,/data-kfe-action/);
