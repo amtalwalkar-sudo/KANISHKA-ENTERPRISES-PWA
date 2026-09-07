@@ -14,7 +14,7 @@ The following layers are not to be changed as part of presentation cleanup unles
 - IndexedDB/local database behavior
 - Financial calculations and allocation rules
 - Fuel, Expenses, Revenue, Loans, Maintenance, Compliance behavior
-- Work lifecycle semantics
+- Work lifecycle semantics, including Break handling
 - Performance functionality
 - Timeline functionality
 - Admin functionality
@@ -35,18 +35,9 @@ The following layers are not to be changed as part of presentation cleanup unles
 
 The clean Work canvas uses the authoritative application/presentation APIs and must not recreate business logic in the template.
 
-Required operational states remain:
+Required operational states remain defined by the authoritative Work contract. Work supports business and personal scope and Break handling; presentation must expose only the transitions and controls authorized by the current application contract.
 
-- DAY_START
-- SHIFT_WAITING
-- SHIFT
-- BUSINESS_TRIP
-- PERSONAL_TRIP
-- DAY_ENDED
-
-There is no Break workflow.
-
-Legacy swipe controls, swipe-bar components, scenic-shell presentation, and obsolete Work draft-form wrappers are not part of the clean Work presentation.
+Legacy swipe controls, swipe-bar components, scenic-shell presentation, and obsolete Work draft-form wrappers are not part of the clean Work presentation unless explicitly restored by the current contract.
 
 ## Performance / Timeline / Admin
 
