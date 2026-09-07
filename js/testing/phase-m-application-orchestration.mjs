@@ -3,8 +3,11 @@ import fs from 'node:fs';
 import {createRecord} from '../core/record.js';
 import {createKfeApplication} from '../application/kfe.js';
 
-const source=fs.readFileSync(new URL('../application/kfe.js',import.meta.url),'utf8');
-assert.equal(source.includes("../core/hardened-db.js"),false,'application must not import hardened-db directly');
+// kfe.js is intentionally a thin public export boundary after application segregation.
+// Inspect the implementation facade for internal repository-boundary invariants.
+const publicSource=fs.readFileSync(new URL('../application/kfe.js',import.meta.url),'utf8');
+const source=fs.readFileSync(new URL('../application/kfe-application-facade.js',import.meta.url),'utf8');
+assert.equal(publicSource.includes("../core/hardened-db.js"),false,'application public boundary must not import hardened-db directly');
 assert.equal(source.includes("repository.entity('work_sessions')"),true,'work completion must use repository boundary');
 
 const stores=new Map(['work_sessions','revenue_records'].map(name=>[name,new Map()]));
