@@ -1,41 +1,18 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { enforceDecimalInputs } from '../../js/ui/decimal-input.js'
 
-const props = defineProps({
-  startOdometer: { type: [Number, String], default: null },
-  busy: { type: Boolean, default: false },
-})
+const props = defineProps({ startOdometer: { type: [Number, String], default: null }, busy: { type: Boolean, default: false } })
 const emit = defineEmits(['close', 'submitted'])
 const endOdometer = ref('')
 const error = ref('')
 const inputRef = ref(null)
-
-function enforceDecimalInputs(input) {
-  if (!input) return
-  input.addEventListener('input', () => {
-    const normalized = String(input.value || '').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1')
-    if (input.value !== normalized) input.value = normalized
-    endOdometer.value = normalized
-  })
-}
-
 const start = computed(() => Number(props.startOdometer))
 const end = computed(() => Number(endOdometer.value))
 const valid = computed(() => Number.isFinite(end.value) && end.value >= 0 && (!Number.isFinite(start.value) || end.value >= start.value))
-
-function submit() {
-  if (!valid.value) {
-    error.value = 'End odometer cannot be below the trip start odometer.'
-    return
-  }
-  error.value = ''
-  emit('submitted', end.value)
-}
-
-onMounted(() => {
-  enforceDecimalInputs(inputRef.value)
-  inputRef.value?.focus()
-})
+function sanitize() { const values = enforceDecimalInputs([inputRef.value], { scale: 3 }); endOdometer.value = values[0] || '' }
+function submit() { sanitize(); if (!valid.value) { error.value = 'End odometer cannot be below the trip start odometer.'; return } error.value = ''; emit('submitted', end.value) }
+onMounted(() => { sanitize(); inputRef.value?.addEventListener('input', sanitize); inputRef.value?.focus() })
 </script>
 
 <template>
