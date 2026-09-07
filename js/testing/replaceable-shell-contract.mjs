@@ -60,7 +60,7 @@ const main = read('src/main.js');
 const current = read('src/presentation/shell/shells/current/CurrentShell.vue');
 const api = read('src/presentation/application/presentation-api.js');
 const appShell = read('src/App.vue');
-const fuelForm = read('src/components/FuelForm.vue');
+const fuelForm = read('src/components/FuelEntryForm.vue');
 
 const checks = [
   ['shell contract version exists', contract.includes("KFE_SHELL_CONTRACT_VERSION = '1.0.0'")],
