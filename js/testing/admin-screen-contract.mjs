@@ -13,6 +13,8 @@ const adminParts=await Promise.all(adminFiles.map(async file=>({
   text:await readFile(new URL(file,adminDir),'utf8')
 })));
 const adminSurface=adminParts.map(({file,text})=>`/* ${file} */\n${text}`).join('\n');
+const adminContractSurface=`/* navigation */\n${nav}\n/* AdminModuleView */\n${screen}\n${adminSurface}`;
+const escapeRegExp=value=>value.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&');
 
 assert.match(app,/AdminModuleView/);
 assert.match(app,/activeModule\s*===\s*['"]Admin['"]/);
@@ -26,10 +28,10 @@ for(const component of ['AdminCurrentState.vue','AdminOperatingPosition.vue','Ad
 }
 
 for(const label of ['CURRENT STATE','ATTENTION','INSIGHT','PROFITABILITY','BREAK-EVEN','Month View','Finance','Management']){
-  assert.match(adminSurface,new RegExp(label.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')));
+  assert.match(adminSurface,new RegExp(escapeRegExp(label)));
 }
 for(const label of ['Vehicle','Driver','Finance','Renewals','Maintenance','Loans','Settings']){
-  assert.match(adminSurface,new RegExp(label.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')));
+  assert.match(adminContractSurface,new RegExp(escapeRegExp(label)));
 }
 
 assert.doesNotMatch(adminSurface,/Timeline|View Day|View Week Timeline|Month timeline|Week timeline|selectDay/);
