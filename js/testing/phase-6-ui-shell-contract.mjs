@@ -10,7 +10,6 @@ const performance = read('src/components/PerformanceModuleView.vue');
 const admin = read('src/components/AdminModuleView.vue');
 const loanDomain = read('js/domain/loans.js');
 const loanRepository = read('js/application/loan-repository.js');
-const contracts = read('js/ui/module-contracts.js');
 
 // Current presentation boundary: CurrentShell owns the header, primary navigation,
 // settings actions, and single structural viewport. App.vue owns only the module canvas.
@@ -64,14 +63,11 @@ for(const text of ['CURRENT STATE','ATTENTION','INSIGHT','PROFITABILITY','BREAK-
 assert.doesNotMatch(admin,/indexedDB|localStorage|sessionStorage/);
 assert.match(admin,/Settings/);
 
-// Business contracts remain below the presentation boundary.
+// Business contracts remain below the presentation boundary and are validated through
+// their live domain/application files, not the deleted legacy module UI contract layer.
 assert.match(loanRepository,/LOAN_PAYMENT_STORE/);
 assert.match(loanDomain,/amortize/);
 assert.match(loanDomain,/applyPrepayment/);
-assert.doesNotMatch(contracts,/taxReserve|Tax Reserve/);
-assert.match(contracts,/vehicle:/);
-assert.match(contracts,/driver:/);
-assert.match(contracts,/analytics: false/);
 assert.doesNotMatch(css,/Tax Reserve|tax reserve/i);
 
 console.log('Phase 6 UI shell contract: PASS');
