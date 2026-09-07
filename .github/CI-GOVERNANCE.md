@@ -2,36 +2,34 @@
 
 ## Purpose
 
-KFE uses two validation modes:
+KFE uses one canonical CI workflow: **KFE 2.0 single CI**.
 
-1. **Full CI** — the canonical release/freeze gate. It validates the complete application from foundation through browser/runtime verification.
-2. **Incremental CI** — the normal development gate after a domain boundary has been frozen. It starts at the earliest validation boundary affected by the changed files and runs every downstream boundary through final verification.
+- Pull requests run the targeted fast checks appropriate to the changed paths.
+- Pushes to `main` run the complete validation and production-publish path.
+- A manual `full` dispatch can run the complete validation path when explicitly requested.
+- There is no separate incremental workflow and no duplicate certification workflow. All required validation belongs to the canonical workflow.
 
 ## Non-negotiable rule
 
-Incremental CI may skip only **upstream boundaries proven unaffected by the change**. It must never skip a downstream boundary. A previous green result is not reused as proof for a changed boundary.
+Targeted fast checks may reduce unnecessary upstream work only when the changed paths are classified safely. They must never weaken the downstream checks required for the affected boundary. A previous green result is never reused as proof for changed code.
 
-If changed files cannot be safely classified, Incremental CI must fall back to Full CI.
+If a change cannot be safely classified, the canonical CI must use the complete validation path.
 
-## Domain-scoped CI principle
+## Domain-scoped implementation principle
 
-**CI runs are domain-scoped by default.** The active CI run must remain within the currently active/frozen domain and its required downstream validation boundaries. CI must not expand implementation scope into unrelated domains merely because an unrelated check fails.
-
-**Holistic/Full CI may only be initiated when the user explicitly requests a holistic/full CI run**, except where the governance rules above independently require Full CI (for example, an uncertain change classification, shared infrastructure/architecture change, CI governance change, domain freeze, merge, or final release/deployment verification). When Full CI is required by governance, it is a validation requirement, not permission to implement unrelated domain changes.
-
-Unrelated-domain failures must be classified and recorded; they do not authorize scope expansion or changes to unrelated domains.
+CI scope and implementation scope are separate concerns. A failing validation in an unrelated domain does not authorize changing that unrelated domain. Fix the actual contract, test, or implementation defect responsible for the failure.
 
 ## Engineering speed principle
 
 KFE must be developed as quickly as technically possible **without weakening correctness, data integrity, architecture, testing, CI, or deployment verification**.
 
-CI efficiency means removing unnecessary validation work, not removing necessary evidence. Incremental CI is the mechanism for avoiding unrelated upstream work while preserving every affected downstream guarantee. Full CI remains the authority at freeze, merge, and release boundaries.
+CI efficiency means removing duplicate validation, not removing required evidence. The canonical single CI is the only CI path that should be extended when new mandatory validation is introduced.
 
 ## Universal domain rule
 
 Every KFE domain follows the same lifecycle:
 
-`Audit → Clean replacement → Domain contract → Persistence contract → Application/UI contract → Integration → Incremental CI → Full CI at freeze → Freeze`
+`Audit → Clean replacement → Domain contract → Persistence contract → Application/UI contract → Integration → CI → Full CI at freeze → Freeze`
 
 Once a domain is frozen, later domain work must not silently alter its frozen contract. If a change crosses a frozen boundary, the affected boundary and all downstream checks run again.
 
@@ -47,29 +45,26 @@ This order is the canonical dependency direction for future modules.
 
 Classify changes using repository paths, not commit-message guesses.
 
-- `.github/**`, `package.json`, lockfiles, build/config files, `index.html`, service worker, shared infrastructure, shared domain/application utilities, or unknown paths → **Full CI**.
-- `js/domain/<module>.*`, `js/application/<module>*`, module repositories/tests, module UI/tests, and module persistence/tests → start at the earliest boundary touched by that module and run forward.
+- `.github/**`, `package.json`, lockfiles, build/config files, `index.html`, service worker, shared infrastructure, shared domain/application utilities, or unknown paths → complete CI.
+- Module domain/application/repository/UI/test changes → start at the earliest affected boundary and run all required downstream checks available in the canonical CI.
 - Pure test-contract changes are still validated from the boundary they describe; they do not justify skipping the implementation boundary.
-
-## Vehicle example
-
-Vehicle and Driver are currently being rebuilt/frozen as the first clean domain. A Vehicle-only change should not make the developer wait for unrelated upstream foundation checks when those boundaries are unchanged. It must still run the Vehicle/Driver boundary, persistence, UI shell, application, runtime, browser, resilience, synchronization, and final build checks that depend on it.
 
 ## Full CI remains mandatory
 
-Run Full CI:
+Run the complete canonical CI path:
 
 - before declaring a domain frozen,
-- before merging a domain freeze,
-- after shared infrastructure/architecture changes,
+- after shared infrastructure or architecture changes,
 - after CI governance changes,
-- when classification is uncertain,
+- when change classification is uncertain,
 - and for final release/deployment verification.
+
+The canonical workflow, `.github/workflows/consolidated-baseline.yml`, is the authoritative CI implementation.
 
 ## Do not weaken contracts
 
-A failure caused by a stale assertion must be corrected at the contract, not bypassed. A genuine regression must stop the incremental chain at the failing boundary until fixed.
+A failure caused by a stale assertion must be corrected at the contract or test, not bypassed. A genuine regression must be fixed at its source. Duplicate or superseded validation workflows may be removed when their required coverage is already represented by the canonical CI.
 
 ## Operational memory
 
-This document is intentionally committed to the repository so future KFE work can use the same CI policy without relying on conversation memory. It is the authoritative development rule for incremental versus full validation.
+This document is intentionally committed to the repository so future KFE work uses the same single-CI policy without relying on conversation memory.
