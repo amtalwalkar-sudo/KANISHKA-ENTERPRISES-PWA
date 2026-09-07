@@ -3,7 +3,6 @@ import fs from 'node:fs';
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
 const navigation = read('js/ui/navigation.js');
-const timeline = read('js/ui/timeline.js');
 const app = read('src/App.vue');
 const shell = read('src/presentation/shell/shells/current/CurrentShell.vue');
 const css = read('src/styles/shell.css');
@@ -15,7 +14,8 @@ const contracts = read('js/ui/module-contracts.js');
 
 // Current presentation boundary: CurrentShell owns the header, primary navigation,
 // settings actions, and single structural viewport. App.vue owns only the module canvas.
-assert.match(shell,/Work.*Performance.*Timeline.*Admin/s);
+assert.match(shell,/Performance.*Admin/s);
+assert.doesNotMatch(shell,/Work|Timeline/);
 assert.doesNotMatch(shell,/More/);
 assert.match(shell,/Settings/);
 assert.match(shell,/Backup/);
@@ -33,17 +33,15 @@ assert.equal((shell.match(/<main/g)||[]).length,1,'structural shell must have on
 assert.doesNotMatch(shell,/kfe-swipe-bar|KfeSwipeBar|Tax Reserve|tax reserve/i);
 assert.doesNotMatch(shell,/Fleet|Reports|Analytics|GPS|OCR|Advisor/);
 
-// App is the production module canvas: Work, Performance, Timeline, and Admin
-// are mounted as real functional surfaces selected by the active module route.
+// App is the production module canvas for the currently active surfaces only.
+// Work and Timeline have been intentionally wiped from presentation and can be rebuilt later.
 assert.match(app,/activeModule/);
-assert.match(app,/WorkSessionView/);
+assert.doesNotMatch(app,/WorkSessionView|KfeTimelineView/);
 assert.match(app,/PerformanceModuleView/);
-assert.match(app,/KfeTimelineView/);
 assert.match(app,/AdminModuleView/);
-assert.match(app,/activeModule === 'Work'/);
 assert.match(app,/activeModule === 'Performance'/);
-assert.match(app,/activeModule === 'Timeline'/);
 assert.match(app,/activeModule === 'Admin'/);
+assert.doesNotMatch(app,/activeModule === 'Work'|activeModule === 'Timeline'/);
 assert.doesNotMatch(app,/class="empty-module"/);
 assert.doesNotMatch(app,/FuelForm/);
 assert.doesNotMatch(app,/VehicleModuleView|MaintenanceModuleView|ComplianceModuleView|LoanModuleView/);
@@ -51,17 +49,13 @@ assert.doesNotMatch(app,/HistoricalEntriesView/);
 assert.doesNotMatch(app,/FuelQuickEntry|FuelQuickAction|Quick fuel/i);
 assert.doesNotMatch(app,/Tax Reserve|tax reserve/i);
 
-// Preserve the underlying navigation/timeline contracts without requiring legacy
-// presentation components to be mounted in the current shell.
-assert.match(navigation,/Work.*Performance.*Timeline.*Admin/s);
+// Underlying navigation remains a generic boundary, but wiped presentation destinations
+// are no longer exposed by the current shell.
 assert.doesNotMatch(navigation,/More/);
-assert.match(navigation,/TIMELINE_HORIZONS=Object\.freeze\(\['Day','Week','Long-term'\]\)/);
+assert.doesNotMatch(navigation,/Work|Timeline/);
 assert.doesNotMatch(navigation,/Status/);
 assert.doesNotMatch(navigation,/Today.*Month.*Year/s);
 assert.doesNotMatch(navigation,/Fleet|Reports|Analytics|GPS|OCR|Advisor/);
-assert.match(timeline,/occurredAt/);
-assert.match(timeline,/sort\(\(a,b\)/);
-assert.match(timeline,/filter\(e=>\{if\(!e\.occurredAt\)return false/);
 
 // Performance and Admin remain functional surfaces beneath the neutral shell.
 for(const text of ['Today’s Position','Revenue','Running Cost','Balance','History & context','Authoritative','unavailable']) assert.match(performance,new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
@@ -81,4 +75,4 @@ assert.match(contracts,/analytics: false/);
 assert.doesNotMatch(css,/Tax Reserve|tax reserve/i);
 
 console.log('Phase 6 UI shell contract: PASS');
-console.log('CurrentShell boundary, production Work/Performance/Timeline/Admin surfaces, navigation/timeline foundations, settings actions, and underlying ERP contracts verified.');
+console.log('CurrentShell boundary, active Performance/Admin surfaces, wiped Work/Timeline presentation absence, settings actions, and underlying ERP contracts verified.');
