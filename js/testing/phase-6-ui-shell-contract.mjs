@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+const readAdminParts = () => fs.readdirSync(new URL('../../src/components/admin/', import.meta.url), { withFileTypes: true })
+  .filter(entry => entry.isFile() && entry.name.endsWith('.vue'))
+  .map(entry => fs.readFileSync(new URL(`../../src/components/admin/${entry.name}`, import.meta.url), 'utf8'))
+  .join('\n');
 
 const navigation = read('js/ui/navigation.js');
 const app = read('src/App.vue');
@@ -8,6 +12,7 @@ const shell = read('src/presentation/shell/shells/current/CurrentShell.vue');
 const css = read('src/styles/shell.css');
 const performance = read('src/components/PerformanceModuleView.vue');
 const admin = read('src/components/AdminModuleView.vue');
+const adminParts = readAdminParts();
 const loanDomain = read('js/domain/loans.js');
 const loanRepository = read('js/application/loan-repository.js');
 
@@ -59,9 +64,11 @@ assert.doesNotMatch(navigation,/Fleet|Reports|Analytics|GPS|OCR|Advisor/);
 // Performance and Admin remain functional surfaces beneath the neutral shell.
 for(const text of ['Today’s Position','Revenue','Running Cost','Balance','History & context','Authoritative','unavailable']) assert.match(performance,new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 assert.doesNotMatch(performance,/Tomorrow target|Status unavailable/i);
-for(const text of ['CURRENT STATE','ATTENTION','INSIGHT','PROFITABILITY','BREAK-EVEN','Month View','Finance','Management','View Timeline','getAdminState']) assert.match(admin,new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+assert.match(admin,/getAdminState/);
+for(const text of ['CURRENT STATE','ATTENTION','INSIGHT','PROFITABILITY','BREAK-EVEN','Month View','Finance','Management']) assert.match(adminParts,new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 assert.doesNotMatch(admin,/indexedDB|localStorage|sessionStorage/);
-assert.match(admin,/Settings/);
+assert.doesNotMatch(adminParts,/Timeline|View Timeline/);
+assert.match(adminParts,/Settings/);
 
 // Business contracts remain below the presentation boundary and are validated through
 // their live domain/application files, not the deleted legacy module UI contract layer.
