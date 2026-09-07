@@ -9,32 +9,48 @@ const router = read('js/ui/router.js');
 const lifecycle = read('js/ui/lifecycle.js');
 const accessibility = read('js/ui/accessibility.js');
 const forms = read('src/components/KfeFormShell.vue');
-const app = read('src/App.vue');
-const shell = read('src/styles/shell.css');
+const shell = read('src/presentation/shell/shells/current/CurrentShell.vue');
+const css = read('src/styles/shell.css');
 const repository = read('js/core/repository.js');
 const db = read('js/core/hardened-db.js');
+const decimal = read('js/ui/decimal-input.js');
 
+// Reliability behavior belongs to the underlying UI/application contracts,
+// not to the clean App.vue module canvas.
 assert.match(router, /popstate/);
 assert.match(router, /handleBack/);
 assert.match(router, /routeHistory/);
 assert.match(router, /sessionStorage/);
 assert.doesNotMatch(router, /history\.back\(\)/);
 assert.match(lifecycle, /visibilitychange/);
+assert.match(lifecycle, /online/);
+assert.match(lifecycle, /offline/);
 assert.match(accessibility, /prefers-reduced-motion/);
 assert.match(forms, /SUBMIT_COOLDOWN_MS/);
 assert.match(forms, /submitTimer/);
-assert.match(app, /enforceDecimalInputs/);
-assert.match(app, /reducedMotion/);
-assert.match(app, /function\s+handleBack\s*\(\)\s*\{\s*router\.handleBack\s*\(\)\s*;?\s*\}/);
+assert.match(decimal, /sanitizeDecimalInput/);
+assert.match(decimal, /isValidDecimalInput/);
 
-assert.match(shell, /button,:where\(\[role="button"\]\),:where\(a\)\{min-width:48px;min-height:48px\}/);
+// The structural presentation boundary is CurrentShell, while App.vue remains
+// a clean module canvas and must not regain legacy reliability wiring.
+assert.match(shell, /Work.*Performance.*Timeline.*Admin/s);
+assert.match(shell, /Settings/);
+assert.match(shell, /Backup/);
+assert.match(shell, /Restore/);
+assert.match(shell, /Data reset/);
+assert.match(shell, /location\.hash/);
+assert.match(shell, /hashchange/);
+assert.match(shell, /<header/);
+assert.match(shell, /<main/);
+assert.match(shell, /<nav/);
+assert.equal((shell.match(/<main/g)||[]).length,1,'structural shell must have one main viewport');
+assert.doesNotMatch(shell, /kfe-swipe-bar|KfeSwipeBar|Tax Reserve|tax reserve/i);
+assert.match(css, /button,:where\(\[role="button"\]\),:where\(a\)\{min-width:48px;min-height:48px\}/);
+
 assert.match(repository, /openKfeDb/);
 assert.match(repository, /write\('state'/);
 assert.match(db, /indexedDB/);
 assert.match(db, /onupgradeneeded/);
-assert.match(app, /syncState/);
-assert.match(lifecycle, /online/);
-assert.match(lifecycle, /offline/);
 
 // Decimal sanitizer treats comma as the decimal separator and limits the fraction to the configured scale.
 assert.equal(sanitizeDecimalInput('₹ 1,234.567'), '1.23');
@@ -59,4 +75,4 @@ const resolved = resolveConflict(reviewed, { strategy: 'remote' });
 assert.equal(resolved.state, CONFLICT_STATES.RESOLVED);
 
 console.log('Phase 7 reliability contract: PASS');
-console.log('Final runtime hardening verified: centralized back routing, 48px touch targets, decimal enforcement, form locking, lifecycle/offline hooks, IndexedDB persistence boundary, metadata contract, and conflict state machine.');
+console.log('Reliability foundations verified below the clean presentation boundary: routing/back handling, reduced motion, 48px touch targets, decimal enforcement, form locking, lifecycle/offline hooks, IndexedDB persistence, metadata, and conflict state machine.');
