@@ -14,8 +14,9 @@ assert.ok(app.includes("activeModule"),'application module state wired');
 assert.ok(css.includes('touch-action:pan-y'),'vertical scroll interaction boundary present');
 assert.ok(/prefers-reduced-motion\s*:\s*reduce/i.test(css),'reduced motion remains present');
 
-const router=createUiRouter({initialPath:'Work'});
+const router=createUiRouter({initialPath:'Performance'});
 assert.equal(router.route,DEFAULT_ROUTE);
+assert.equal(DEFAULT_ROUTE,'Performance');
 const state=createUiState();
 state.set(UI_STATES.LOADING);assert.equal(state.state,UI_STATES.LOADING);
 const capabilities=detectUiCapabilities({navigator:{onLine:false},MediaDevices:{}});
