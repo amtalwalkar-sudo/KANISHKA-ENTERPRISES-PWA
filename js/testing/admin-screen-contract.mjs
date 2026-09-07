@@ -10,7 +10,7 @@ assert.match(app,/AdminModuleView/);
 assert.match(app,/activeModule\s*===\s*['"]Admin['"]/);
 assert.doesNotMatch(app,/activeModule\s*===\s*['"]More['"]|MORE_GROUPS/);
 assert.match(nav,/id\s*:\s*['"]Admin['"]/);
-assert.doesNotMatch(nav,/id\s*:\s*['"]More['"]|MORE_GROUPS|id\s*:\s*['"]Timeline['"]|id\s*:\s*['"]Work['"] /);
+assert.doesNotMatch(nav,/id\s*:\s*['"]More['"]|MORE_GROUPS|id\s*:\s*['"]Timeline['"]|id\s*:\s*['"]Work['"]/);
 for(const label of ['CURRENT STATE','ATTENTION','INSIGHT','PROFITABILITY','BREAK-EVEN','Month View','Finance','Management'])assert.match(screen,new RegExp(label.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')));
 for(const label of ['Vehicle','Driver','Finance','Renewals','Maintenance','Loans','Settings'])assert.match(screen,new RegExp(label));
 assert.doesNotMatch(screen,/Timeline|View Day|View Week Timeline|Month timeline|Week timeline|selectDay/);
