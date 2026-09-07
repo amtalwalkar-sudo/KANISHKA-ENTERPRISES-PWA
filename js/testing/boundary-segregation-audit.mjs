@@ -3,8 +3,10 @@ import {readFile,readdir} from 'node:fs/promises';
 
 const read=path=>readFile(new URL(`../../${path}`,import.meta.url),'utf8');
 
-// These are deliberate public compatibility boundaries. Implementation-specific
-// contracts must be tested against the implementation target, not these thin files.
+// These are deliberate public compatibility boundaries. Public-source checks
+// are allowed for boundary properties (for example, no direct infrastructure
+// imports). Any test that inspects implementation-specific behavior must also
+// inspect the corresponding implementation target.
 const applicationBoundaries={
   'js/application/kfe.js':'js/application/kfe-application-facade.js',
   'js/application/administrator.js':'js/application/administrator-application.js',
@@ -34,21 +36,21 @@ const testFiles=(await readdir(new URL('../../js/testing/',import.meta.url),{wit
   .filter(entry=>entry.isFile()&&entry.name.endsWith('.mjs'))
   .map(entry=>entry.name);
 
-const thinPaths=[...Object.keys(applicationBoundaries),...Object.keys(presentationBoundaries)];
+const boundaries={...applicationBoundaries,...presentationBoundaries};
 const stale=[];
 for(const name of testFiles){
   const source=await read(`js/testing/${name}`);
-  for(const thinPath of thinPaths){
-    const relativeFromTesting=thinPath.startsWith('js/')
-      ? `../${thinPath.slice(3)}`
-      : `../../${thinPath}`;
-    const escaped=relativeFromTesting.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&');
-    const directPath=thinPath.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&');
-    const staticRead=new RegExp(`(?:readFileSync|readFile)\\([^\\n]*${directPath}`).test(source)
-      || new RegExp(`new URL\\(['"]${escaped}`).test(source);
-    if(staticRead) stale.push(`${name} statically inspects thin boundary ${thinPath}`);
+  for(const [publicPath,implementationPath] of Object.entries(boundaries)){
+    const relative=(path)=>path.startsWith('js/')?`../${path.slice(3)}`:`../../${path}`;
+    const escaped=(value)=>value.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&');
+    const publicDirectRead=new RegExp(`(?:readFileSync|readFile)\\([^\\n]*${escaped(publicPath)}`).test(source)
+      || new RegExp(`new URL\\(['"]${escaped(relative(publicPath))}`).test(source);
+    if(!publicDirectRead) continue;
+    const implementationDirectRead=new RegExp(`(?:readFileSync|readFile)\\([^\\n]*${escaped(implementationPath)}`).test(source)
+      || new RegExp(`new URL\\(['"]${escaped(relative(implementationPath))}`).test(source);
+    if(!implementationDirectRead) stale.push(`${name} inspects thin boundary ${publicPath} without inspecting implementation ${implementationPath}`);
   }
 }
 
 assert.deepEqual(stale,[],`BOUNDARY_SEGREGATION_AUDIT=FAIL\\n${stale.join('\\n')}`);
-console.log(`BOUNDARY_SEGREGATION_AUDIT=PASS (${Object.keys(applicationBoundaries).length+Object.keys(presentationBoundaries).length} thin boundaries, ${testFiles.length} validation sources scanned)`);
+console.log(`BOUNDARY_SEGREGATION_AUDIT=PASS (${Object.keys(boundaries).length} thin boundaries, ${testFiles.length} validation sources scanned)`);
