@@ -5,7 +5,6 @@ import './styles/shell.css'
 import './styles/forms.css'
 import './styles/kfe2-shell.css'
 import { kfePresentationApi } from './presentation/application/presentation-api.js'
-import WorkSessionView from './components/WorkSessionView.vue'
 import PerformanceModuleView from './components/PerformanceModuleView.vue'
 import KfeTimelineView from './components/KfeTimelineView.vue'
 import AdminModuleView from './components/AdminModuleView.vue'
@@ -59,7 +58,9 @@ onUnmounted(() => {
   <div class="kfe-shell" data-framework="vue">
     <main class="kfe-viewport">
       <section class="kfe-workspace" aria-live="polite">
-        <WorkSessionView v-if="activeModule === 'Work'" />
+        <div v-if="activeModule === 'Work'" class="empty-module" aria-label="Work presentation not wired">
+          Work presentation is temporarily disconnected. The Work lifecycle remains available for a future presentation rewire.
+        </div>
         <PerformanceModuleView
           v-else-if="activeModule === 'Performance'"
           :online="online"
