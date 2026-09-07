@@ -1,80 +1,73 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import App from '../../../../App.vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import App from '../../../../App.vue'
 
 const NAV = Object.freeze([
   { id: 'Work', label: 'Work' },
   { id: 'Performance', label: 'Performance' },
   { id: 'Timeline', label: 'Timeline' },
   { id: 'Admin', label: 'Admin' },
-]);
+])
 
-const route = ref(location.hash.slice(1) || 'Work');
-const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine);
-const driverState = ref('DAY_START');
+const route = ref(location.hash.slice(1) || 'Work')
+const menuOpen = ref(false)
 
 const activeNav = computed(() =>
   NAV.some((item) => item.id === route.value) ? route.value : 'Work',
-);
-
-const stateLabel = computed(() => {
-  const labels = {
-    DAY_START: 'Day Start',
-    SHIFT_WAITING: 'Shift Waiting',
-    SHIFT: 'Shift Active',
-    BUSINESS_TRIP: 'Business Trip',
-    PERSONAL_TRIP: 'Personal Trip',
-    DAY_ENDED: 'Day Ended',
-  };
-  return labels[String(driverState.value || 'DAY_START').toUpperCase()] || 'Day Start';
-});
+)
 
 function syncRoute() {
-  route.value = location.hash.slice(1) || 'Work';
+  route.value = location.hash.slice(1) || 'Work'
+  if (route.value !== 'Settings') menuOpen.value = false
 }
 
 function navigate(path) {
-  const next = String(path || 'Work');
+  const next = String(path || 'Work')
   if (location.hash.slice(1) === next) {
-    syncRoute();
-    return;
+    syncRoute()
+    return
   }
-  location.hash = next;
+  location.hash = next
 }
 
-function handleOnline() {
-  online.value = true;
+function toggleSettings() {
+  menuOpen.value = !menuOpen.value
 }
 
-function handleOffline() {
-  online.value = false;
-}
-
-function handleDriverState(event) {
-  driverState.value = event?.detail?.state || 'DAY_START';
+function openSettings() {
+  menuOpen.value = false
+  navigate('Settings')
 }
 
 onMounted(() => {
-  window.addEventListener('hashchange', syncRoute);
-  window.addEventListener('online', handleOnline);
-  window.addEventListener('offline', handleOffline);
-  window.addEventListener('kfe:driver-state', handleDriverState);
-});
+  window.addEventListener('hashchange', syncRoute)
+})
 
 onUnmounted(() => {
-  window.removeEventListener('hashchange', syncRoute);
-  window.removeEventListener('online', handleOnline);
-  window.removeEventListener('offline', handleOffline);
-  window.removeEventListener('kfe:driver-state', handleDriverState);
-});
+  window.removeEventListener('hashchange', syncRoute)
+})
 </script>
 
 <template>
   <div class="driver-shell">
-    <header class="driver-header" aria-label="KFE navigation">
-      <strong class="header-title">Kanishka Enterprises</strong>
-      <span class="header-state" :data-state="driverState">{{ stateLabel }}</span>
-      <span class="header-connection" :data-online="online">{{ online ? 'Online' : 'Offline' }}</span>
+    <header class="driver-header" aria-label="KFE header">
+      <span aria-hidden="true"></span>
+      <button
+        class="settings-button"
+        type="button"
+        aria-label="Settings"
+        :aria-expanded="menuOpen"
+        aria-controls="settings-menu"
+        @click="toggleSettings"
+      >
+        <span aria-hidden="true">☰</span>
+      </button>
+
+      <div v-if="menuOpen" id="settings-menu" class="settings-menu" role="menu">
+        <button type="button" role="menuitem" @click="openSettings">Backup</button>
+        <button type="button" role="menuitem" @click="openSettings">Restore</button>
+        <button type="button" role="menuitem" @click="openSettings">Data reset</button>
+      </div>
     </header>
 
     <main class="driver-content">
@@ -115,50 +108,79 @@ onUnmounted(() => {
 
 :global(body) {
   overflow: hidden;
+  background: #fff;
+  color: #111;
 }
 
 .driver-shell {
   min-height: 100dvh;
-  padding-top: calc(56px + env(safe-area-inset-top));
+  padding-top: calc(48px + env(safe-area-inset-top));
   padding-bottom: calc(64px + env(safe-area-inset-bottom));
   overflow: hidden;
+  background: #fff;
+  color: #111;
 }
 
 .driver-header {
   position: fixed;
   inset: 0 0 auto;
   z-index: 12000;
-  min-height: calc(56px + env(safe-area-inset-top));
-  padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  min-height: calc(48px + env(safe-area-inset-top));
+  padding: calc(4px + env(safe-area-inset-top)) 8px 4px;
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid #ddd;
+  background: #fff;
+}
+
+.settings-button {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #111;
+  font: inherit;
+  font-size: 1.2rem;
+}
+
+.settings-button:focus-visible,
+.settings-menu button:focus-visible,
+.quick-dock button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+
+.settings-menu {
+  position: absolute;
+  top: calc(48px + env(safe-area-inset-top));
+  right: 8px;
+  width: 150px;
+  display: grid;
+  padding: 4px;
+  border: 1px solid #ddd;
+  background: #fff;
+}
+
+.settings-menu button {
+  min-height: 42px;
+  border: 0;
+  border-bottom: 1px solid #eee;
   background: #fff;
   color: #111;
+  text-align: left;
+  padding: 0 10px;
+  font: inherit;
+  font-size: .85rem;
 }
 
-.header-title,
-.header-state,
-.header-connection {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.header-title {
-  font-size: .95rem;
-}
-
-.header-state,
-.header-connection {
-  font-size: .75rem;
+.settings-menu button:last-child {
+  border-bottom: 0;
 }
 
 .driver-content {
-  height: calc(100dvh - 56px - 64px);
+  height: calc(100dvh - 48px - 64px);
   overflow: hidden;
 }
 
@@ -188,7 +210,7 @@ onUnmounted(() => {
 }
 
 :deep(.kfe-workspace) {
-  padding-bottom: 16px !important;
+  padding-bottom: 0 !important;
 }
 
 .quick-dock {
@@ -200,7 +222,7 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
-  border-top: 1px solid #ccc;
+  border-top: 1px solid #ddd;
   background: #fff;
 }
 
@@ -216,10 +238,5 @@ onUnmounted(() => {
 .quick-dock button.active {
   color: #111;
   font-weight: 700;
-}
-
-.quick-dock button:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: -2px;
 }
 </style>
