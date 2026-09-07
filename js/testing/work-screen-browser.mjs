@@ -22,8 +22,10 @@ try{
   await page.waitForTimeout(250);
   assert.equal(await page.locator('.quick-dock button.active').textContent(),'Performance');
   await page.getByRole('button',{name:'Timeline',exact:true}).click();
+  await page.locator('.empty-module[aria-label="Timeline"]').waitFor({state:'attached'});
   assert.equal(await page.locator('.empty-module[aria-label="Timeline"]').count(),1);
   await page.getByRole('button',{name:'Work',exact:true}).click();
+  await page.locator('.empty-module[aria-label="Work"]').waitFor({state:'attached'});
   assert.equal(await page.locator('.empty-module[aria-label="Work"]').count(),1);
   assert.equal(await page.locator('.kfe-swipe-bar').count(),0);
   assert.equal(await page.locator('[data-kfe-action]').count(),0);
