@@ -5,18 +5,25 @@ import { sanitizeDecimalInput, isValidDecimalInput } from '../ui/decimal-input.j
 import { CONFLICT_STATES, createConflictState, reviewConflict, resolveConflict } from '../core/conflict-resolution.js';
 
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+const exists = (path) => fs.existsSync(new URL(`../../${path}`, import.meta.url));
+
 const router = read('js/ui/router.js');
 const lifecycle = read('js/ui/lifecycle.js');
 const accessibility = read('js/ui/accessibility.js');
 const forms = read('src/components/KfeFormShell.vue');
 const shell = read('src/presentation/shell/shells/current/CurrentShell.vue');
+const app = read('src/App.vue');
 const css = read('src/styles/shell.css');
 const repository = read('js/core/repository.js');
 const db = read('js/core/hardened-db.js');
 const decimal = read('js/ui/decimal-input.js');
+const presentationApi = read('src/presentation/application/presentation-api.js');
+const navigation = read('js/ui/navigation.js');
+const uiContract = read('js/application/ui-contract.js');
 
-// Reliability behavior belongs to the underlying UI/application contracts,
-// not to the clean App.vue module canvas.
+// ---------------------------------------------------------------------------
+// 1. Routing and lifecycle reliability
+// ---------------------------------------------------------------------------
 assert.match(router, /popstate/);
 assert.match(router, /handleBack/);
 assert.match(router, /routeHistory/);
@@ -26,15 +33,28 @@ assert.match(lifecycle, /visibilitychange/);
 assert.match(lifecycle, /online/);
 assert.match(lifecycle, /offline/);
 assert.match(accessibility, /prefers-reduced-motion/);
+
+// ---------------------------------------------------------------------------
+// 2. Input and double-submit protection
+// ---------------------------------------------------------------------------
 assert.match(forms, /SUBMIT_COOLDOWN_MS/);
 assert.match(forms, /submitTimer/);
 assert.match(decimal, /sanitizeDecimalInput/);
 assert.match(decimal, /isValidDecimalInput/);
+assert.equal(sanitizeDecimalInput('₹ 1,234.567'), '1.23');
+assert.equal(sanitizeDecimalInput('12,50'), '12.50');
+assert.equal(sanitizeDecimalInput('-12.50'), '12.50');
+assert.equal(isValidDecimalInput('123.45'), true);
+assert.equal(isValidDecimalInput('123.456'), false);
 
-// The structural presentation boundary is CurrentShell, while App.vue remains
-// a clean module canvas. The current production shell exposes only Performance/Admin.
-assert.match(shell, /Performance.*Admin/s);
+// ---------------------------------------------------------------------------
+// 3. Current production presentation boundary
+// ---------------------------------------------------------------------------
+assert.match(shell, /Performance/);
+assert.match(shell, /Admin/);
 assert.doesNotMatch(shell, /Work.*Performance.*Timeline.*Admin/s);
+assert.equal((shell.match(/\{ id: 'Performance'/g) || []).length, 1);
+assert.equal((shell.match(/\{ id: 'Admin'/g) || []).length, 1);
 assert.match(shell, /Settings/);
 assert.match(shell, /Backup/);
 assert.match(shell, /Restore/);
@@ -44,22 +64,49 @@ assert.match(shell, /hashchange/);
 assert.match(shell, /<header/);
 assert.match(shell, /<main/);
 assert.match(shell, /<nav/);
-assert.equal((shell.match(/<main/g)||[]).length,1,'structural shell must have one main viewport');
+assert.equal((shell.match(/<main/g) || []).length, 1, 'structural shell must have one main viewport');
 assert.doesNotMatch(shell, /kfe-swipe-bar|KfeSwipeBar|Tax Reserve|tax reserve/i);
-assert.match(css, /button,:where\(\[role="button"\]\),:where\(a\)\{min-width:48px;min-height:48px\}/);
+assert.match(app, /PerformanceModuleView/);
+assert.match(app, /AdminModuleView/);
+assert.doesNotMatch(app, /WorkSessionView|KfeTimelineView|StatusModuleView|empty-module/);
+assert.match(navigation, /Performance/);
+assert.match(navigation, /Admin/);
+assert.doesNotMatch(navigation, /Work|Timeline|Status|More/);
+assert.doesNotMatch(presentationApi, /WorkSessionView|KfeTimelineView|workSessionReadModel|timelineReadModel/);
+assert.doesNotMatch(uiContract, /START_DAY|selectModule|MORE_MODULES|PRIMARY_MODULES/);
 
+// ---------------------------------------------------------------------------
+// 4. Deleted legacy presentation wiring stays deleted
+// ---------------------------------------------------------------------------
+for (const path of [
+  'js/ui/module-navigation.js',
+  'js/ui/module-contracts.js',
+  'js/ui/module-states.js',
+  'js/ui/timeline.js',
+  'src/components/WorkSessionView.vue',
+  'src/components/KfeTimelineView.vue',
+  'src/styles/timeline-horizons.css',
+  'src/presentation/application/presentation-runtime.js',
+]) {
+  assert.equal(exists(path), false, `retired presentation artifact must remain absent: ${path}`);
+}
+
+// ---------------------------------------------------------------------------
+// 5. Persistence and data-integrity foundation
+// ---------------------------------------------------------------------------
 assert.match(repository, /openKfeDb/);
 assert.match(repository, /write\('state'/);
 assert.match(db, /indexedDB/);
 assert.match(db, /onupgradeneeded/);
+assert.match(db, /DB_VERSION=9/);
+assert.match(db, /maintenance_records/);
+assert.match(db, /fixed_expenses/);
+assert.match(db, /loan_payments/);
+assert.match(db, /renewals_compliance/);
 
-// Decimal sanitizer treats comma as the decimal separator and limits the fraction to the configured scale.
-assert.equal(sanitizeDecimalInput('₹ 1,234.567'), '1.23');
-assert.equal(sanitizeDecimalInput('12,50'), '12.50');
-assert.equal(sanitizeDecimalInput('-12.50'), '12.50');
-assert.equal(isValidDecimalInput('123.45'), true);
-assert.equal(isValidDecimalInput('123.456'), false);
-
+// ---------------------------------------------------------------------------
+// 6. Screen metadata and conflict contracts
+// ---------------------------------------------------------------------------
 const metadata = createScreenMetadata({
   id: 'example',
   title: 'Example',
@@ -75,5 +122,10 @@ const reviewed = reviewConflict(conflict);
 const resolved = resolveConflict(reviewed, { strategy: 'remote' });
 assert.equal(resolved.state, CONFLICT_STATES.RESOLVED);
 
+// Tax Reserve is permanently excluded unless explicitly restored by a future design decision.
+assert.doesNotMatch(app, /Tax Reserve|taxReserve/i);
+assert.doesNotMatch(presentationApi, /Tax Reserve|taxReserve/i);
+assert.doesNotMatch(uiContract, /Tax Reserve|taxReserve/i);
+
 console.log('Phase 7 reliability contract: PASS');
-console.log('Reliability foundations verified below the clean presentation boundary: routing/back handling, reduced motion, 48px touch targets, decimal enforcement, form locking, lifecycle/offline hooks, IndexedDB persistence, metadata, and conflict state machine.');
+console.log('Phase 7 verified routing, lifecycle, input integrity, current presentation boundary, legacy cleanup, persistence, metadata, conflict resolution, and Tax Reserve exclusion.');
