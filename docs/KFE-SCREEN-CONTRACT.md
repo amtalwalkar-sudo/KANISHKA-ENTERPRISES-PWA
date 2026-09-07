@@ -27,15 +27,11 @@ The driver's normal working day must be possible entirely inside exactly these t
 2. **Performance** — current business position, running cost and driver-facing operating targets.
 3. **Timeline** — chronological activity history with Day, Week and Long-term horizons.
 
-Fuel can be added directly from Work. **No break workflow is part of the current frozen driver contract.** Trip planning is intentionally not part of the driver workflow.
+Fuel can be added directly from Work. Work supports Break handling according to the authoritative application/domain contract. Trip planning is intentionally not part of the driver workflow.
 
 ### Work workflow boundary
 
-The authoritative Work workflow is:
-
-`Day Start → Shift → Business Trip / Personal Trip → End Trip → Shift End → Day End`
-
-A Break is **not** a Work state, action, form, control, transition, or driver workflow. New UI, application contracts, read models, persistence behavior, and browser tests must not introduce or require Break handling. Historical Break implementation is obsolete and must not be used as a source of truth for the new workflow.
+The Work workflow is authoritative at the application/domain boundary and must support business/personal scope and Break handling without duplicating business logic in presentation. New UI and tests must follow the current application contract rather than an obsolete historical workflow.
 
 **Admin is back-office only.** It is not required for a normal driver working day. Admin is the administrative command center for Vehicle, Driver, Finance, Renewals, Maintenance, Loans and Settings.
 
@@ -88,6 +84,6 @@ Financial results are never manually entered into Finance, Profitability or Brea
 
 ## CI enforcement
 
-The KFE Master CI treats this contract as a mandatory production-screen gate. Existing architecture, domain, application-boundary, persistence, browser, accounting/business-rule and resilience gates remain authoritative. Future screen-specific browser/E2E suites should be added to the Master CI rather than creating a weaker isolated path.
+The canonical CI treats this contract as a production-screen gate. Existing architecture, domain, application-boundary, persistence, browser, accounting/business-rule and resilience gates remain authoritative. Future screen-specific browser/E2E suites should be added to the canonical CI rather than creating a weaker isolated path.
 
 Presentation selectors and DOM structure are replaceable implementation details. CI must validate user-visible behavior and authoritative workflow contracts rather than preserving obsolete markup solely because an older UI used it.
