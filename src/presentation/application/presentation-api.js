@@ -10,7 +10,6 @@ export function createKfePresentationApi({ app = application, commandActions = a
     const businessDate = payload.business_date || startedAt.slice(0, 10);
     const startOdometerKm = Number(payload.start_odometer_km ?? payload.odometer);
     if (!Number.isFinite(startOdometerKm) || startOdometerKm < 0) throw new RangeError('Trip start odometer must be valid.');
-    if (tripType === 'PERSONAL' && payload.shift_id != null) throw new RangeError('Personal trips must not inherit a shift.');
     if (tripType === 'BUSINESS' && !payload.shift_id) throw new RangeError('Business trips require the active shift id.');
     return app.startTrip({
       ...payload,
@@ -18,7 +17,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
       business_date: businessDate,
       start_odometer_km: startOdometerKm,
       started_at: startedAt,
-      shift_id: tripType === 'BUSINESS' ? payload.shift_id : null,
+      shift_id: tripType === 'BUSINESS' ? payload.shift_id : payload.shift_id ?? null,
     });
   }
 
@@ -67,7 +66,6 @@ export function createKfePresentationApi({ app = application, commandActions = a
             shift_id: shift.id,
             business_date: shift.businessDate ?? shift.business_date ?? null,
             started_at: shift.startedAt ?? shift.started_at ?? null,
-            break_started_at: shift.breakStartedAt ?? shift.break_started_at ?? null,
             start_odometer_km: Number(shift.startOdometer ?? shift.start_odometer),
             previous_odometer_km: shift.previousOdometer == null && shift.previous_odometer_km == null ? null : Number(shift.previousOdometer ?? shift.previous_odometer_km),
           } : null,
@@ -84,7 +82,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getWorkSummary: (...args) => app.workSummary(...args), getPerformance: (...args) => app.getPerformance(...args), getTimeline: (...args) => app.getTimeline(...args), listFuel: (...args) => app.listFuel(...args), getAdminState: (...args) => app.getAdminState(...args), getLoanReadModel: (...args) => app.getLoanReadModel(...args), getSettings: (...args) => app.getSettings(...args),
   };
   const commands = {
-    startDay: (...args) => app.startDay(...args), startShift: (...args) => app.startShift(...args), startTrip, endTrip, startBusinessTrip: (...args) => app.startBusinessTrip(...args), endBusinessTrip: (...args) => app.endBusinessTrip(...args), startPersonalTrip: (...args) => app.startPersonalTrip(...args), endPersonalTrip: (...args) => app.endPersonalTrip(...args), endDay: (...args) => app.endDay(...args), undoWorkAction: (...args) => app.undoWorkAction(...args), recordBreakMinutes: (...args) => app.recordBreakMinutes(...args), recordExpense: (...args) => app.recordExpense(...args), recordRevenue: (...args) => app.recordRevenue(...args), recordMaintenance: (...args) => app.recordMaintenance(...args), recordCompliance: (...args) => app.recordCompliance(...args), recordFuel: (...args) => app.recordFuel(...args), updateFuel: (...args) => app.updateFuel(...args), undoFuel: (...args) => app.undoFuel(...args), recordHistoricalDay: (...args) => app.recordHistoricalDay(...args), recordHistoricalFuel: (...args) => app.recordHistoricalFuel(...args), createLoan: (...args) => app.createLoan(...args), recordLoanPayment: (...args) => app.recordLoanPayment(...args), setTheme: (...args) => app.setTheme(...args), exportBackup: (...args) => app.exportBackup(...args), restoreBackup: (...args) => app.restoreBackup(...args), resetAllData: (...args) => app.resetAllData(...args), saveHistoricalCorrection: (...args) => app.saveHistoricalCorrection(...args),
+    startDay: (...args) => app.startDay(...args), startShift: (...args) => app.startShift(...args), startTrip, endTrip, startBusinessTrip: (...args) => app.startBusinessTrip(...args), endBusinessTrip: (...args) => app.endBusinessTrip(...args), startPersonalTrip: (...args) => app.startPersonalTrip(...args), endPersonalTrip: (...args) => app.endPersonalTrip(...args), endDay: (...args) => app.endDay(...args), undoWorkAction: (...args) => app.undoWorkAction(...args), recordExpense: (...args) => app.recordExpense(...args), recordRevenue: (...args) => app.recordRevenue(...args), recordMaintenance: (...args) => app.recordMaintenance(...args), recordCompliance: (...args) => app.recordCompliance(...args), recordFuel: (...args) => app.recordFuel(...args), updateFuel: (...args) => app.updateFuel(...args), undoFuel: (...args) => app.undoFuel(...args), recordHistoricalDay: (...args) => app.recordHistoricalDay(...args), recordHistoricalFuel: (...args) => app.recordHistoricalFuel(...args), createLoan: (...args) => app.createLoan(...args), recordLoanPayment: (...args) => app.recordLoanPayment(...args), setTheme: (...args) => app.setTheme(...args), exportBackup: (...args) => app.exportBackup(...args), restoreBackup: (...args) => app.restoreBackup(...args), resetAllData: (...args) => app.resetAllData(...args), saveHistoricalCorrection: (...args) => app.saveHistoricalCorrection(...args),
   };
   const administrator = Object.freeze({ listVehicles: (...args) => app.administrator.listVehicles(...args), listAssignments: (...args) => app.administrator.listAssignments(...args), listDrivers: (...args) => app.administrator.listDrivers(...args), createVehicle: (...args) => app.administrator.createVehicle(...args), updateVehicle: (...args) => app.administrator.updateVehicle(...args), retireVehicle: (...args) => app.administrator.retireVehicle(...args), sellVehicle: (...args) => app.administrator.sellVehicle(...args), createDriver: (...args) => app.administrator.createDriver(...args), updateDriver: (...args) => app.administrator.updateDriver(...args), assignDriver: (...args) => app.administrator.assignDriver(...args), endAssignment: (...args) => app.administrator.endAssignment(...args), deactivateDriver: (...args) => app.administrator.deactivateDriver(...args) });
   const fixedExpenses = Object.freeze({ list: (...args) => app.fixedExpenses.list(...args), create: (...args) => app.fixedExpenses.create(...args), update: (...args) => app.fixedExpenses.update(...args), activate: (...args) => app.fixedExpenses.activate(...args), deactivate: (...args) => app.fixedExpenses.deactivate(...args) });
