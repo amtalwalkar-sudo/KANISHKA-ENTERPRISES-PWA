@@ -5,6 +5,7 @@ const mainSource = await readFile(new URL('../../src/main.js', import.meta.url),
 const contractSource = await readFile(new URL('../../src/presentation/shell/shell-contract.js', import.meta.url), 'utf8');
 const registrySource = await readFile(new URL('../../src/presentation/shell/shell-registry.js', import.meta.url), 'utf8');
 const resolverSource = await readFile(new URL('../../src/presentation/shell/shell-resolver.js', import.meta.url), 'utf8');
+const selectionSource = await readFile(new URL('../../js/ui/shell-selection.js', import.meta.url), 'utf8');
 const currentShellSource = await readFile(new URL('../../src/presentation/shell/shells/current/CurrentShell.vue', import.meta.url), 'utf8');
 
 assert.match(mainSource, /resolveKfeShell/);
@@ -14,8 +15,12 @@ assert.match(contractSource, /kfe:ui-shell/);
 assert.match(registrySource, /KFE_SHELL_NAMES\.CURRENT/);
 assert.match(registrySource, /CurrentShell/);
 assert.match(resolverSource, /VITE_KFE_UI_SHELL/);
-assert.match(resolverSource, /localStorage/);
+assert.match(resolverSource, /readKfeShellSelection/);
+assert.match(resolverSource, /persistKfeShellSelection/);
 assert.match(resolverSource, /KFE_SHELL_NAMES\.CURRENT/);
+assert.match(selectionSource, /localStorage/);
+assert.match(selectionSource, /getItem/);
+assert.match(selectionSource, /setItem/);
 assert.match(currentShellSource, /<App\s*\/>/);
 assert.match(currentShellSource, /\.\.\/\.\.\/\.\.\/\.\.\/App\.vue/);
 
