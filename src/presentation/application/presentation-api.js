@@ -52,8 +52,6 @@ export function createKfePresentationApi({ app = application, commandActions = a
     startBusinessTrip: (...args) => app.startBusinessTrip(...args),
     endBusinessTrip: (...args) => app.endBusinessTrip(...args),
     startPersonalTrip: (...args) => app.startPersonalTrip(...args),
-    endBusinessTrip: (...args) => app.endBusinessTrip(...args),
-    startPersonalTrip: (...args) => app.startPersonalTrip(...args),
     endPersonalTrip: (...args) => app.endPersonalTrip(...args),
     endDay: (...args) => app.endDay(...args),
     undoWorkAction: (...args) => app.undoWorkAction(...args),
