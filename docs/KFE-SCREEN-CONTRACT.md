@@ -19,23 +19,18 @@ Every production screen must prove the following before it is considered complet
 - [ ] Browser E2E succeeds
 - [ ] Resilience/offline behavior succeeds
 
-## Three-screen driver rule
+## Current production presentation set
 
-The driver's normal working day must be possible entirely inside exactly these three primary screens:
+The current clean presentation surface intentionally exposes only these active primary screens:
 
-1. **Work** — operational work session, odometer activity, business/personal KM and fuel entry.
-2. **Performance** — current business position, running cost and driver-facing operating targets.
-3. **Timeline** — chronological activity history with Day, Week and Long-term horizons.
+1. **Performance** — current business position, running cost and driver-facing operating interpretation.
+2. **Admin** — back-office command center for Vehicle, Driver, Finance, Renewals, Maintenance, Loans and Settings.
 
-Fuel can be added directly from Work. Work supports Break handling according to the authoritative application/domain contract. Trip planning is intentionally not part of the driver workflow.
+**Work and Timeline presentation surfaces have been removed from the current shell.** Their underlying domain/application capabilities are not treated as active presentation contracts and may be rebuilt later from a clean boundary.
 
-### Work workflow boundary
+## Presentation boundary
 
-The Work workflow is authoritative at the application/domain boundary and must support business/personal scope and Break handling without duplicating business logic in presentation. New UI and tests must follow the current application contract rather than an obsolete historical workflow.
-
-**Admin is back-office only.** It is not required for a normal driver working day. Admin is the administrative command center for Vehicle, Driver, Finance, Renewals, Maintenance, Loans and Settings.
-
-## Admin contract
+Active screens consume application-layer read models and commands. Presentation does not reach directly into domain, repository, infrastructure, IndexedDB or browser storage.
 
 Admin must remain presentation-only. The UI consumes an application-layer read model and never reaches directly into domain, repository, infrastructure, IndexedDB or browser storage.
 
@@ -59,8 +54,6 @@ Management is grouped as:
 - FINANCE: one combined read-only Finance dashboard
 - OPERATIONS: Renewals, Maintenance, Loans
 - SYSTEM: Settings
-
-Admin must use the same canonical Timeline as the driver. Admin may enter an authorized correction flow, but never edits derived financial numbers directly.
 
 ## Financial separation rules
 
