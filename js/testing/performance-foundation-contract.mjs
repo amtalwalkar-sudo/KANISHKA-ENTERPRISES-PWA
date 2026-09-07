@@ -3,10 +3,10 @@ import fs from 'node:fs';
 
 const read=(path)=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const app=read('src/App.vue');
-const performance=read('src/components/PerformanceModuleView.vue');
+const performance=read('src/components/PerformanceModuleRole.vue');
 const navigation=read('ui/navigation.js');
-const models=read('application/read-models.js');
-const application=read('application/kfe.js');
+const models=read('application/read-model-composition.js');
+const application=read('application/kfe-application-facade.js');
 
 assert.match(app,/PerformanceModuleView/);
 assert.doesNotMatch(app,/StatusModuleView|activeModule==='Status'|activeModule===\"Status\"/);
