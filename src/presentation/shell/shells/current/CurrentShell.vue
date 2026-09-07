@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import App from '../../../../App.vue'
+import App from '../../../../App.vue';
 import { kfePresentationApi } from '../../../application/presentation-api.js'
 
 const NAV = Object.freeze([
