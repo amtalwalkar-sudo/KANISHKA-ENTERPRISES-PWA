@@ -75,6 +75,7 @@ const checks = [
   ['presentation API does not expose repository', !api.includes("../core/repository") && !api.includes('IndexedDB')],
   ['App shell no longer imports application singleton', !appShell.includes("import { application } from '../js/app.js'") && !appShell.includes("import { application } from '../js/app.js';")],
   ['Quick Fuel no longer imports application singleton', !fuelForm.includes("import { application } from '../../js/app.js'") && !fuelForm.includes("import { application } from '../../js/app.js';")],
+  ['App shell retains Admin module route', /activeModule\s*===\s*['"]Admin['"]/.test(appShell)],
   ['presentation runtime exists for legacy shell consumers', fs.existsSync(path.join(root, 'src/presentation/application/presentation-runtime.js'))],
 ];
 
