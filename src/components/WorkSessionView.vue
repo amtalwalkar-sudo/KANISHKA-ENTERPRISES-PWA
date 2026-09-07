@@ -23,7 +23,6 @@ const rehydrated = ref(false)
 const stateSource = ref('LOCAL_DB')
 const stateError = ref(null)
 const workflowStateOverride = ref(null)
-
 const dayStartOdometer = ref('')
 const dayBusinessKm = ref('')
 const dayPersonalKm = ref('')
@@ -40,7 +39,6 @@ const shiftParking = ref('')
 const shiftTollNotIncluded = ref(false)
 const shiftParkingNotIncluded = ref(false)
 const ocrReviewOpen = ref(false)
-
 let timer
 const screenState = computed(() => model.value?.state || 'DAY_START')
 const displayScreenState = computed(() => workflowStateOverride.value || screenState.value)
@@ -59,7 +57,6 @@ const shiftSummaryCards = computed(() => [
   { label: 'Revenue', value: workSummary.value?.revenuePaise == null ? '—' : `₹${(Number(workSummary.value.revenuePaise) / 100).toFixed(2)}` },
   { label: 'Target', value: workSummary.value?.targetPaise == null ? '—' : `₹${(Number(workSummary.value.targetPaise) / 100).toFixed(2)}` },
 ])
-
 function duration(seconds) { const value = Math.max(0, Number(seconds) || 0); return [Math.floor(value / 3600), Math.floor(value / 60) % 60, value % 60].map(v => String(v).padStart(2, '0')).join(':') }
 function odometerDifference(current, previous) { const value = Number(current); const prior = previous == null ? null : Number(previous); if (!Number.isInteger(value) || value < 0) return { valid: false, difference: 0, required: false }; if (prior == null) return { valid: true, difference: 0, required: false }; if (value < prior) return { valid: false, difference: prior - value, required: false }; return { valid: true, difference: value - prior, required: value !== prior } }
 function allocationValid(diff, business, personal) { if (!diff.valid) return false; if (!diff.required) return true; const b = Number(business); const p = Number(personal); return Number.isInteger(b) && Number.isInteger(p) && b >= 0 && p >= 0 && b + p === diff.difference }
@@ -84,7 +81,7 @@ async function confirmDayStart() { const odometer = Number(dayStartOdometer.valu
 async function confirmPersonalStart() { const odometer = Number(personalStartOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'Enter the personal-trip start odometer.'); if (!personalDiff.value.valid) return (error.value = 'Odometer cannot decrease.'); if (!personalAllocationValid.value) return (error.value = `Allocate exactly ${personalDiff.value.difference} km between business and personal.`); await dispatch('START_PERSONAL_TRIP', { odometer, prefilledOdometer: latestOdometer.value, businessKm: personalDiff.value.required ? Number(personalBusinessKm.value) : 0, personalKm: personalDiff.value.required ? Number(personalPersonalKm.value) : 0, actionMode: 'SWIPE', direction: 'LEFT' }) }
 async function confirmPersonalEnd() { const odometer = Number(personalEndOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'End odometer is compulsory.'); if (!personalEndValid.value) return (error.value = 'End odometer cannot be below the trip start odometer.'); await dispatch('END_PERSONAL_TRIP', { id: activeTrip.value?.id, endOdometer: odometer, tollPaise: Math.round(Math.max(0, Number(personalToll.value) || 0) * 100), parkingPaise: Math.round(Math.max(0, Number(personalParking.value) || 0) * 100), actionMode: 'SWIPE', direction: 'RIGHT' }) }
 async function confirmShiftEnd() { if (!shiftRevenueValid.value) return (error.value = 'Revenue is compulsory to close the business shift.'); const odometer = Number(shiftEndOdometer.value); if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'End odometer is compulsory.'); if (!shiftEndValid.value) return (error.value = 'End odometer cannot be below the shift start odometer.'); await dispatch('END_SHIFT', { id: activeShift.value?.id, endOdometer: odometer, revenuePaise: Math.round(Number(shiftRevenue.value) * 100), tollPaise: Math.round(Math.max(0, Number(shiftToll.value) || 0) * 100), parkingPaise: Math.round(Math.max(0, Number(shiftParking.value) || 0) * 100), tollIncludedInFare: !shiftTollNotIncluded.value, parkingIncludedInFare: !shiftParkingNotIncluded.value, actionMode: 'SWIPE', direction: 'LEFT' }) }
-function onStateAuthority(state) { if (state === 'SHIFT_WAITING' && screenState.value === 'DAY_READY') workflowStateOverride.value = 'SHIFT_WAITING'; else if (state !== 'SHIFT_WAITING') workflowStateOverride.value = null; publishDriverState() }
+function onStateAuthority(state) { if (state === 'SHIFT_WAITING' && !activeShift.value && !activeTrip.value) workflowStateOverride.value = 'SHIFT_WAITING'; else if (state !== 'SHIFT_WAITING') workflowStateOverride.value = null; publishDriverState() }
 function handleSwipe(payload) { const action = typeof payload === 'string' ? payload : payload?.action; const odometer = typeof payload === 'object' ? payload?.odometer : null; if (action === 'START_DAY') return openForm('DAY_START'); if (action === 'START_PERSONAL_TRIP') return openForm('PERSONAL_START'); if (action === 'START_SHIFT') return dispatch('START_SHIFT', { startOdometer: odometer, actionMode: 'SWIPE', direction: 'RIGHT' }); if (action === 'START_TRIP') return dispatch('START_TRIP', { actionMode: 'SWIPE', direction: 'RIGHT' }); if (action === 'END_TRIP') return dispatch('END_TRIP', { id: activeTrip.value?.id, actionMode: 'SWIPE', direction: 'RIGHT' }); if (action === 'END_PERSONAL_TRIP') return openForm('PERSONAL_END'); if (action === 'END_SHIFT') return openForm('SHIFT_END'); if (action === 'START_DAY_CONFIRM') return confirmDayStart(); if (action === 'START_PERSONAL_TRIP_CONFIRM') return confirmPersonalStart(); if (action === 'CLOSE_PERSONAL_TRIP') return confirmPersonalEnd(); if (action === 'CLOSE_SHIFT') return confirmShiftEnd() }
 function openOcrReview() { if (unreviewedOcrRideCount.value > 0) ocrReviewOpen.value = true }
 function requestEndDay() { if (canEndDay.value) endDayConfirm.value = true }
