@@ -1,7 +1,12 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import App from '../../../../App.vue'
+import '../../../../styles/ui-tokens.css'
+import '../../../../styles/shell.css'
+import '../../../../styles/forms.css'
+import '../../../../styles/kfe2-shell.css'
 import { kfePresentationApi } from '../../../application/presentation-api.js'
+import PerformanceModuleView from '../../../../components/PerformanceModuleView.vue'
+import AdminModuleView from '../../../../components/AdminModuleView.vue'
 
 const NAV = Object.freeze([
   { id: 'Performance', label: 'Performance' },
@@ -13,6 +18,8 @@ const menuOpen = ref(false)
 const busy = ref(false)
 const error = ref('')
 const fileInput = ref(null)
+const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
+const performanceModel = ref(null)
 
 const activeNav = computed(() => NAV.some((item) => item.id === route.value) ? route.value : 'Performance')
 
@@ -34,6 +41,17 @@ function toggleSettings() {
   error.value = ''
   menuOpen.value = !menuOpen.value
 }
+
+async function loadPerformance() {
+  try {
+    performanceModel.value = await kfePresentationApi.read.getPerformance()
+  } catch (e) {
+    performanceModel.value = { error: String(e?.message || e) }
+  }
+}
+
+function handleOnline() { online.value = true }
+function handleOffline() { online.value = false }
 
 async function backup() {
   busy.value = true
@@ -92,8 +110,19 @@ async function resetData() {
   }
 }
 
-onMounted(() => window.addEventListener('hashchange', syncRoute))
-onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
+onMounted(() => {
+  syncRoute()
+  window.addEventListener('hashchange', syncRoute)
+  window.addEventListener('online', handleOnline)
+  window.addEventListener('offline', handleOffline)
+  void loadPerformance()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('hashchange', syncRoute)
+  window.removeEventListener('online', handleOnline)
+  window.removeEventListener('offline', handleOffline)
+})
 </script>
 
 <template>
@@ -120,7 +149,22 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
     <main class="driver-content">
       <div class="content-surface">
         <p v-if="error" class="shell-error" role="alert">{{ error }}</p>
-        <App />
+        <div class="kfe-shell" data-framework="vue">
+          <main class="kfe-viewport">
+            <section class="kfe-workspace" aria-live="polite">
+              <PerformanceModuleView
+                v-if="activeNav === 'Performance'"
+                :online="online"
+                :performance="performanceModel"
+              />
+              <AdminModuleView
+                v-else-if="activeNav === 'Admin'"
+                :application="kfePresentationApi"
+                :online="online"
+              />
+            </section>
+          </main>
+        </div>
       </div>
     </main>
 
