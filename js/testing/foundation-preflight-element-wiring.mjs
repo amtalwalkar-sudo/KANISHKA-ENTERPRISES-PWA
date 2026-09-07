@@ -18,14 +18,19 @@ const app = read(appPath);
 assert(/import\s*\{\s*kfePresentationApi\s*\}\s*from\s*['"]\.\/presentation\/application\/presentation-api\.js['"]/.test(app), 'Presentation imports the application through the presentation API boundary');
 assert(!/from\s+['"][^'"]*(?:repository|infrastructure|database)[^'"]*['"]/.test(app), 'App.vue does not import repository/infrastructure/database modules directly');
 
-const destinations = ['Work', 'Performance', 'Timeline', 'Admin'];
+const destinations = ['Performance', 'Admin'];
 for (const name of destinations) assert(app.includes(`'${name}'`), `Primary destination available: ${name}`);
+assert(!app.includes("'Work'"), 'Wiped Work primary destination absent');
+assert(!app.includes("'Timeline'"), 'Wiped Timeline primary destination absent');
+assert(!app.includes('KfeTimelineView'), 'Wiped Timeline presentation component is absent');
+assert(!app.includes('WorkSessionView'), 'Wiped Work presentation component is absent');
+assert(!app.includes('empty-module'), 'Temporary empty-module presentation fallback is absent');
 assert(!app.includes("'More'"), 'Obsolete More primary destination absent');
 assert(app.includes('activeModule'), 'App keeps a minimal module presentation boundary');
-assert(app.includes("import WorkSessionView from './components/WorkSessionView.vue'"), 'Work presentation component is imported');
-assert(app.includes('<WorkSessionView v-if="activeModule === \'Work\'" />'), 'Work presentation surface is wired to WorkSessionView');
-assert(app.includes("import KfeTimelineView from './components/KfeTimelineView.vue'"), 'Timeline presentation component is imported');
-assert(app.includes('<KfeTimelineView\n          v-else-if="activeModule === \'Timeline\'"'), 'Timeline presentation surface is wired to KfeTimelineView');
+assert(app.includes("import PerformanceModuleView from './components/PerformanceModuleView.vue'"), 'Performance presentation component is imported');
+assert(app.includes('activeModule === \'Performance\''), 'Performance presentation surface is wired');
+assert(app.includes("import AdminModuleView from './components/AdminModuleView.vue'"), 'Admin presentation component is imported');
+assert(app.includes('activeModule === \'Admin\''), 'Admin presentation surface is wired');
 assert(!app.includes('KfeSettingsView'), 'Legacy full Settings presentation is not mounted by App');
 assert(!app.includes('handleSaveRequest'), 'Legacy App save-request wiring is absent');
 assert(!app.includes('handleHistoricalSave'), 'Legacy App historical-save wiring is absent');
@@ -54,6 +59,8 @@ if (fs.existsSync(shellPath)) {
   assert(shell.includes('Data reset'), 'Settings menu exposes Data reset');
   assert(!shell.includes('openSettings'), 'Legacy full Settings navigation is absent');
   for (const name of destinations) assert(shell.includes(`id: '${name}'`), `Bottom navigation available: ${name}`);
+  assert(!shell.includes("id: 'Work'"), 'Wiped Work bottom navigation is absent');
+  assert(!shell.includes("id: 'Timeline'"), 'Wiped Timeline bottom navigation is absent');
   assert(!shell.includes('Theme'), 'Theme presentation is absent from the current shell');
   assert(!shell.includes('ambient'), 'Ambient presentation is absent from the current shell');
 }
