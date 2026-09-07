@@ -1,7 +1,7 @@
 {
-  "name": "Kanishka Fleet BETA",
-  "short_name": "Fleet BETA",
-  "description": "TEST/BETA build — Kanishka Fleet app. Not for daily use; for trying new features before they reach the stable app.",
+  "name": "Kanishka Fleet ERP",
+  "short_name": "KFE 2.0",
+  "description": "Kanishka Fleet ERP 2.0 — single-vehicle, offline-first fleet operations and financial management.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
