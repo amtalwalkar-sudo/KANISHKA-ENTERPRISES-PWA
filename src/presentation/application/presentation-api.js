@@ -32,14 +32,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     if (Number.isFinite(startOdometerKm) && endOdometerKm < startOdometerKm) throw new RangeError('Trip end odometer cannot be below the trip start odometer.');
     const endedAt = payload.ended_at || new Date().toISOString();
     const total = Number.isFinite(startOdometerKm) ? endOdometerKm - startOdometerKm : payload.trip_total_km;
-    return app.endTrip({
-      ...payload,
-      trip_type: tripType,
-      trip_id: tripId,
-      end_odometer_km: endOdometerKm,
-      trip_total_km: total,
-      ended_at: endedAt,
-    });
+    return app.endTrip({ ...payload, trip_type: tripType, trip_id: tripId, end_odometer_km: endOdometerKm, trip_total_km: total, ended_at: endedAt });
   }
 
   const read = {
@@ -49,19 +42,21 @@ export function createKfePresentationApi({ app = application, commandActions = a
         const model = await app.getWorkScreenState(...args) || {};
         const shift = model.shift?.active ? model.shift : null;
         const localTrip = await app.activeTripDraft?.read?.();
-        const trip = localTrip || (model.trip?.active ? {
+        const persistedTrip = model.trip?.active ? {
           trip_id: model.trip.id,
           trip_type: model.trip.tripType || model.trip.trip_type || (model.trip.scope === 'PERSONAL' ? 'PERSONAL' : 'BUSINESS'),
           shift_id: model.trip.shiftId ?? model.trip.shift_id ?? null,
           business_date: model.trip.businessDate ?? model.trip.business_date ?? null,
           start_odometer_km: Number(model.trip.startOdometer ?? model.trip.start_odometer),
           started_at: model.trip.startedAt ?? model.trip.started_at,
-        } : null);
+        } : null;
+        const trip = localTrip || persistedTrip;
         const screenState = String(model.state || 'DAY_START');
         const restoredFromLocalTrip = Boolean(localTrip);
+        const rehydrated = Boolean(trip);
         return {
-          state: shift ? 'ACTIVE_SHIFT' : 'OFF_SHIFT',
-          rehydrated: restoredFromLocalTrip,
+          state: screenState,
+          rehydrated,
           active_shift: shift ? {
             shift_id: shift.id,
             business_date: shift.businessDate ?? shift.business_date ?? null,
@@ -76,14 +71,47 @@ export function createKfePresentationApi({ app = application, commandActions = a
           state_error: null,
         };
       } catch (error) {
-        return { state: 'OFF_SHIFT', rehydrated: false, active_shift: null, active_trip: null, draft_keys_restored: [], state_source: 'LOCAL_DB', screen_state: 'DAY_START', state_error: 'CORRUPTED', recovery_error: String(error?.message || error) };
+        return { state: 'DAY_START', rehydrated: false, active_shift: null, active_trip: null, draft_keys_restored: [], state_source: 'LOCAL_DB', screen_state: 'DAY_START', state_error: 'CORRUPTED', recovery_error: String(error?.message || error) };
       }
     },
-    getWorkSummary: (...args) => app.workSummary(...args), getPerformance: (...args) => app.getPerformance(...args), getTimeline: (...args) => app.getTimeline(...args), listFuel: (...args) => app.listFuel(...args), getAdminState: (...args) => app.getAdminState(...args), getLoanReadModel: (...args) => app.getLoanReadModel(...args), getSettings: (...args) => app.getSettings(...args),
+    getWorkSummary: (...args) => app.workSummary(...args),
+    getPerformance: (...args) => app.getPerformance(...args),
+    getTimeline: (...args) => app.getTimeline(...args),
+    listFuel: (...args) => app.listFuel(...args),
+    getAdminState: (...args) => app.getAdminState(...args),
+    getLoanReadModel: (...args) => app.getLoanReadModel(...args),
+    getSettings: (...args) => app.getSettings(...args),
   };
+
   const commands = {
-    startDay: (...args) => app.startDay(...args), startShift: (...args) => app.startShift(...args), startTrip, endTrip, startBusinessTrip: (...args) => app.startBusinessTrip(...args), endBusinessTrip: (...args) => app.endBusinessTrip(...args), startPersonalTrip: (...args) => app.startPersonalTrip(...args), endPersonalTrip: (...args) => app.endPersonalTrip(...args), endDay: (...args) => app.endDay(...args), undoWorkAction: (...args) => app.undoWorkAction(...args), recordExpense: (...args) => app.recordExpense(...args), recordRevenue: (...args) => app.recordRevenue(...args), recordMaintenance: (...args) => app.recordMaintenance(...args), recordCompliance: (...args) => app.recordCompliance(...args), recordFuel: (...args) => app.recordFuel(...args), updateFuel: (...args) => app.updateFuel(...args), undoFuel: (...args) => app.undoFuel(...args), recordHistoricalDay: (...args) => app.recordHistoricalDay(...args), recordHistoricalFuel: (...args) => app.recordHistoricalFuel(...args), createLoan: (...args) => app.createLoan(...args), recordLoanPayment: (...args) => app.recordLoanPayment(...args), setTheme: (...args) => app.setTheme(...args), exportBackup: (...args) => app.exportBackup(...args), restoreBackup: (...args) => app.restoreBackup(...args), resetAllData: (...args) => app.resetAllData(...args), saveHistoricalCorrection: (...args) => app.saveHistoricalCorrection(...args),
+    startDay: (...args) => app.startDay(...args),
+    startShift: (...args) => app.startShift(...args),
+    startTrip,
+    endTrip,
+    startBusinessTrip: (...args) => app.startBusinessTrip(...args),
+    endBusinessTrip: (...args) => app.endBusinessTrip(...args),
+    startPersonalTrip: (...args) => app.startPersonalTrip(...args),
+    endPersonalTrip: (...args) => app.endPersonalTrip(...args),
+    endDay: (...args) => app.endDay(...args),
+    undoWorkAction: (...args) => app.undoWorkAction(...args),
+    recordExpense: (...args) => app.recordExpense(...args),
+    recordRevenue: (...args) => app.recordRevenue(...args),
+    recordMaintenance: (...args) => app.recordMaintenance(...args),
+    recordCompliance: (...args) => app.recordCompliance(...args),
+    recordFuel: (...args) => app.recordFuel(...args),
+    updateFuel: (...args) => app.updateFuel(...args),
+    undoFuel: (...args) => app.undoFuel(...args),
+    recordHistoricalDay: (...args) => app.recordHistoricalDay(...args),
+    recordHistoricalFuel: (...args) => app.recordHistoricalFuel(...args),
+    createLoan: (...args) => app.createLoan(...args),
+    recordLoanPayment: (...args) => app.recordLoanPayment(...args),
+    setTheme: (...args) => app.setTheme(...args),
+    exportBackup: (...args) => app.exportBackup(...args),
+    restoreBackup: (...args) => app.restoreBackup(...args),
+    resetAllData: (...args) => app.resetAllData(...args),
+    saveHistoricalCorrection: (...args) => app.saveHistoricalCorrection(...args),
   };
+
   const administrator = Object.freeze({ listVehicles: (...args) => app.administrator.listVehicles(...args), listAssignments: (...args) => app.administrator.listAssignments(...args), listDrivers: (...args) => app.administrator.listDrivers(...args), createVehicle: (...args) => app.administrator.createVehicle(...args), updateVehicle: (...args) => app.administrator.updateVehicle(...args), retireVehicle: (...args) => app.administrator.retireVehicle(...args), sellVehicle: (...args) => app.administrator.sellVehicle(...args), createDriver: (...args) => app.administrator.createDriver(...args), updateDriver: (...args) => app.administrator.updateDriver(...args), assignDriver: (...args) => app.administrator.assignDriver(...args), endAssignment: (...args) => app.administrator.endAssignment(...args), deactivateDriver: (...args) => app.administrator.deactivateDriver(...args) });
   const fixedExpenses = Object.freeze({ list: (...args) => app.fixedExpenses.list(...args), create: (...args) => app.fixedExpenses.create(...args), update: (...args) => app.fixedExpenses.update(...args), activate: (...args) => app.fixedExpenses.activate(...args), deactivate: (...args) => app.fixedExpenses.deactivate(...args) });
   const dispatch = (...args) => commandActions.dispatch(...args);
