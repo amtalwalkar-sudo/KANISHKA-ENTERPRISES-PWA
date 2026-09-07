@@ -8,12 +8,12 @@ const readModel=await readFile(new URL('../application/admin-read-model.js',impo
 
 assert.match(app,/AdminModuleView/);
 assert.match(app,/activeModule==='Admin'/);
-assert.match(app,/PRIMARY_DESTINATIONS=\['Work','Performance','Timeline','Admin'\]/);
-assert.doesNotMatch(app,/activeModule==='More'|PRIMARY_DESTINATIONS=\[[^\]]*More|MORE_GROUPS/);
+assert.doesNotMatch(app,/activeModule==='More'|MORE_GROUPS/);
 assert.match(nav,/id:'Admin'/);
-assert.doesNotMatch(nav,/id:'More'|MORE_GROUPS/);
-for(const label of ['CURRENT STATE','ATTENTION','INSIGHT','PROFITABILITY','BREAK-EVEN','Month View','Finance','Management','View Timeline'])assert.match(screen,new RegExp(label.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')));
+assert.doesNotMatch(nav,/id:'More'|MORE_GROUPS|id:'Timeline'|id:'Work'/);
+for(const label of ['CURRENT STATE','ATTENTION','INSIGHT','PROFITABILITY','BREAK-EVEN','Month View','Finance','Management'])assert.match(screen,new RegExp(label.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')));
 for(const label of ['Vehicle','Driver','Finance','Renewals','Maintenance','Loans','Settings'])assert.match(screen,new RegExp(label));
+assert.doesNotMatch(screen,/Timeline|View Day|View Week Timeline|Month timeline|Week timeline|selectDay/);
 assert.match(screen,/getAdminState/);
 assert.doesNotMatch(screen,/indexedDB|localStorage|sessionStorage|from ['\"]\.\.\/\.\.\/js\/(domain|core|infrastructure)/);
 assert.match(readModel,/repository\.entity/);
