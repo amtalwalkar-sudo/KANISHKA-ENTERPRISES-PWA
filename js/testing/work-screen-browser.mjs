@@ -120,7 +120,7 @@ try{
   await expectBar(page,'← START PERSONAL TRIP START BUSINESS SHIFT →');
   await swipe(page,bar(page),'RIGHT');
   await waitText(page,'STARTING SHIFT');
-  await fill(page,'Opening Cash Float',0);
+  assert.equal(await page.getByText('Opening Cash Float (₹) *',{exact:true}).count(),0);
   const inspection=page.getByLabel('Vehicle inspection cleared',{exact:true});
   if(!(await inspection.isChecked()))await inspection.check();
   await page.getByRole('button',{name:'Confirm Start Shift',exact:true}).click();
