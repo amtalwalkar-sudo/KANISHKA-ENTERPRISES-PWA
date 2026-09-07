@@ -32,7 +32,7 @@ const shiftEndOdometer = ref('')
 const stagedShiftOdometer = ref(null)
 const personalTripReturnState = ref('DAY_START')
 const tripTimerEl = ref(null)
-let timer
+let clockTimer
 let tripTimer
 
 const screenState = computed(() => model.value?.state || 'DAY_START')
@@ -42,7 +42,7 @@ const dayStatus = computed(() => model.value?.day?.status || 'NOT_STARTED')
 const activeShift = computed(() => model.value?.shift?.active ? model.value.shift : null)
 const activeTrip = computed(() => model.value?.trip?.active ? model.value.trip : null)
 const shiftElapsed = computed(() => activeShift.value?.startedAt ? Math.max(0, Math.floor((now.value - Date.parse(activeShift.value.startedAt)) / 1000)) : 0)
-const shiftTripCount = computed(() => activeShift.value?.tripCount || 0)
+const shiftTripCount = computed(() => Number(activeShift.value?.tripCount || 0))
 const dayDiff = computed(() => {
   const current = Number(dayStartOdometer.value)
   const previous = latestOdometer.value == null ? null : Number(latestOdometer.value)
@@ -80,8 +80,12 @@ function duration(seconds) {
   const value = Math.max(0, Number(seconds) || 0)
   return [Math.floor(value / 3600), Math.floor(value / 60) % 60, value % 60].map(v => String(v).padStart(2, '0')).join(':')
 }
-function publishDriverState() { window.dispatchEvent(new CustomEvent('kfe:driver-state', { detail: { state: displayScreenState.value } })) }
-function publishRehydratedState(state) { window.dispatchEvent(new CustomEvent('kfe:work-state-changed', { detail: { state } })) }
+function publishDriverState() {
+  window.dispatchEvent(new CustomEvent('kfe:driver-state', { detail: { state: displayScreenState.value } }))
+}
+function publishRehydratedState(state) {
+  window.dispatchEvent(new CustomEvent('kfe:work-state-changed', { detail: { state } }))
+}
 function openForm(kind) {
   error.value = ''
   notice.value = ''
@@ -98,11 +102,8 @@ function openForm(kind) {
 function closeForm() {
   if (busy.value) return
   const root = document.querySelector('.work-form-card')
-  if (root && hasFormDraft(root)) {
-    const ok = globalThis.confirm?.('Discard this unsaved draft?')
-    if (ok === false) return
-    clearFormDraft(root)
-  }
+  if (root && hasFormDraft(root) && globalThis.confirm?.('Discard this unsaved draft?') === false) return
+  if (root) clearFormDraft(root)
   form.value = null
   error.value = ''
 }
@@ -110,6 +111,23 @@ function mergeRehydratedTrip(loaded) {
   const draft = rehydratedTripDraft.value
   if (!draft || loaded?.trip?.active) return loaded
   return { ...loaded, trip: { active: true, id: draft.trip_id, scope: draft.trip_type === 'PERSONAL' ? 'PERSONAL' : 'BUSINESS', tripType: draft.trip_type, shiftId: draft.shift_id, businessDate: draft.business_date, startOdometer: draft.start_odometer_km, startedAt: draft.started_at } }
+}
+async function loadWorkState() {
+  try {
+    const restored = await application.getWorkState()
+    rehydrated.value = restored?.rehydrated === true
+    rehydratedTripDraft.value = restored?.active_trip || null
+    stateSource.value = restored?.state_source || 'LOCAL_DB'
+    stateError.value = restored?.state_error || null
+    publishRehydratedState(restored?.screen_state || restored?.state || 'DAY_START')
+  } catch (e) {
+    rehydrated.value = false
+    rehydratedTripDraft.value = null
+    stateSource.value = 'LOCAL_DB'
+    stateError.value = 'CORRUPTED'
+    publishRehydratedState('DAY_START')
+    error.value = String(e?.message || e)
+  }
 }
 async function load() {
   loading.value = true
@@ -120,22 +138,10 @@ async function load() {
     workSummary.value = model.value?.state === 'DAY_ENDED' ? await application.getWorkSummary() : null
     updateTripTimer()
     publishDriverState()
-  } catch (e) { error.value = String(e?.message || e) }
-  finally { loading.value = false }
-}
-async function loadWorkState() {
-  try {
-    const restored = await application.getWorkState()
-    rehydrated.value = restored?.rehydrated === true
-    rehydratedTripDraft.value = restored?.active_trip || null
-    stateSource.value = restored?.state_source || 'LOCAL_DB'
-    stateError.value = restored?.state_error || null
-    publishRehydratedState(restored?.screen_state || restored?.state || 'DAY_START')
-  } catch {
-    rehydrated.value = false
-    stateSource.value = 'LOCAL_DB'
-    stateError.value = 'CORRUPTED'
-    publishRehydratedState('DAY_START')
+  } catch (e) {
+    error.value = String(e?.message || e)
+  } finally {
+    loading.value = false
   }
 }
 async function dispatch(type, payload = {}) {
@@ -165,21 +171,25 @@ async function dispatch(type, payload = {}) {
     await loadWorkState()
     await load()
     return result
-  } catch (e) { error.value = String(e?.message || e); return null }
-  finally { busy.value = false }
+  } catch (e) {
+    error.value = String(e?.message || e)
+    return null
+  } finally {
+    busy.value = false
+  }
 }
 async function confirmDayStart() {
   const odometer = Number(dayStartOdometer.value)
   if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'Enter the day-start odometer.')
   if (!dayDiff.value.valid) return (error.value = 'Odometer cannot decrease.')
   if (!dayAllocationValid.value) return (error.value = `Allocate exactly ${dayDiff.value.difference} km between business and personal.`)
-  await dispatch('START_DAY', { odometer, prefilledOdometer: latestOdometer.value, businessKm: dayDiff.value.required ? Number(dayBusinessKm.value) : 0, personalKm: dayDiff.value.required ? Number(dayPersonalKm.value) : 0, actionMode: 'SWIPE', direction: 'RIGHT' })
+  return dispatch('START_DAY', { odometer, prefilledOdometer: latestOdometer.value, businessKm: dayDiff.value.required ? Number(dayBusinessKm.value) : 0, personalKm: dayDiff.value.required ? Number(dayPersonalKm.value) : 0, actionMode: 'SWIPE', direction: 'RIGHT' })
 }
 async function confirmPersonalStart() {
   const odometer = Number(personalStartOdometer.value)
   if (!Number.isFinite(odometer) || odometer < 0) return (error.value = 'Enter the personal-trip start odometer.')
   personalTripReturnState.value = displayScreenState.value
-  await dispatch('START_PERSONAL_TRIP', { odometer, prefilledOdometer: latestOdometer.value, actionMode: 'SWIPE', direction: 'LEFT' })
+  return dispatch('START_PERSONAL_TRIP', { odometer, prefilledOdometer: latestOdometer.value, actionMode: 'SWIPE', direction: 'LEFT' })
 }
 async function confirmPersonalEnd() {
   const odometer = Number(personalEndOdometer.value)
@@ -192,25 +202,26 @@ async function confirmPersonalEnd() {
     workflowStateOverride.value = 'SHIFT_WAITING'
     notice.value = `Shift baseline rebound to ${odometer} km.`
   }
+  return result
 }
 async function confirmBusinessEnd(endOdometer) {
   const odometer = Number(endOdometer)
   if (!Number.isFinite(odometer) || odometer < 0) return (error.value = 'End odometer is compulsory.')
   const start = Number(activeTrip.value?.startOdometer)
   if (Number.isFinite(start) && odometer < start) return (error.value = 'End odometer cannot be below the trip start odometer.')
-  await dispatch('END_TRIP', { id: activeTrip.value?.id, endOdometer: odometer, actionMode: 'SWIPE', direction: 'RIGHT' })
+  return dispatch('END_TRIP', { id: activeTrip.value?.id, endOdometer: odometer, actionMode: 'SWIPE', direction: 'RIGHT' })
 }
 async function confirmShiftEnd() {
   const odometer = Number(shiftEndOdometer.value)
   if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'End odometer is compulsory.')
   if (!shiftEndValid.value) return (error.value = 'End odometer cannot be below the shift start odometer.')
-  await dispatch('END_SHIFT', { id: activeShift.value?.id, endOdometer: odometer, actionMode: 'SWIPE', direction: 'LEFT' })
+  return dispatch('END_SHIFT', { id: activeShift.value?.id, endOdometer: odometer, actionMode: 'SWIPE', direction: 'LEFT' })
 }
 async function confirmShiftStaging() {
-  if (busy.value || displayScreenState.value !== 'SHIFT_WAITING' || activeShift.value || activeTrip.value) return
+  if (busy.value || displayScreenState.value !== 'SHIFT_WAITING' || activeShift.value || activeTrip.value) return null
   const startOdometer = stagedShiftOdometer.value ?? latestOdometer.value
   if (!Number.isFinite(Number(startOdometer))) return (error.value = 'A latest authoritative odometer is required to start the shift.')
-  await dispatch('START_SHIFT', { startOdometer: Number(startOdometer), actionMode: 'BUTTON', direction: 'RIGHT' })
+  return dispatch('START_SHIFT', { startOdometer: Number(startOdometer), actionMode: 'BUTTON', direction: 'RIGHT' })
 }
 function cancelShiftStaging() {
   if (busy.value || activeShift.value || activeTrip.value) return
@@ -229,7 +240,10 @@ function onStateAuthority(state) {
 function handleSwipe(payload) {
   const action = typeof payload === 'string' ? payload : payload?.action
   if (action === 'START_DAY') return openForm('DAY_START')
-  if (action === 'START_PERSONAL_TRIP') { personalTripReturnState.value = displayScreenState.value; return openForm('PERSONAL_START') }
+  if (action === 'START_PERSONAL_TRIP') {
+    personalTripReturnState.value = displayScreenState.value
+    return openForm('PERSONAL_START')
+  }
   if (action === 'START_SHIFT') {
     stagedShiftOdometer.value = latestOdometer.value == null ? null : Number(latestOdometer.value)
     workflowStateOverride.value = 'SHIFT_WAITING'
@@ -239,32 +253,42 @@ function handleSwipe(payload) {
   }
   if (action === 'CONFIRM_START_SHIFT') return confirmShiftStaging()
   if (action === 'START_TRIP') return dispatch('START_TRIP', { start_odometer_km: latestOdometer.value, actionMode: 'SWIPE', direction: 'RIGHT' })
-  if (action === 'END_TRIP') return openForm('BUSINESS_END')
-  if (action === 'END_PERSONAL_TRIP') return openForm('PERSONAL_END')
-  if (action === 'END_SHIFT') return openForm('SHIFT_END')
+  if (action === 'END_TRIP') return form.value === 'BUSINESS_END' ? null : openForm('BUSINESS_END')
+  if (action === 'END_PERSONAL_TRIP') return form.value === 'PERSONAL_END' ? null : openForm('PERSONAL_END')
+  if (action === 'END_SHIFT') return form.value === 'SHIFT_END' ? confirmShiftEnd() : openForm('SHIFT_END')
   if (action === 'START_DAY_CONFIRM') return confirmDayStart()
   if (action === 'START_PERSONAL_TRIP_CONFIRM') return confirmPersonalStart()
-  if (action === 'CLOSE_PERSONAL_TRIP') return confirmPersonalEnd()
-  if (action === 'CLOSE_BUSINESS_TRIP') return openForm('BUSINESS_END')
-  if (action === 'CLOSE_SHIFT') return confirmShiftEnd()
 }
 function updateTripTimer() {
   if (!tripTimerEl.value || !activeTrip.value?.startedAt) return
   tripTimerEl.value.textContent = duration(Math.max(0, Math.floor((Date.now() - Date.parse(activeTrip.value.startedAt)) / 1000)))
 }
-function requestEndDay() { if (canEndDay.value) endDayConfirm.value = true }
-async function confirmEndDay() { if (canEndDay.value) await dispatch('END_DAY', { actionMode: 'BUTTON' }) }
-function onKey(event) { if (event.key === 'Escape') { if (endDayConfirm.value) endDayConfirm.value = false; else if (form.value) closeForm() } }
+function requestEndDay() {
+  if (canEndDay.value) endDayConfirm.value = true
+}
+async function confirmEndDay() {
+  if (canEndDay.value) return dispatch('END_DAY', { actionMode: 'BUTTON' })
+}
+function onKey(event) {
+  if (event.key === 'Escape') {
+    if (endDayConfirm.value) endDayConfirm.value = false
+    else if (form.value) closeForm()
+  }
+}
 
 onMounted(async () => {
   installFormDraftRecovery()
-  timer = setInterval(() => { now.value = Date.now() }, 1000)
+  clockTimer = setInterval(() => { now.value = Date.now() }, 1000)
   tripTimer = setInterval(updateTripTimer, 1000)
   window.addEventListener('keydown', onKey)
   await loadWorkState()
   await load()
 })
-onUnmounted(() => { clearInterval(timer); clearInterval(tripTimer); window.removeEventListener('keydown', onKey) })
+onUnmounted(() => {
+  clearInterval(clockTimer)
+  clearInterval(tripTimer)
+  window.removeEventListener('keydown', onKey)
+})
 </script>
 
 <template>
@@ -278,16 +302,38 @@ onUnmounted(() => { clearInterval(timer); clearInterval(tripTimer); window.remov
       <div v-if="error" class="work-error" role="alert">{{ error }}</div>
       <div v-if="notice" class="work-notice" role="status">✓ {{ notice }}</div>
       <main class="work-main">
-        <section v-if="displayScreenState === 'DAY_START'" class="work-state-panel day-start-panel start-of-day-panel"><div class="welcome-card" role="banner"><span class="kfe-eyebrow">WELCOME</span><h2>Hello, Welcome to Kanishka Enterprises</h2><p class="muted">{{ latestOdometer == null ? 'Enter the odometer to establish the first authoritative reading.' : 'Your latest authoritative odometer is ready for the day-start flow.' }}</p></div><p class="kfe-eyebrow">START OF DAY</p><h2>Ready for operation</h2></section>
-        <section v-else-if="displayScreenState === 'DAY_ENDED'" class="work-state-panel day-start-panel day-ended-panel"><p class="kfe-eyebrow">DAY ENDED</p><h2>Day complete</h2><div class="shift-summary-grid" aria-label="Completed day shift summary"><article v-for="card in [{ label: 'Kms run', value: workSummary?.kmsRun == null ? '—' : `${workSummary.kmsRun} km` },{ label: 'Dead kms', value: workSummary?.deadKms == null ? '—' : `${workSummary.deadKms} km` },{ label: 'Revenue', value: workSummary?.revenuePaise == null ? '—' : `₹${(Number(workSummary.revenuePaise) / 100).toFixed(2)}` }]" :key="card.label" class="shift-summary-card"><span>{{ card.label }}</span><strong>{{ card.value }}</strong></article></div></section>
-        <section v-else-if="displayScreenState === 'DAY_READY'" class="work-state-panel ready-panel"><p class="kfe-eyebrow">READY FOR OPERATION</p><div class="ready-odometer"><span>Odometer</span><strong>{{ latestOdometer }}</strong><small>km</small></div><div class="ready-status"><span>Shift: <b>NOT ACTIVE</b></span><span>Personal trip: <b>NOT ACTIVE</b></span></div><button class="end-day-button" type="button" :disabled="busy || !canEndDay" @click="requestEndDay">End day</button></section>
-        <section v-else-if="displayScreenState === 'SHIFT_WAITING'" class="work-state-panel waiting-panel"><p class="kfe-eyebrow">SHIFT WAITING</p><div class="waiting-metrics"><div><span>Authoritative odometer</span><strong>{{ stagedShiftOdometer ?? latestOdometer ?? '—' }}</strong></div></div><p class="waiting-copy">Shift is staged. Personal mileage can still be logged before the shift is confirmed.</p><div class="work-form-actions"><button class="secondary-action touch-button-48" type="button" :disabled="busy" data-kfe-action="cancel-shift-staging" @click="cancelShiftStaging">Cancel</button><button class="primary-action touch-button-48" type="button" :disabled="busy || !Number.isFinite(Number(stagedShiftOdometer ?? latestOdometer))" data-kfe-action="confirm-start-shift" @click="confirmShiftStaging">Confirm Start Shift</button></div></section>
-        <section v-else-if="displayScreenState === 'SHIFT'" class="work-state-panel waiting-panel"><p class="kfe-eyebrow">SHIFT</p><div class="waiting-metrics"><div><span>Trips</span><strong>{{ shiftTripCount }}</strong></div><div><span>Shift time</span><strong>{{ duration(shiftElapsed) }}</strong></div></div><p class="waiting-copy">Shift is active. Start a Business Trip or take a Personal Trip.</p></section>
+        <section v-if="displayScreenState === 'DAY_START'" class="work-state-panel day-start-panel start-of-day-panel">
+          <div class="welcome-card" role="banner"><span class="kfe-eyebrow">WELCOME</span><h2>Hello, Welcome to Kanishka Enterprises</h2><p class="muted">{{ latestOdometer == null ? 'Enter the odometer to establish the first authoritative reading.' : 'Your latest authoritative odometer is ready for the day-start flow.' }}</p></div>
+          <p class="kfe-eyebrow">START OF DAY</p><h2>Ready for operation</h2>
+        </section>
+        <section v-else-if="displayScreenState === 'DAY_ENDED'" class="work-state-panel day-start-panel day-ended-panel">
+          <p class="kfe-eyebrow">DAY ENDED</p><h2>Day complete</h2>
+          <div class="shift-summary-grid" aria-label="Completed day summary">
+            <article class="shift-summary-card"><span>Business trips</span><strong>{{ workSummary?.businessTripCount ?? '—' }}</strong></article>
+            <article class="shift-summary-card"><span>Revenue</span><strong>{{ workSummary?.revenuePaise == null ? '—' : `₹${(Number(workSummary.revenuePaise) / 100).toFixed(2)}` }}</strong></article>
+            <article class="shift-summary-card"><span>Latest odometer</span><strong>{{ workSummary?.latestOdometer ?? latestOdometer ?? '—' }}</strong></article>
+          </div>
+        </section>
+        <section v-else-if="displayScreenState === 'DAY_READY'" class="work-state-panel ready-panel">
+          <p class="kfe-eyebrow">READY FOR OPERATION</p>
+          <div class="ready-odometer"><span>Odometer</span><strong>{{ latestOdometer ?? '—' }}</strong><small>km</small></div>
+          <div class="ready-status"><span>Shift: <b>NOT ACTIVE</b></span><span>Personal trip: <b>NOT ACTIVE</b></span></div>
+          <button class="end-day-button" type="button" :disabled="busy || !canEndDay" @click="requestEndDay">End day</button>
+        </section>
+        <section v-else-if="displayScreenState === 'SHIFT_WAITING'" class="work-state-panel waiting-panel">
+          <p class="kfe-eyebrow">SHIFT WAITING</p>
+          <div class="waiting-metrics"><div><span>Authoritative odometer</span><strong>{{ stagedShiftOdometer ?? latestOdometer ?? '—' }}</strong></div></div>
+          <p class="waiting-copy">Shift is staged. Personal mileage can still be logged before the shift is confirmed.</p>
+          <div class="work-form-actions"><button class="secondary-action touch-button-48" type="button" :disabled="busy" data-kfe-action="cancel-shift-staging" @click="cancelShiftStaging">Cancel</button><button class="primary-action touch-button-48" type="button" :disabled="busy || !Number.isFinite(Number(stagedShiftOdometer ?? latestOdometer))" data-kfe-action="confirm-start-shift" @click="confirmShiftStaging">Confirm Start Shift</button></div>
+        </section>
+        <section v-else-if="displayScreenState === 'SHIFT'" class="work-state-panel waiting-panel">
+          <p class="kfe-eyebrow">SHIFT</p><div class="waiting-metrics"><div><span>Trips</span><strong>{{ shiftTripCount }}</strong></div><div><span>Shift time</span><strong>{{ duration(shiftElapsed) }}</strong></div></div><p class="waiting-copy">Shift is active. Start a Business Trip or take a Personal Trip.</p>
+        </section>
         <section v-else-if="displayScreenState === 'BUSINESS_TRIP'" class="work-state-panel trip-panel business-trip-card" role="region" aria-label="Active Business Trip"><p class="kfe-eyebrow">BUSINESS TRIP</p><div ref="tripTimerEl" class="trip-timer">00:00:00</div><p class="muted">Business trip active</p></section>
         <section v-else-if="displayScreenState === 'PERSONAL_TRIP'" class="work-state-panel trip-panel personal-trip-card" role="region" aria-label="Active Personal Trip"><p class="kfe-eyebrow">PERSONAL TRIP</p><div ref="tripTimerEl" class="trip-timer">00:00:00</div><p class="muted">Personal trip active</p></section>
       </main>
       <WorkSessionActions :form="form" :screen-state="displayScreenState" :active-trip="activeTrip" :busy="busy" :day-allocation-valid="dayAllocationValid" :personal-allocation-valid="true" :personal-end-valid="personalEndValid" :shift-end-valid="shiftEndValid" :business-end-valid="true" @swipe="handleSwipe" @state-authority="onStateAuthority" />
-      <WorkSessionForm v-if="form" :form="form" :busy="busy" :day-diff="dayDiff" :day-start-odometer="dayStartOdometer" :day-business-km="dayBusinessKm" :day-personal-km="dayPersonalKm" :personal-start-odometer="personalStartOdometer" :personal-end-odometer="personalEndOdometer" :personal-end-valid="personalEndValid" :shift-end-odometer="shiftEndOdometer" :shift-end-valid="shiftEndValid" @close="closeForm" @update:day-start-odometer="dayStartOdometer=$event" @update:day-business-km="dayBusinessKm=$event" @update:day-personal-km="dayPersonalKm=$event" @update:personal-start-odometer="personalStartOdometer=$event" @update:personal-end-odometer="personalEndOdometer=$event" @update:shift-end-odometer="shiftEndOdometer=$event" />
+      <WorkSessionForm v-if="form && !['PERSONAL_END','BUSINESS_END'].includes(form)" :form="form" :busy="busy" :day-diff="dayDiff" :day-start-odometer="dayStartOdometer" :day-business-km="dayBusinessKm" :day-personal-km="dayPersonalKm" :personal-start-odometer="personalStartOdometer" :personal-end-odometer="personalEndOdometer" :personal-end-valid="personalEndValid" :shift-end-odometer="shiftEndOdometer" :shift-end-valid="shiftEndValid" @close="closeForm" @update:day-start-odometer="dayStartOdometer=$event" @update:day-business-km="dayBusinessKm=$event" @update:day-personal-km="dayPersonalKm=$event" @update:personal-start-odometer="personalStartOdometer=$event" @update:personal-end-odometer="personalEndOdometer=$event" @update:shift-end-odometer="shiftEndOdometer=$event" />
       <WorkSessionOverlays :end-day-confirm="endDayConfirm" :busy="busy" @confirm-end-day="confirmEndDay" @cancel-end-day="endDayConfirm=false" />
       <TripEndForm v-if="form === 'PERSONAL_END'" :start-odometer="activeTrip?.startOdometer" :busy="busy" trip-type="PERSONAL" @close="closeForm" @submitted="confirmPersonalEnd" />
       <TripEndForm v-if="form === 'BUSINESS_END'" :start-odometer="activeTrip?.startOdometer" :busy="busy" trip-type="BUSINESS" @close="closeForm" @submitted="confirmBusinessEnd" />
