@@ -67,3 +67,12 @@ button:focus-visible,:where([role="button"]):focus-visible,:where(a):focus-visib
   .kfe-workspace .page-header,.kfe-workspace .module-header,.kfe-workspace .screen-header,.kfe-workspace .view-header{align-items:flex-start}
   .kfe-workspace .card,.kfe-workspace .module-card,.kfe-workspace .panel,.kfe-workspace .section-card,.kfe-workspace .summary-card,.kfe-workspace .metric-card,.kfe-workspace .form-card,.kfe-workspace .settings-card,.kfe-workspace .record-card,.kfe-workspace .timeline-card,.kfe-workspace .stat-card{padding:10px;border-radius:6px}
 }
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    scroll-behavior:auto!important;
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+  }
+}
