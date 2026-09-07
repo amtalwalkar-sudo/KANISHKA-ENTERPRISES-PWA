@@ -2,9 +2,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {DATA} from '../domain/shared.js';
 import {dashboardReadModel,performanceReadModel,presentationError} from '../application/read-models.js';
-const appSource=fs.readFileSync(new URL('../application/kfe.js',import.meta.url),'utf8');
+
+// kfe.js is intentionally a thin public export boundary after application segregation.
+// Inspect the implementation facade for implementation-specific wiring invariants.
+const publicSource=fs.readFileSync(new URL('../application/kfe.js',import.meta.url),'utf8');
+const appSource=fs.readFileSync(new URL('../application/kfe-application-facade.js',import.meta.url),'utf8');
 const modelSource=fs.readFileSync(new URL('../application/read-models.js',import.meta.url),'utf8');
 assert.equal(modelSource.includes("../core/hardened-db.js"),false);
+assert.equal(publicSource.includes("../core/hardened-db.js"),false);
 assert.equal(appSource.includes("../core/hardened-db.js"),false);
 assert.equal(appSource.includes('getStatus'),false);
 assert.equal(appSource.includes('getPerformance'),true);
