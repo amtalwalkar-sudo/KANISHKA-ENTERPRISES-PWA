@@ -44,6 +44,21 @@ jobs:
         run: npm install
       - name: Build application
         run: GITHUB_ACTIONS=true npm run build
+      - name: Establish fast-gate state identity
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          observed_sha="$(git rev-parse HEAD)"
+          if [[ -z "$HEAD_SHA" || "$observed_sha" != "$HEAD_SHA" ]]; then
+            echo "STATE_MISMATCH: expected=$HEAD_SHA observed=$observed_sha"
+            exit 1
+          fi
+          echo "KFE_VALIDATED_SHA=$observed_sha" >> "$GITHUB_ENV"
+          echo "KFE_OBSERVED_CODE_SHA=$observed_sha" >> "$GITHUB_ENV"
+          echo "KFE_CI_RUN_SHA=$observed_sha" >> "$GITHUB_ENV"
+          echo "KFE_STATE_STATUS=FRESH" >> "$GITHUB_ENV"
       - name: Run targeted fast checks
         shell: bash
         env:
