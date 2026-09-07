@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import KfeSwipeBar from './KfeSwipeBar.vue'
 import StartShiftForm from './StartShiftForm.vue'
 
@@ -22,6 +22,9 @@ const authorityState = ref(props.screenState)
 const startShiftOpen = ref(false)
 const personalReturnState = ref('DAY_READY')
 const pendingShiftOdometer = ref(props.stagedShiftOdometer == null ? null : Number(props.stagedShiftOdometer))
+const activeTripType = computed(() => authorityState.value === 'PERSONAL_TRIP' ? 'PERSONAL' : authorityState.value === 'BUSINESS_TRIP' ? 'BUSINESS' : null)
+const activeTripEndLabel = computed(() => activeTripType.value === 'PERSONAL' ? 'END PERSONAL TRIP →' : activeTripType.value === 'BUSINESS' ? 'END BUSINESS TRIP →' : '')
+const activeTripEndSwipeLabel = computed(() => activeTripEndLabel.value.replace(/\s*→\s*$/, ''))
 
 function publishAuthority(state = authorityState.value) {
   authorityState.value = state
@@ -104,8 +107,8 @@ watch(() => props.screenState, state => {
     <KfeSwipeBar v-else-if="!form && authorityState === 'DAY_ENDED'" right-label="START DAY" right-action="START_DAY" :disabled="busy" @swipe="onSwipe" />
     <span v-else-if="!form && authorityState === 'DAY_READY'" data-kfe-action="start-trip"><KfeSwipeBar left-label="START PERSONAL TRIP" right-label="START SHIFT" left-action="START_PERSONAL_TRIP" right-action="START_SHIFT" :disabled="busy" @swipe="onSwipe" /></span>
     <span v-else-if="!form && authorityState === 'SHIFT_WAITING'" data-kfe-action="start-trip"><KfeSwipeBar left-label="START PERSONAL TRIP" right-label="START SHIFT" left-action="START_PERSONAL_TRIP" right-action="START_SHIFT" :disabled="busy" @swipe="onSwipe" /></span>
-    <span v-else-if="!form && authorityState === 'BUSINESS_TRIP'" data-kfe-action="end-trip"><KfeSwipeBar right-label="END BUSINESS TRIP →" right-action="END_TRIP" :disabled="busy" @swipe="onSwipe" /></span>
-    <span v-else-if="!form && authorityState === 'PERSONAL_TRIP'" data-kfe-action="end-trip"><KfeSwipeBar right-label="END PERSONAL TRIP →" right-action="END_PERSONAL_TRIP" :disabled="busy" @swipe="onSwipe" /></span>
+    <span v-else-if="!form && authorityState === 'BUSINESS_TRIP'" data-kfe-action="end-trip"><KfeSwipeBar :right-label="activeTripEndSwipeLabel" right-action="END_TRIP" :disabled="busy" @swipe="onSwipe" /></span>
+    <span v-else-if="!form && authorityState === 'PERSONAL_TRIP'" data-kfe-action="end-trip"><KfeSwipeBar :right-label="activeTripEndSwipeLabel" right-action="END_PERSONAL_TRIP" :disabled="busy" @swipe="onSwipe" /></span>
     <KfeSwipeBar v-else-if="form === 'DAY_START'" right-label="CONFIRM START DAY" right-action="START_DAY_CONFIRM" :disabled="busy || !dayAllocationValid" @swipe="onSwipe" />
     <KfeSwipeBar v-else-if="form === 'PERSONAL_START'" right-label="START PERSONAL TRIP" right-action="START_PERSONAL_TRIP_CONFIRM" :disabled="busy || !personalAllocationValid" @swipe="onSwipe" />
     <KfeSwipeBar v-else-if="form === 'PERSONAL_END'" right-label="END TRIP" right-action="CLOSE_PERSONAL_TRIP" :disabled="busy || !personalEndValid" @swipe="onSwipe" />
