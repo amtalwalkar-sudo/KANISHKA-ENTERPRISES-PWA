@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Build application
-        run: GITHUB_ACTIONS=false npm run build
+        run: GITHUB_ACTIONS=true npm run build
       - name: Run targeted fast checks
         shell: bash
         env:
@@ -142,7 +142,7 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Build application
-        run: GITHUB_ACTIONS=false npm run build
+        run: GITHUB_ACTIONS=true npm run build
       - name: Install Chromium
         run: timeout 180s npx playwright install --with-deps chromium
       - name: KFE Screen Contract gate
@@ -252,7 +252,7 @@ jobs:
             exit 1
           fi
       - name: Final production build
-        run: GITHUB_ACTIONS=false npm run build
+        run: GITHUB_ACTIONS=true npm run build
 
       - name: Invalidate runtime cache for this deployment
         shell: bash
