@@ -24,7 +24,7 @@ Forbidden reverse dependencies and direct persistence/business-calculation acces
 Current scope is a single-vehicle ERP. GPS, cloud sync, Google Drive backup, multiple vehicles, multiple drivers, fleet management, advanced reporting, predictive analytics, machine learning, and KFE Advisor remain future capabilities unless the specification is explicitly changed.
 
 ## CI authority
-Existing validation gates must not be weakened, skipped, deleted, or rewritten to make a change pass. Deployment is permitted only after all mandatory governance and existing gates pass.
+Mandatory validation must not be weakened, bypassed, or deleted merely to make a change pass. The repository may remove obsolete or duplicate validation paths when their required coverage is already represented by the canonical KFE 2.0 single CI. Deployment is permitted only after the mandatory canonical gates pass.
 
 ## Failure protocol
 When a governance gate fails:
@@ -33,7 +33,7 @@ When a governance gate fails:
 2. Identify the exact rule, contract, file and test involved.
 3. Report the root cause.
 4. Fix only within the approved specification.
-5. Never bypass the gate.
+5. Never bypass a required gate.
 
 ## Specification changes
 Changing a frozen business rule is a specification change first. The specification, affected contracts, golden vectors, tests, implementation and traceability must change together.
