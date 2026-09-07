@@ -121,6 +121,8 @@ try{
   await swipe(page,bar(page),'RIGHT');
   await waitText(page,'STARTING SHIFT');
   await fill(page,'Opening Cash Float',0);
+  const inspection=page.getByLabel('Vehicle inspection cleared',{exact:true});
+  if(!(await inspection.isChecked()))await inspection.check();
   await page.getByRole('button',{name:'Confirm Start Shift',exact:true}).click();
   await waitWorkState(page,'SHIFT_WAITING');
   await expectBar(page,'← END SHIFT START BUSINESS TRIP →');
