@@ -67,12 +67,12 @@ jobs:
                 run+=(validate:phase-5-vehicle validate:phase-5-fuel-application validate:phase-5-expenses-application validate:phase-5-revenue-application validate:phase-5-loans-application validate:phase-5-renewals-compliance-application validate:phase-5-maintenance-application validate:phase-5-profitability-application validate:phase-5-dashboard-application);;
               js/persistence/*|js/testing/*persistence*)
                 run+=(validate:phase-k);;
-              js/testing/*browser*|js/testing/work-screen-browser*|playwright.config.*|src/components/WorkSessionView.vue|js/testing/*work*)
-                run+=(validate:work-geolocation); need_browser=true;;
+              js/testing/*browser*|playwright.config.*)
+                run+=(validate:e2e); need_browser=true;;
               js/testing/*resilience*|js/testing/*offline*)
                 run+=(validate:phase-7-reliability);;
               js/app.js)
-                run+=(validate:phase-4);;
+                run+=(validate:kfe-screen-contract validate:foundation-preflight validate:phase-5);;
               *)
                 run+=(validate:kfe-screen-contract);;
             esac
@@ -83,12 +83,12 @@ jobs:
             npx playwright install --with-deps chromium
             nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
             for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
-            npm run validate:work-screen-browser
           fi
           for script in "${unique[@]}"; do
             echo "===== FAST CHECK: $script ====="
             npm run "$script"
           done
+          if [[ "$need_browser" == true ]]; then npm run validate:e2e; fi
           echo 'KFE_FAST_CHECK=PASS'
 
   full-validation:
@@ -169,8 +169,6 @@ jobs:
           npm run validate:phase-l
           npm run validate:phase-m
           npm run validate:phase-n
-      - name: Work geolocation contract
-        run: npm run validate:work-geolocation
       - name: Administrator Vehicle/Driver foundation
         run: npm run validate:administrator-foundation
       - name: Persistence and recovery
@@ -207,12 +205,11 @@ jobs:
           npm run validate:phase-5-renewals-compliance-real-persistence
           npm run validate:phase-5-maintenance-real-persistence
           npm run validate:fixed-expense-real-persistence
-      - name: Runtime syntax and Work Screen domain contract
+      - name: Runtime syntax and domain contract
         shell: bash
         run: |
           set -euo pipefail
           for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done
-          npm run validate:phase-4
       - name: Runtime identity and service-worker boundary
         shell: bash
         run: |
@@ -236,8 +233,8 @@ jobs:
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
           cat /tmp/kfe-vite.log
           exit 1
-      - name: Work Screen real browser flow
-        run: npm run validate:work-screen-browser
+      - name: Browser certification
+        run: npm run validate:e2e
       - name: Legacy resilience and offline validation
         run: node js/testing/app-resilience-reliability-offline.mjs
       - name: Final live-state synchronization gate
