@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 const shell=read('src/presentation/shell/shells/current/CurrentShell.vue');
-const application=read('js/application/kfe.js');
+const applicationFacade=read('js/application/kfe-application-facade.js');
+const applicationBoundary=read('js/application/kfe.js');
 const repository=read('js/core/repository.js');
 const contract=JSON.parse(read('spec/contracts/ui.json'));
 
@@ -23,7 +24,10 @@ assert.equal(contract.settingsContract.localRestore.required,true);
 assert.equal(contract.settingsContract.resetErpData.required,true);
 assert.equal(contract.settingsContract.futureFeatures.uiControls,false);
 assert.equal(contract.settingsContract.futureFeatures.businessBehavior,false);
-for(const method of ['exportBackup','restoreBackup','resetAllData'])assert.ok(application.includes(method),`Application boundary missing ${method}`);
+// kfe.js is the stable application entry boundary; settings behavior now lives
+// in the role-segregated application facade behind that entry point.
+assert.match(applicationBoundary,/kfe-application-facade\.js/);
+for(const method of ['exportBackup','restoreBackup','resetAllData'])assert.ok(applicationFacade.includes(method),`Application facade missing ${method}`);
 assert.match(repository,/async function exportSnapshot\(\)/);
 assert.match(repository,/async function importSnapshot\(snapshot\)/);
 console.log('Settings contract: PASS');
