@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+import assert from 'node:assert';
 import fs from 'node:fs';
 const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const readAdminParts = () => fs.readdirSync(new URL('../../src/components/admin/', import.meta.url), { withFileTypes: true })
@@ -10,7 +10,8 @@ const navigation = read('js/ui/navigation.js');
 const app = read('src/App.vue');
 const shell = read('src/presentation/shell/shells/current/CurrentShell.vue');
 const css = read('src/styles/shell.css');
-const performance = read('src/components/PerformanceModuleView.vue');
+const performanceBoundary = read('src/components/PerformanceModuleView.vue');
+const performance = read('src/components/PerformanceModuleRole.vue');
 const admin = read('src/components/AdminModuleView.vue');
 const adminParts = readAdminParts();
 const loanDomain = read('js/domain/loans.js');
@@ -62,6 +63,7 @@ assert.doesNotMatch(navigation,/Today.*Month.*Year/s);
 assert.doesNotMatch(navigation,/Fleet|Reports|Analytics|GPS|OCR|Advisor/);
 
 // Performance and Admin remain functional surfaces beneath the neutral shell.
+assert.match(performanceBoundary,/PerformanceModuleRole\.vue/);
 for(const text of ['Today’s Position','Revenue','Running Cost','Balance','History & context','Authoritative','unavailable']) assert.match(performance,new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 assert.doesNotMatch(performance,/Tomorrow target|Status unavailable/i);
 assert.match(admin,/getAdminState/);
