@@ -50,10 +50,11 @@ export function createKfePresentationApi({ app = application, commandActions = a
           start_odometer_km: Number(model.trip.startOdometer ?? model.trip.start_odometer),
           started_at: model.trip.startedAt ?? model.trip.started_at,
         } : null;
-        const trip = localTrip || persistedTrip;
-        const screenState = String(model.state || 'DAY_START');
-        const restoredFromLocalTrip = Boolean(localTrip);
+        const trip = persistedTrip || localTrip;
+        const restoredFromLocalTrip = !persistedTrip && Boolean(localTrip);
         const rehydrated = Boolean(trip);
+        const screenState = String(model.state || 'DAY_START');
+        const tripState = trip ? (trip.trip_type === 'PERSONAL' ? 'IN_PERSONAL_TRIP' : 'IN_BUSINESS_TRIP') : null;
         return {
           state: screenState,
           rehydrated,
@@ -65,13 +66,15 @@ export function createKfePresentationApi({ app = application, commandActions = a
             previous_odometer_km: shift.previousOdometer == null && shift.previous_odometer_km == null ? null : Number(shift.previousOdometer ?? shift.previous_odometer_km),
           } : null,
           active_trip: trip,
+          active_trip_id: trip?.trip_id || null,
+          trip_state: tripState,
           draft_keys_restored: restoredFromLocalTrip ? ['kfe_active_trip_draft'] : [],
           state_source: restoredFromLocalTrip ? 'LOCAL_STORAGE' : 'LOCAL_DB',
           screen_state: screenState,
           state_error: null,
         };
       } catch (error) {
-        return { state: 'DAY_START', rehydrated: false, active_shift: null, active_trip: null, draft_keys_restored: [], state_source: 'LOCAL_DB', screen_state: 'DAY_START', state_error: 'CORRUPTED', recovery_error: String(error?.message || error) };
+        return { state: 'DAY_START', rehydrated: false, active_shift: null, active_trip: null, active_trip_id: null, trip_state: null, draft_keys_restored: [], state_source: 'LOCAL_DB', screen_state: 'DAY_START', state_error: 'CORRUPTED', recovery_error: String(error?.message || error) };
       }
     },
     getWorkSummary: (...args) => app.workSummary(...args),
