@@ -6,6 +6,6 @@ export function deriveWorkScreenState({day,shift,trip,latestOdometer,todayBusine
 export function canStartDay({day,shift,trip}={}){return !day&&!shift&&!trip;}
 export function canStartShift({day,shift,trip}={}){return day?.status==='OPEN'&&!shift&&!trip;}
 export function canStartBusinessTrip({day,shift,trip}={}){return day?.status==='OPEN'&&shift?.status==='OPEN'&&!trip;}
-export function canStartPersonalTrip({shift,trip}={}){return !shift&&!trip;}
+export function canStartPersonalTrip({day,shift,trip}={}){return day?.status==='OPEN'&&shift?.status==='OPEN'&&!trip;}
 export function canEndShift({shift,trip}={}){return shift?.status==='OPEN'&&!trip;}
 export function canEndDay({day,shift,trip}={}){return day?.status==='OPEN'&&!shift&&!trip;}
