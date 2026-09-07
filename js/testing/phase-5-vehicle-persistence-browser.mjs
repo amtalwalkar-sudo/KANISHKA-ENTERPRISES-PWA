@@ -2,6 +2,15 @@ import {chromium} from '@playwright/test';
 import {spawn} from 'node:child_process';
 const port=4174;
 const origin=`http://127.0.0.1:${port}`;
+// The CI production build intentionally uses the GitHub Pages project-site base
+// path. This browser harness runs against localhost, so rebuild the same
+// application with the local-root base before starting Vite preview. The
+// persistence assertions below remain against the real production bundle,
+// with only the hosting base adapted for the local test origin.
+const build=spawn('npm',['run','build'],{stdio:['ignore','pipe','pipe'],env:{...process.env,GITHUB_ACTIONS:'false'}});
+let buildOutput='';build.stdout.on('data',c=>buildOutput+=c.toString());build.stderr.on('data',c=>buildOutput+=c.toString());
+const buildExit=await new Promise(resolve=>{build.on('error',error=>resolve({code:null,error}));build.on('close',(code,signal)=>resolve({code,signal}));});
+if(buildExit.code!==0)throw new Error(`Local-root browser build failed: ${buildOutput.slice(-4000)}`);
 const server=spawn('npm',['run','preview','--','--host','127.0.0.1','--port',String(port)],{stdio:['ignore','pipe','pipe'],detached:true,env:{...process.env,GITHUB_ACTIONS:'false'}});
 let output='';server.stdout.on('data',c=>output+=c.toString());server.stderr.on('data',c=>output+=c.toString());
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
