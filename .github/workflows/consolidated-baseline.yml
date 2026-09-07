@@ -27,7 +27,7 @@ permissions:
 jobs:
   fast-check:
     name: Fast fix check
-    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'fast') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -51,33 +51,37 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          mapfile -t files < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
           run=()
           need_browser=false
-          for f in "${files[@]}"; do
-            case "$f" in
-              .github/*|package.json|package-lock.json|vite.config.*|index.html|service-worker.js|src/main.*)
-                run+=(validate:kfe-screen-contract validate:foundation-preflight validate:governance);;
-              js/core/*|js/services/*|js/testing/architecture-*|js/testing/clean-architecture-*)
-                run+=(validate:architecture validate:foundation validate:foundation-audit);;
-              js/domain/*|js/testing/domain-*|js/testing/*lifecycle*|js/testing/phase-i*|js/testing/phase-j*|js/testing/phase-k*|js/testing/phase-l*|js/testing/phase-m*|js/testing/phase-n*)
-                run+=(validate:domain);;
-              js/ui/*|src/components/*|src/App.vue|src/styles/*|js/testing/phase-1*|js/testing/phase-2*|js/testing/phase-3*|js/testing/phase-5*|js/testing/phase-6*)
-                run+=(validate:phase-1 validate:phase-2 validate:phase-3 validate:phase-5 validate:phase-5-module-contracts validate:phase-6-ui-shell);;
-              js/application/*|js/testing/*application*)
-                run+=(validate:phase-5-vehicle validate:phase-5-fuel-application validate:phase-5-expenses-application validate:phase-5-revenue-application validate:phase-5-loans-application validate:phase-5-renewals-compliance-application validate:phase-5-maintenance-application validate:phase-5-profitability-application validate:phase-5-dashboard-application);;
-              js/persistence/*|js/testing/*persistence*)
-                run+=(validate:phase-k);;
-              js/testing/*browser*|playwright.config.*)
-                run+=(validate:e2e); need_browser=true;;
-              js/testing/*resilience*|js/testing/*offline*)
-                run+=(validate:phase-7-reliability);;
-              js/app.js)
-                run+=(validate:kfe-screen-contract validate:foundation-preflight validate:phase-5);;
-              *)
-                run+=(validate:kfe-screen-contract);;
-            esac
-          done
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            run+=(validate:kfe-screen-contract validate:foundation-preflight validate:governance)
+          else
+            mapfile -t files < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+            for f in "${files[@]}"; do
+              case "$f" in
+                .github/*|package.json|package-lock.json|vite.config.*|index.html|service-worker.js|src/main.*)
+                  run+=(validate:kfe-screen-contract validate:foundation-preflight validate:governance);;
+                js/core/*|js/services/*|js/testing/architecture-*|js/testing/clean-architecture-*)
+                  run+=(validate:architecture validate:foundation validate:foundation-audit);;
+                js/domain/*|js/testing/domain-*|js/testing/*lifecycle*|js/testing/phase-i*|js/testing/phase-j*|js/testing/phase-k*|js/testing/phase-l*|js/testing/phase-m*|js/testing/phase-n*)
+                  run+=(validate:domain);;
+                js/ui/*|src/components/*|src/App.vue|src/styles/*|js/testing/phase-1*|js/testing/phase-2*|js/testing/phase-3*|js/testing/phase-5*|js/testing/phase-6*)
+                  run+=(validate:phase-1 validate:phase-2 validate:phase-3 validate:phase-5 validate:phase-5-module-contracts validate:phase-6-ui-shell);;
+                js/application/*|js/testing/*application*)
+                  run+=(validate:phase-5-vehicle validate:phase-5-fuel-application validate:phase-5-expenses-application validate:phase-5-revenue-application validate:phase-5-loans-application validate:phase-5-renewals-compliance-application validate:phase-5-maintenance-application validate:phase-5-profitability-application validate:phase-5-dashboard-application);;
+                js/persistence/*|js/testing/*persistence*)
+                  run+=(validate:phase-k);;
+                js/testing/*browser*|playwright.config.*)
+                  run+=(validate:e2e); need_browser=true;;
+                js/testing/*resilience*|js/testing/*offline*)
+                  run+=(validate:phase-7-reliability);;
+                js/app.js)
+                  run+=(validate:kfe-screen-contract validate:foundation-preflight validate:phase-5);;
+                *)
+                  run+=(validate:kfe-screen-contract);;
+              esac
+            done
+          fi
           if ((${#run[@]} == 0)); then run+=(validate:kfe-screen-contract); fi
           mapfile -t unique < <(printf '%s\n' "${run[@]}" | awk '!seen[$0]++')
           if [[ "$need_browser" == true ]]; then
@@ -94,7 +98,8 @@ jobs:
 
   full-validation:
     name: Full validation and production publish
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' && inputs.mode == 'full' }}
+    needs: fast-check
+    if: ${{ needs.fast-check.result == 'success' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.mode == 'full')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     environment:
