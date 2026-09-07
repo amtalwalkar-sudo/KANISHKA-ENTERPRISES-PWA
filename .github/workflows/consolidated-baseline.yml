@@ -19,9 +19,10 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
   pages: write
+  id-token: write
 
 jobs:
   fast-check:
@@ -96,6 +97,9 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' && inputs.mode == 'full' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Resolve live repository state before checkout
         id: state
@@ -250,7 +254,6 @@ jobs:
           fi
       - name: Final production build
         run: GITHUB_ACTIONS=true npm run build
-
       - name: Invalidate runtime cache for this deployment
         shell: bash
         env:
@@ -260,7 +263,6 @@ jobs:
           CACHE_VERSION="kanishka-fleet-kfe2-${DEPLOY_SHA}"
           sed -i "s/^const CACHE_NAME='[^']*';/const CACHE_NAME='${CACHE_VERSION}';/" dist/service-worker.js
           grep -q "const CACHE_NAME='${CACHE_VERSION}';" dist/service-worker.js
-
       - name: Verify production bundle
         shell: bash
         env:
@@ -278,48 +280,12 @@ jobs:
           if grep -q '/src/main.js' dist/index.html; then exit 1; fi
           grep -q "const CACHE_NAME='kanishka-fleet-kfe2-${DEPLOY_SHA}';" dist/service-worker.js
           echo 'KFE_PRODUCTION_BUNDLE=PASS'
-
-      - name: Publish built runtime into configured Pages source
-        shell: bash
-        run: |
-          set -euo pipefail
-          cp dist/index.html ./index.html
-          cp dist/manifest.json ./manifest.json
-          cp dist/service-worker.js ./service-worker.js
-          cp dist/icon-192.png ./icon-192.png
-          cp dist/icon-512.png ./icon-512.png
-          rm -rf ./assets
-          cp -R dist/assets ./assets
-
-      - name: Commit published runtime
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add index.html manifest.json service-worker.js icon-192.png icon-512.png assets
-          if git diff --cached --quiet; then
-            echo 'No published runtime changes.'
-          else
-            git commit -m 'build: publish KFE production runtime [skip ci]'
-            git push origin HEAD:main
-          fi
-
-      - name: Request GitHub Pages build
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds" -H 'Accept: application/vnd.github+json'
-
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
       - name: Report production URL
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          pages_url="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq '.html_url')"
-          echo "KFE_PRODUCTION_URL=$pages_url" >> "$GITHUB_STEP_SUMMARY"
-          echo "Production URL: $pages_url"
+        run: echo "KFE_PRODUCTION_URL=${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
