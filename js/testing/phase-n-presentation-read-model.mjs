@@ -16,7 +16,7 @@ assert.equal(appSource.includes('getStatus'),false);
 assert.equal(appSource.includes('getPerformance'),true);
 assert.equal(modelImplementationSource.includes("../core/hardened-db.js"),false);
 assert.equal(modelImplementationSource.includes('getStatus'),false);
-assert.equal(modelImplementationSource.includes('getPerformance'),true);
+assert.equal(modelImplementationSource.includes('performanceReadModel'),true);
 const actual={dataConfidenceState:DATA.ACTUAL,value:{netProfitPaise:100}};
 const projected={dataConfidenceState:DATA.PROJECTED,value:200};
 const model=dashboardReadModel({profitabilityResult:actual,tomorrowTargetResult:projected,alerts:['x']});
