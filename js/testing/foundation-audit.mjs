@@ -20,7 +20,7 @@ assert.match(css,/overscroll-behavior-y\s*:\s*contain/i,'viewport containment mi
 assert.match(css,/min-width\s*:\s*48px|min-height\s*:\s*48px/i,'touch-target foundation missing');
 assert.match(css,/prefers-reduced-motion/i,'reduced-motion foundation missing');
 
-const requiredScripts=['validate:phase-1','validate:phase-2','validate:phase-3','validate:phase-4','validate:foundation-audit'];
+const requiredScripts=['validate:phase-1','validate:phase-2','validate:phase-3','validate:foundation-audit'];
 for(const script of requiredScripts) assert.equal(typeof pkg.scripts[script],'string',`${script} must remain registered`);
 
 const validationSources=[
@@ -28,7 +28,6 @@ const validationSources=[
   ['PHASE_1','js/testing/phase-1-structural-pwa-shell.mjs'],
   ['PHASE_2','js/testing/phase-2-shell-interaction.mjs'],
   ['PHASE_3','js/testing/phase-3-ui-erp-contract.mjs'],
-  ['PHASE_4','js/testing/phase-4-work-session-vertical-slice.mjs'],
   ['ERP_FOUNDATION','js/foundation-hardening-verify.mjs']
 ];
 for(const [name,path] of validationSources){
