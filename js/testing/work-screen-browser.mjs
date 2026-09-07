@@ -14,7 +14,7 @@ try{
  assert.equal(await page.locator('[data-kfe-action="select-work"]').count(),1);
  assert.equal(await page.locator('[data-kfe-action="select-fleet"]').count(),1);
  assert.equal(await page.locator('[data-kfe-action="select-expenses"]').count(),1);
- assert.equal(await page.locator('[data-state="DAY_START"]').count(),1);
+ assert.equal(await page.locator('.state-badge[data-state="DAY_START"]').count(),1);
  assert.equal(await page.getByText('Revenue',{exact:true}).count(),0);
  assert.equal(await page.getByText('Break',{exact:true}).count(),0);
  assert.equal(await page.locator('[data-kfe-draft-form]').count(),0);
