@@ -3,16 +3,20 @@ import fs from 'node:fs';
 import {DATA} from '../domain/shared.js';
 import {dashboardReadModel,performanceReadModel,presentationError} from '../application/read-models.js';
 
-// kfe.js is intentionally a thin public export boundary after application segregation.
-// Inspect the implementation facade for implementation-specific wiring invariants.
+// Public facades remain the compatibility boundary; implementation-specific
+// wiring invariants are asserted against the segregated implementation files.
 const publicSource=fs.readFileSync(new URL('../application/kfe.js',import.meta.url),'utf8');
 const appSource=fs.readFileSync(new URL('../application/kfe-application-facade.js',import.meta.url),'utf8');
 const modelSource=fs.readFileSync(new URL('../application/read-models.js',import.meta.url),'utf8');
+const modelImplementationSource=fs.readFileSync(new URL('../application/read-model-composition.js',import.meta.url),'utf8');
 assert.equal(modelSource.includes("../core/hardened-db.js"),false);
 assert.equal(publicSource.includes("../core/hardened-db.js"),false);
 assert.equal(appSource.includes("../core/hardened-db.js"),false);
 assert.equal(appSource.includes('getStatus'),false);
 assert.equal(appSource.includes('getPerformance'),true);
+assert.equal(modelImplementationSource.includes("../core/hardened-db.js"),false);
+assert.equal(modelImplementationSource.includes('getStatus'),false);
+assert.equal(modelImplementationSource.includes('getPerformance'),true);
 const actual={dataConfidenceState:DATA.ACTUAL,value:{netProfitPaise:100}};
 const projected={dataConfidenceState:DATA.PROJECTED,value:200};
 const model=dashboardReadModel({profitabilityResult:actual,tomorrowTargetResult:projected,alerts:['x']});
