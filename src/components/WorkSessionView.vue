@@ -189,62 +189,44 @@ async function confirmPersonalStart() {
   const odometer = Number(personalStartOdometer.value)
   if (!Number.isFinite(odometer) || odometer < 0) return (error.value = 'Enter the personal-trip start odometer.')
   personalTripReturnState.value = displayScreenState.value
-  return dispatch('START_PERSONAL_TRIP', { odometer, prefilledOdometer: latestOdometer.value, actionMode: 'SWIPE', direction: 'LEFT' })
+  return dispatch('START_PERSONAL_TRIP', { odometer, prefilledOdometer: latestOdometer.value, actionMode: 'SWIPE', direction: 'RIGHT' })
 }
-async function confirmPersonalEnd() {
-  const odometer = Number(personalEndOdometer.value)
-  if (!Number.isFinite(odometer) || odometer < 0) return (error.value = 'End odometer is compulsory.')
-  if (!personalEndValid.value) return (error.value = 'End odometer cannot be below the trip start odometer.')
-  const returnState = personalTripReturnState.value
-  const result = await dispatch('END_PERSONAL_TRIP', { id: activeTrip.value?.id, endOdometer: odometer, actionMode: 'SWIPE', direction: 'RIGHT' })
-  if (result && returnState === 'SHIFT_WAITING') {
-    stagedShiftOdometer.value = odometer
-    workflowStateOverride.value = 'SHIFT_WAITING'
-    notice.value = `Shift baseline rebound to ${odometer} km.`
-  }
-  return result
+async function confirmPersonalEnd(endOdometer) {
+  const end = Number(endOdometer ?? personalEndOdometer.value)
+  if (!Number.isFinite(end) || !personalEndValid.value) return (error.value = 'Enter a valid personal-trip end odometer.')
+  return dispatch('END_PERSONAL_TRIP', { id: activeTrip.value?.id, endOdometer: end, actionMode: 'BUTTON', direction: 'RIGHT' })
 }
 async function confirmBusinessEnd(endOdometer) {
-  const odometer = Number(endOdometer)
-  if (!Number.isFinite(odometer) || odometer < 0) return (error.value = 'End odometer is compulsory.')
-  const start = Number(activeTrip.value?.startOdometer)
-  if (Number.isFinite(start) && odometer < start) return (error.value = 'End odometer cannot be below the trip start odometer.')
-  return dispatch('END_TRIP', { id: activeTrip.value?.id, endOdometer: odometer, actionMode: 'SWIPE', direction: 'RIGHT' })
+  const end = Number(endOdometer)
+  if (!Number.isFinite(end) || end < Number(activeTrip.value?.startOdometer || 0)) return (error.value = 'Enter a valid business-trip end odometer.')
+  return dispatch('END_TRIP', { id: activeTrip.value?.id, endOdometer: end, actionMode: 'BUTTON', direction: 'RIGHT' })
 }
 async function confirmShiftEnd() {
-  const odometer = Number(shiftEndOdometer.value)
-  if (!Number.isInteger(odometer) || odometer < 0) return (error.value = 'End odometer is compulsory.')
-  if (!shiftEndValid.value) return (error.value = 'End odometer cannot be below the shift start odometer.')
-  return dispatch('END_SHIFT', { id: activeShift.value?.id, endOdometer: odometer, actionMode: 'SWIPE', direction: 'LEFT' })
-}
-async function confirmShiftStaging() {
-  if (busy.value || displayScreenState.value !== 'SHIFT_WAITING' || activeShift.value || activeTrip.value) return null
-  const startOdometer = stagedShiftOdometer.value ?? latestOdometer.value
-  if (!Number.isFinite(Number(startOdometer))) return (error.value = 'A latest authoritative odometer is required to start the shift.')
-  return dispatch('START_SHIFT', { startOdometer: Number(startOdometer), actionMode: 'BUTTON', direction: 'RIGHT' })
+  const end = Number(shiftEndOdometer.value)
+  if (!Number.isInteger(end) || !shiftEndValid.value) return (error.value = 'Enter a valid shift-end odometer.')
+  return dispatch('END_SHIFT', { id: activeShift.value?.id, endOdometer: end, actionMode: 'BUTTON' })
 }
 function cancelShiftStaging() {
-  if (busy.value || activeShift.value || activeTrip.value) return
+  if (busy.value) return
   stagedShiftOdometer.value = null
   workflowStateOverride.value = null
-  form.value = null
-  error.value = ''
   notice.value = ''
+  error.value = ''
   publishDriverState()
+}
+function confirmShiftStaging() {
+  const odometer = Number(stagedShiftOdometer.value ?? latestOdometer.value)
+  if (!Number.isFinite(odometer)) return (error.value = 'A latest authoritative odometer is required to start the shift.')
+  stagedShiftOdometer.value = Number(latestOdometer.value ?? odometer)
+  workflowStateOverride.value = null
+  notice.value = ''
+  return dispatch('START_SHIFT', { start_odometer_km: stagedShiftOdometer.value, actionMode: 'BUTTON', direction: 'RIGHT' })
 }
 function onStateAuthority(state) {
-  if (state === 'SHIFT_WAITING' && !activeShift.value && !activeTrip.value) {
-    workflowStateOverride.value = 'SHIFT_WAITING'
-  } else if ((state === 'SHIFT' || state === 'PERSONAL_TRIP') && workflowStateOverride.value === 'SHIFT_WAITING' && !activeShift.value && !activeTrip.value) {
-    // WorkSessionActions publishes transient state before the parent handles the action.
-    // Keep staging authoritative until the command actually persists.
-  } else if (state !== 'SHIFT_WAITING') {
-    workflowStateOverride.value = null
-  }
-  publishDriverState()
+  if (workflowStateOverride.value === 'SHIFT_WAITING' && (state === 'SHIFT' || state === 'PERSONAL_TRIP')) return
+  if (!activeTrip.value && workflowStateOverride.value !== 'SHIFT_WAITING') workflowStateOverride.value = state
 }
-function handleSwipe(payload) {
-  const action = typeof payload === 'string' ? payload : payload?.action
+function handleSwipe(action) {
   if (action === 'START_DAY') return openForm('DAY_START')
   if (action === 'START_PERSONAL_TRIP') {
     personalTripReturnState.value = displayScreenState.value
@@ -317,7 +299,7 @@ onUnmounted(() => {
         <section v-else-if="displayScreenState === 'PERSONAL_TRIP'" class="work-state-panel trip-panel personal-trip-card" role="region" aria-label="Active Personal Trip"><p class="kfe-eyebrow">PERSONAL TRIP</p><div ref="tripTimerEl" class="trip-timer">00:00:00</div><p class="muted">Personal trip active</p></section>
       </main>
       <WorkSessionActions :form="form" :screen-state="displayScreenState" :active-trip="activeTrip" :busy="busy" :day-allocation-valid="dayAllocationValid" :personal-allocation-valid="true" :personal-end-valid="personalEndValid" :shift-end-valid="shiftEndValid" :business-end-valid="true" @swipe="handleSwipe" @state-authority="onStateAuthority" />
-      <WorkSessionForm v-if="form && !['PERSONAL_END','BUSINESS_END'].includes(form)" :form="form" :busy="busy" :day-diff="dayDiff" :day-start-odometer="dayStartOdometer" :day-business-km="dayBusinessKm" :day-personal-km="dayPersonalKm" :personal-start-odometer="personalStartOdometer" :personal-end-odometer="personalEndOdometer" :personal-end-valid="personalEndValid" :shift-end-odometer="shiftEndOdometer" :shift-end-valid="shiftEndValid" @close="closeForm" @update:day-start-odometer="dayStartOdometer=$event" @update:day-business-km="dayBusinessKm=$event" @update:day-personal-km="dayPersonalKm=$event" @update:personal-start-odometer="personalStartOdometer=$event" @update:personal-end-odometer="personalEndOdometer=$event" @update:shift-end-odometer="shiftEndOdometer=$event" />
+      <WorkSessionForm v-if="form && !['PERSONAL_END','BUSINESS_END'].includes(form)" data-kfe-draft-form="true" :form="form" :busy="busy" :day-diff="dayDiff" :day-start-odometer="dayStartOdometer" :day-business-km="dayBusinessKm" :day-personal-km="dayPersonalKm" :personal-start-odometer="personalStartOdometer" :personal-end-odometer="personalEndOdometer" :personal-end-valid="personalEndValid" :shift-end-odometer="shiftEndOdometer" :shift-end-valid="shiftEndValid" @close="closeForm" @update:day-start-odometer="dayStartOdometer=$event" @update:day-business-km="dayBusinessKm=$event" @update:day-personal-odometer="personalStartOdometer=$event" @update:day-personal-km="dayPersonalKm=$event" @update:personal-start-odometer="personalStartOdometer=$event" @update:personal-end-odometer="personalEndOdometer=$event" @update:shift-end-odometer="shiftEndOdometer=$event" />
       <WorkSessionOverlays :end-day-confirm="endDayConfirm" :busy="busy" @confirm-end-day="confirmEndDay" @cancel-end-day="endDayConfirm=false" />
       <TripEndForm v-if="form === 'PERSONAL_END'" :start-odometer="activeTrip?.startOdometer" :busy="busy" trip-type="PERSONAL" @close="closeForm" @submitted="confirmPersonalEnd" />
       <TripEndForm v-if="form === 'BUSINESS_END'" :start-odometer="activeTrip?.startOdometer" :busy="busy" trip-type="BUSINESS" @close="closeForm" @submitted="confirmBusinessEnd" />
