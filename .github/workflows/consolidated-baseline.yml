@@ -34,18 +34,14 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 2
-
       - name: Setup Node 20
         uses: actions/setup-node@v5
         with:
           node-version: 20
-
       - name: Install dependencies
         run: npm install
-
       - name: Build application
         run: GITHUB_ACTIONS=true npm run build
-
       - name: Establish fast-gate state identity
         shell: bash
         env:
@@ -61,7 +57,6 @@ jobs:
           echo "KFE_OBSERVED_CODE_SHA=$observed_sha" >> "$GITHUB_ENV"
           echo "KFE_CI_RUN_SHA=$observed_sha" >> "$GITHUB_ENV"
           echo "KFE_STATE_STATUS=FRESH" >> "$GITHUB_ENV"
-
       - name: Run targeted fast checks
         shell: bash
         env:
@@ -71,7 +66,6 @@ jobs:
           set -euo pipefail
           run=()
           need_browser=false
-
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             run+=(validate:kfe-screen-contract validate:foundation-preflight validate:governance)
           else
@@ -101,10 +95,8 @@ jobs:
               esac
             done
           fi
-
           if ((${#run[@]} == 0)); then run+=(validate:kfe-screen-contract); fi
           mapfile -t unique < <(printf '%s\n' "${run[@]}" | awk '!seen[$0]++')
-
           if [[ "$need_browser" == true ]]; then
             npx playwright install --with-deps chromium
             nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
@@ -117,12 +109,10 @@ jobs:
               exit 1
             fi
           fi
-
           for script in "${unique[@]}"; do
             echo "===== FAST CHECK: $script ====="
             npm run "$script"
           done
-
           echo 'KFE_FAST_CHECK=PASS'
 
   full-validation:
@@ -160,18 +150,15 @@ jobs:
           fi
           echo "validated_sha=$current_sha" >> "$GITHUB_OUTPUT"
           echo "superseded=false" >> "$GITHUB_OUTPUT"
-
       - name: Stop superseded validation run
         if: ${{ steps.state.outputs.superseded == 'true' }}
         run: echo 'KFE_RUN_STATUS=SUPERSEDED'
-
       - name: Checkout exact current revision
         if: ${{ steps.state.outputs.superseded != 'true' }}
         uses: actions/checkout@v5
         with:
           ref: ${{ steps.state.outputs.validated_sha }}
           fetch-depth: 1
-
       - name: Verify checkout and CI state identity
         if: ${{ steps.state.outputs.superseded != 'true' }}
         shell: bash
@@ -188,21 +175,17 @@ jobs:
           echo "KFE_OBSERVED_CODE_SHA=$observed_sha" >> "$GITHUB_ENV"
           echo "KFE_CI_RUN_SHA=$observed_sha" >> "$GITHUB_ENV"
           echo "KFE_STATE_STATUS=FRESH" >> "$GITHUB_ENV"
-
       - name: Setup Node 20
         if: ${{ steps.state.outputs.superseded != 'true' }}
         uses: actions/setup-node@v5
         with:
           node-version: 20
-
       - name: Install dependencies
         if: ${{ steps.state.outputs.superseded != 'true' }}
         run: npm install
-
       - name: Build application
         if: ${{ steps.state.outputs.superseded != 'true' }}
         run: GITHUB_ACTIONS=true npm run build
-
       - name: KFE Screen Contract gate
         if: ${{ steps.state.outputs.superseded != 'true' }}
         run: npm run validate:kfe-screen-contract
@@ -307,11 +290,9 @@ jobs:
           grep -q "importScripts('./js/pwa/sw-strategies.js')" service-worker.js
           grep -q "event.request.mode==='navigate'" service-worker.js
           grep -q "kfe-outbox-retry" service-worker.js
-
       - name: Install Chromium for browser certification
         if: ${{ steps.state.outputs.superseded != 'true' }}
         run: timeout 600s npx playwright install --with-deps chromium
-
       - name: Start PWA for browser integration
         if: ${{ steps.state.outputs.superseded != 'true' }}
         shell: bash
@@ -324,7 +305,6 @@ jobs:
           done
           cat /tmp/kfe-vite.log
           exit 1
-
       - name: Browser certification
         if: ${{ steps.state.outputs.superseded != 'true' }}
         run: npm run validate:e2e
@@ -379,3 +359,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+      - name: Deploy to GitHub Pages
+        id: deployment
+        if: ${{ steps.state.outputs.superseded != 'true' }}
+        uses: actions/deploy-pages@v4
