@@ -18,10 +18,10 @@ const loanDomain = read('js/domain/loans.js');
 const loanRepository = read('js/application/loan-repository.js');
 
 // Current presentation boundary: CurrentShell owns the header, primary navigation,
-// settings actions, and single structural viewport. App.vue owns only the module canvas.
-assert.match(shell,/Performance.*Admin/s);
-assert.doesNotMatch(shell,/Work|Timeline/);
-assert.doesNotMatch(shell,/More/);
+// settings actions, and single structural viewport. App.vue owns the module canvas.
+assert.match(shell,/Performance.*Work.*Admin/s);
+assert.match(shell,/Work/);
+assert.doesNotMatch(shell,/More|Timeline/);
 assert.match(shell,/Settings/);
 assert.match(shell,/Backup/);
 assert.match(shell,/Restore/);
@@ -38,15 +38,17 @@ assert.equal((shell.match(/<main/g)||[]).length,1,'structural shell must have on
 assert.doesNotMatch(shell,/kfe-swipe-bar|KfeSwipeBar|Tax Reserve|tax reserve/i);
 assert.doesNotMatch(shell,/Fleet|Reports|Analytics|GPS|OCR|Advisor/);
 
-// App is the production module canvas for the currently active surfaces only.
-// Work and Timeline have been intentionally wiped from presentation and can be rebuilt later.
+// App exposes the current Performance, Work, and Admin routes while retaining
+// the authoritative operational Work state/cards and excluding wiped legacy UI.
 assert.match(app,/activeModule/);
 assert.doesNotMatch(app,/WorkSessionView|KfeTimelineView/);
 assert.match(app,/PerformanceModuleView/);
 assert.match(app,/AdminModuleView/);
 assert.match(app,/activeModule === 'Performance'/);
+assert.match(app,/activeModule === 'Work'/);
 assert.match(app,/activeModule === 'Admin'/);
-assert.doesNotMatch(app,/activeModule === 'Work'|activeModule === 'Timeline'/);
+assert.match(app,/currentWorkState/);
+assert.doesNotMatch(app,/activeModule === 'Timeline'/);
 assert.doesNotMatch(app,/class="empty-module"/);
 assert.doesNotMatch(app,/FuelForm/);
 assert.doesNotMatch(app,/VehicleModuleView|MaintenanceModuleView|ComplianceModuleView|LoanModuleView/);
@@ -54,10 +56,12 @@ assert.doesNotMatch(app,/HistoricalEntriesView/);
 assert.doesNotMatch(app,/FuelQuickEntry|FuelQuickAction|Quick fuel/i);
 assert.doesNotMatch(app,/Tax Reserve|tax reserve/i);
 
-// Underlying navigation remains a generic boundary, but wiped presentation destinations
-// are no longer exposed by the current shell.
-assert.doesNotMatch(navigation,/More/);
-assert.doesNotMatch(navigation,/Work|Timeline/);
+// Underlying navigation is the generic primary-destination boundary and now
+// matches the current shell's Performance/Work/Admin production navigation.
+assert.match(navigation,/Performance/);
+assert.match(navigation,/Work/);
+assert.match(navigation,/Admin/);
+assert.doesNotMatch(navigation,/More|Timeline/);
 assert.doesNotMatch(navigation,/Status/);
 assert.doesNotMatch(navigation,/Today.*Month.*Year/s);
 assert.doesNotMatch(navigation,/Fleet|Reports|Analytics|GPS|OCR|Advisor/);
@@ -80,4 +84,4 @@ assert.match(loanDomain,/applyPrepayment/);
 assert.doesNotMatch(css,/Tax Reserve|tax reserve/i);
 
 console.log('Phase 6 UI shell contract: PASS');
-console.log('CurrentShell boundary, active Performance/Admin surfaces, wiped Work/Timeline presentation absence, settings actions, and underlying ERP contracts verified.');
+console.log('CurrentShell boundary, active Performance/Work/Admin surfaces, settings actions, Work operational state, and underlying ERP contracts verified.');
