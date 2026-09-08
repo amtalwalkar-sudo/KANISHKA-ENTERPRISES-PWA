@@ -65,6 +65,22 @@ export function createKfePresentationApi({ app = application, commandActions = a
     throw new TypeError('KFE work summary read model is unavailable.');
   };
 
+  const getCompletedShiftSummary = async (...args) => {
+    const model = await app.getPerformance(...args);
+    if (!model || typeof model.getCompletedShiftSummary !== 'function') {
+      throw new TypeError('KFE completed shift summary read model is unavailable.');
+    }
+    return model.getCompletedShiftSummary();
+  };
+
+  const getDailyOperationalReport = async (...args) => {
+    const model = await app.getPerformance(...args);
+    if (!model || typeof model.getDailyOperationalReport !== 'function') {
+      throw new TypeError('KFE daily operational report read model is unavailable.');
+    }
+    return model.getDailyOperationalReport();
+  };
+
   const read = {
     getPerformance: (...args) => app.getPerformance(...args),
     listFuel: (...args) => app.listFuel(...args),
@@ -75,6 +91,8 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getActiveTripDraft,
     getActiveShift,
     getWorkSummary,
+    getCompletedShiftSummary,
+    getDailyOperationalReport,
     latestWorkOdometer: (...args) => app.latestWorkOdometer(...args),
   };
 
@@ -142,6 +160,8 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getActiveTripDraft: read.getActiveTripDraft,
     getActiveShift: read.getActiveShift,
     getWorkSummary: read.getWorkSummary,
+    getCompletedShiftSummary: read.getCompletedShiftSummary,
+    getDailyOperationalReport: read.getDailyOperationalReport,
     latestWorkOdometer: read.latestWorkOdometer,
     ...commands,
   });
