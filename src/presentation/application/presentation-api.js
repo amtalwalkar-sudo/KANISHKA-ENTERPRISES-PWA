@@ -18,6 +18,29 @@ export function createKfePresentationApi({ app = application, commandActions = a
     throw new TypeError('KFE active shift read model is unavailable.');
   };
 
+  const getActiveTripDraft = async (...args) => {
+    const cached = app.activeTripDraft && typeof app.activeTripDraft.read === 'function'
+      ? await app.activeTripDraft.read(...args)
+      : null;
+    if (app.work && typeof app.work.currentContext === 'function') {
+      const context = await app.work.currentContext(...args);
+      const trip = context?.trip ?? null;
+      if (!trip) return null;
+      if (cached?.trip_id && cached.trip_id !== trip.id) return null;
+      return cached && cached.trip_id === trip.id
+        ? cached
+        : {
+            trip_id: trip.id,
+            trip_type: String(trip.trip_type || trip.scope || '').toUpperCase(),
+            shift_id: trip.shift_id ?? null,
+            business_date: trip.business_date ?? null,
+            start_odometer_km: Number(trip.start_odometer),
+            started_at: trip.started_at ?? null,
+          };
+    }
+    return cached;
+  };
+
   const startShift = (...args) => {
     if (app.work && typeof app.work.startShift === 'function') return app.work.startShift(...args);
     if (typeof app.startShift === 'function') return app.startShift(...args);
@@ -49,7 +72,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getLoanReadModel: (...args) => app.getLoanReadModel(...args),
     getSettings: (...args) => app.getSettings(...args),
     getWorkScreenState,
-    getActiveTripDraft: (...args) => app.activeTripDraft.read(...args),
+    getActiveTripDraft,
     getActiveShift,
     getWorkSummary,
     latestWorkOdometer: (...args) => app.latestWorkOdometer(...args),
