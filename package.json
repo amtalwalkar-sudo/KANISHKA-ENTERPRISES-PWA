@@ -47,7 +47,6 @@
     "validate:phase-5-expenses-application": "node js/testing/phase-5-expenses-application-boundary.mjs",
     "validate:phase-5-expenses-real-persistence": "node js/testing/phase-5-expenses-persistence-browser.mjs",
     "validate:phase-5-revenue-application": "node js/testing/phase-5-revenue-application-boundary.mjs",
-    "validate:phase-5-revenue-real-persistence": "node js/testing/phase-5-revenue-persistence-browser.mjs",
     "validate:phase-5-loans-application": "node js/testing/phase-5-loans-application-boundary.mjs",
     "validate:phase-5-loans-real-persistence": "node js/testing/phase-5-loans-persistence-browser.mjs",
     "validate:phase-5-renewals-compliance-application": "node js/testing/phase-5-renewals-compliance-application-boundary.mjs",
@@ -59,6 +58,7 @@
     "validate:phase-5-completion-integrity": "node js/testing/phase-5-completion-integrity.mjs",
     "validate:phase-6-ui-shell": "node js/testing/phase-6-ui-shell-contract.mjs",
     "validate:phase-7-reliability": "node js/testing/phase-7-reliability-contract.mjs",
+    "validate:t08-persistence": "node js/testing/t08-persistence-alignment.mjs",
     "validate:e2e": "node js/testing/e2e-certification.mjs"
   },
   "dependencies": {
