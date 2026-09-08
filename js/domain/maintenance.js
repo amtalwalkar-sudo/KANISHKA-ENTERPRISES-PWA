@@ -32,6 +32,21 @@ export function maintenanceProgress(item,{odometer,at}){
   return {dimension,ratio:Math.min(1,consumedDays/life),remainingDays:Math.max(0,life-consumedDays)};
 }
 
+/**
+ * Allocate maintenance provision to business usage only.
+ * Personal kilometres are intentionally excluded from the business cost.
+ */
+export function allocateMaintenanceByBusinessKm(item,businessKm){
+  const dimension=maintenanceDimension(item);
+  if(dimension!=='KM')return result(null,DATA.INSUFFICIENT_DATA,[item.id]);
+  const km=Math.max(0,Number(businessKm));
+  if(!Number.isFinite(km))throw new RangeError('Business maintenance allocation KM must be finite');
+  const cost=paise(item.expected_cost_paise);
+  const life=Number(item.expected_km_life);
+  const allocation=Math.min(cost,Math.round((cost/life)*km));
+  return result(allocation,DATA.PROVISION,[item.id]);
+}
+
 export function provisionMaintenance(item,context){
   const p=maintenanceProgress(item,context);
   if(p.ratio==null)return result(null,DATA.UNKNOWN,[item.id]);
