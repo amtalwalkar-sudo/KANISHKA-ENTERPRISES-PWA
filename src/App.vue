@@ -8,11 +8,13 @@ import { kfePresentationApi } from './presentation/application/presentation-api.
 import PerformanceModuleView from './components/PerformanceModuleView.vue'
 import AdminModuleView from './components/AdminModuleView.vue'
 import ShiftWaitingCard from './presentation/ShiftWaitingCard.vue'
+import PersonalTripCard from './presentation/PersonalTripCard.vue'
 
 const activeModule = ref('Performance')
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
 const performanceModel = ref(null)
 const currentWorkState = ref(null)
+const personalTripMetrics = ref(null)
 
 function syncRoute() {
   const next = location.hash.slice(1)
@@ -27,17 +29,76 @@ async function loadPerformance() {
   }
 }
 
+async function refreshWorkState() {
+  const nextState = await kfePresentationApi.read.getWorkScreenState()
+  currentWorkState.value = nextState
+
+  if (nextState === 'PERSONAL_TRIP') {
+    const draft = await kfePresentationApi.read.getActiveTripDraft()
+    const startTimeEpochMs = Date.parse(String(draft?.started_at || ''))
+    personalTripMetrics.value = draft
+      ? {
+          startOdometer: draft.start_odometer_km,
+          startTimeEpochMs: Number.isFinite(startTimeEpochMs) ? startTimeEpochMs : null,
+        }
+      : null
+  } else {
+    personalTripMetrics.value = null
+  }
+}
+
 async function loadWorkState() {
   try {
-    currentWorkState.value = await kfePresentationApi.read.getWorkScreenState()
+    await refreshWorkState()
   } catch {
     currentWorkState.value = null
+    personalTripMetrics.value = null
   }
 }
 
 function handleStartShift() {}
 function handleStartBusinessTrip() {}
-function handleStartPersonalTrip() {}
+
+async function handleStartPersonalTrip() {
+  try {
+    const latest = await kfePresentationApi.read.latestWorkOdometer()
+    const odometer = Number(latest?.odometer)
+    if (!Number.isFinite(odometer) || odometer < 0) {
+      throw new Error('Authoritative start odometer is unavailable')
+    }
+
+    await kfePresentationApi.commands.startTrip({
+      trip_type: 'PERSONAL',
+      start_odometer_km: odometer,
+    })
+    await refreshWorkState()
+  } catch (error) {
+    console.error('Failed to start personal trip:', error)
+  }
+}
+
+async function handleEndPersonalTrip() {
+  try {
+    const [draft, latest] = await Promise.all([
+      kfePresentationApi.read.getActiveTripDraft(),
+      kfePresentationApi.read.latestWorkOdometer(),
+    ])
+    const endOdometer = Number(latest?.odometer)
+    if (!draft?.trip_id || !Number.isFinite(endOdometer) || endOdometer < 0) {
+      throw new Error('Active personal trip or authoritative end odometer is unavailable')
+    }
+
+    await kfePresentationApi.commands.endTrip({
+      trip_type: 'PERSONAL',
+      trip_id: draft.trip_id,
+      end_odometer_km: endOdometer,
+    })
+    await refreshWorkState()
+  } catch (error) {
+    console.error('Failed to end personal trip:', error)
+  }
+}
+
 function handleOnline() { online.value = true }
 function handleOffline() { online.value = false }
 
@@ -60,7 +121,7 @@ onUnmounted(() => {
 <template>
   <section
     class="kfe-workspace"
-    :class="{ 'work-stage': currentWorkState === 'SHIFT_WAITING' }"
+    :class="{ 'work-stage': currentWorkState === 'SHIFT_WAITING' || currentWorkState === 'PERSONAL_TRIP' }"
     aria-live="polite"
   >
     <ShiftWaitingCard
@@ -68,6 +129,12 @@ onUnmounted(() => {
       @start-shift="handleStartShift"
       @start-business-trip="handleStartBusinessTrip"
       @start-personal-trip="handleStartPersonalTrip"
+    />
+
+    <PersonalTripCard
+      v-else-if="currentWorkState === 'PERSONAL_TRIP'"
+      :trip-metrics="personalTripMetrics"
+      @end-personal-trip="handleEndPersonalTrip"
     />
 
     <template v-else>
