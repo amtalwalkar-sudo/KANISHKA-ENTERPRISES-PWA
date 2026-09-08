@@ -6,6 +6,7 @@ import {initializeResilience} from './core/resilience.js';
 import {createKfeApplication} from './application/kfe.js';
 import {createCommandDispatcher} from './application/command-dispatcher.js';
 import {dashboardReadModel,presentationError} from './application/read-models.js';
+import {createSyncEngine} from './infrastructure/sync-engine.js';
 
 const initialState={};
 export const repository=createRepository({initial:initialState});
@@ -18,15 +19,18 @@ const commandHandlers=Object.freeze({
 
 export const commandDispatcher=createCommandDispatcher(commandHandlers);
 installCrashBuffer();
-const noTransport=async()=>{throw new Error('No sync transport configured');};
-export const network=createNetworkManager({sendOutbox:noTransport,onStatus:online=>window.dispatchEvent(new CustomEvent('kfe:network',{detail:{online}}))});
+const syncTransport=typeof globalThis.__KFE_SYNC_TRANSPORT__==='function'?globalThis.__KFE_SYNC_TRANSPORT__:null;
+const syncReconcile=typeof globalThis.__KFE_SYNC_RECONCILE__==='function'?globalThis.__KFE_SYNC_RECONCILE__:async()=>{};
+export const syncEngine=createSyncEngine({send:syncTransport,reconcile:syncReconcile});
+export const network=createNetworkManager({dispatch:syncEngine.flush,onStatus:online=>window.dispatchEvent(new CustomEvent('kfe:network',{detail:{online}}))});
 export const actions=Object.freeze({dispatch:commandDispatcher});
 export const viewModels=Object.freeze({dashboard:dashboardReadModel,error:presentationError});
-const runtime={repository,state,application,commandDispatcher,network,actions,viewModels};
+const runtime={repository,state,application,commandDispatcher,network,syncEngine,actions,viewModels};
 window.__KFE_RUNTIME__=runtime;
 window.KFE_REPOSITORY=repository;
 window.KFE_NETWORK=network;
+window.KFE_SYNC_ENGINE=syncEngine;
 window.KFE_APPLICATION=application;
 window.KFE_VIEW_MODELS=viewModels;
-void initializeResilience({sendOutbox:noTransport});
+void initializeResilience({dispatch:syncEngine.flush});
 export function getRuntime(){return runtime;}
