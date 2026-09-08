@@ -6,8 +6,6 @@ const db={transaction(){const store={put(value){const request={onsuccess:null,on
 globalThis.indexedDB={open(){const request={result:db,onupgradeneeded:null,onsuccess:null,onerror:null,error:null};queueMicrotask(()=>request.onsuccess?.());return request;}};
 globalThis.navigator={onLine:true};
 
-a=undefined;
-await import('../core/outbox.js');
 const {queueOutbox}=await import('../core/outbox.js');
 await queueOutbox({id:'t09-1',queuedAt:'2026-01-01T00:00:00.000Z',deliveryKey:'delivery-1',type:'FIRST'});
 await queueOutbox({id:'t09-2',queuedAt:'2026-01-01T00:00:01.000Z',deliveryKey:'delivery-2',type:'SECOND'});
