@@ -312,6 +312,9 @@ onUnmounted(() => {
         :online="online"
         :performance="performanceModel"
       />
+      <div v-else-if="activeModule === 'Work'" class="work-route-anchor" aria-label="Work">
+        Work
+      </div>
       <AdminModuleView
         v-else-if="activeModule === 'Admin'"
         :application="kfePresentationApi"
@@ -328,6 +331,11 @@ onUnmounted(() => {
   min-height: 0;
   overflow: hidden;
   padding: 12px;
+}
+
+.work-route-anchor {
+  width: 100%;
+  height: 100%;
 }
 
 @media (max-width: 480px) {
