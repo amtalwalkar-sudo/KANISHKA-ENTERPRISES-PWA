@@ -10,6 +10,7 @@ import AdminModuleView from './components/AdminModuleView.vue'
 import ShiftWaitingCard from './presentation/ShiftWaitingCard.vue'
 import PersonalTripCard from './presentation/PersonalTripCard.vue'
 import BusinessTripCard from './presentation/BusinessTripCard.vue'
+import ShiftCard from './presentation/ShiftCard.vue'
 
 const activeModule = ref('Performance')
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
@@ -17,6 +18,7 @@ const performanceModel = ref(null)
 const currentWorkState = ref(null)
 const personalTripMetrics = ref(null)
 const businessTripMetrics = ref(null)
+const shiftMetrics = ref(null)
 
 function syncRoute() {
   const next = location.hash.slice(1)
@@ -35,7 +37,19 @@ async function refreshWorkState() {
   const nextState = await kfePresentationApi.read.getWorkScreenState()
   currentWorkState.value = nextState
 
-  if (nextState === 'PERSONAL_TRIP') {
+  if (nextState === 'SHIFT') {
+    const shift = await kfePresentationApi.read.getActiveShift()
+    const startedAtEpochMs = Date.parse(String(shift?.started_at || ''))
+    shiftMetrics.value = shift
+      ? {
+          shiftId: shift.id,
+          startOdometer: shift.start_odometer,
+          startedAtEpochMs: Number.isFinite(startedAtEpochMs) ? startedAtEpochMs : null,
+        }
+      : null
+    personalTripMetrics.value = null
+    businessTripMetrics.value = null
+  } else if (nextState === 'PERSONAL_TRIP') {
     const draft = await kfePresentationApi.read.getActiveTripDraft()
     const startTimeEpochMs = Date.parse(String(draft?.started_at || ''))
     personalTripMetrics.value = draft
@@ -44,6 +58,7 @@ async function refreshWorkState() {
           startTimeEpochMs: Number.isFinite(startTimeEpochMs) ? startTimeEpochMs : null,
         }
       : null
+    shiftMetrics.value = null
     businessTripMetrics.value = null
   } else if (nextState === 'BUSINESS_TRIP') {
     const draft = await kfePresentationApi.read.getActiveTripDraft()
@@ -54,8 +69,10 @@ async function refreshWorkState() {
           startTimeEpochMs: Number.isFinite(startTimeEpochMs) ? startTimeEpochMs : null,
         }
       : null
+    shiftMetrics.value = null
     personalTripMetrics.value = null
   } else {
+    shiftMetrics.value = null
     personalTripMetrics.value = null
     businessTripMetrics.value = null
   }
@@ -66,12 +83,28 @@ async function loadWorkState() {
     await refreshWorkState()
   } catch {
     currentWorkState.value = null
+    shiftMetrics.value = null
     personalTripMetrics.value = null
     businessTripMetrics.value = null
   }
 }
 
-function handleStartShift() {}
+async function handleStartShift() {
+  try {
+    const latest = await kfePresentationApi.read.latestWorkOdometer()
+    const odometer = Number(latest?.odometer)
+    if (!Number.isFinite(odometer) || odometer < 0) {
+      throw new Error('Authoritative start odometer is unavailable')
+    }
+
+    await kfePresentationApi.commands.startShift({
+      startOdometer: odometer,
+    })
+    await refreshWorkState()
+  } catch (error) {
+    console.error('Failed to start shift:', error)
+  }
+}
 
 async function handleStartBusinessTrip() {
   try {
@@ -106,6 +139,27 @@ async function handleStartPersonalTrip() {
     await refreshWorkState()
   } catch (error) {
     console.error('Failed to start personal trip:', error)
+  }
+}
+
+async function handleEndShift() {
+  try {
+    const [shift, latest] = await Promise.all([
+      kfePresentationApi.read.getActiveShift(),
+      kfePresentationApi.read.latestWorkOdometer(),
+    ])
+    const endOdometer = Number(latest?.odometer)
+    if (!shift?.id || !Number.isFinite(endOdometer) || endOdometer < 0) {
+      throw new Error('Active shift or authoritative end odometer is unavailable')
+    }
+
+    await kfePresentationApi.commands.endShift({
+      id: shift.id,
+      endOdometer,
+    })
+    await refreshWorkState()
+  } catch (error) {
+    console.error('Failed to end shift:', error)
   }
 }
 
@@ -175,7 +229,7 @@ onUnmounted(() => {
 <template>
   <section
     class="kfe-workspace"
-    :class="{ 'work-stage': currentWorkState === 'SHIFT_WAITING' || currentWorkState === 'PERSONAL_TRIP' || currentWorkState === 'BUSINESS_TRIP' }"
+    :class="{ 'work-stage': currentWorkState === 'SHIFT_WAITING' || currentWorkState === 'SHIFT' || currentWorkState === 'PERSONAL_TRIP' || currentWorkState === 'BUSINESS_TRIP' }"
     aria-live="polite"
   >
     <ShiftWaitingCard
@@ -183,6 +237,12 @@ onUnmounted(() => {
       @start-shift="handleStartShift"
       @start-business-trip="handleStartBusinessTrip"
       @start-personal-trip="handleStartPersonalTrip"
+    />
+
+    <ShiftCard
+      v-else-if="currentWorkState === 'SHIFT'"
+      :shift-metrics="shiftMetrics"
+      @end-shift="handleEndShift"
     />
 
     <PersonalTripCard
