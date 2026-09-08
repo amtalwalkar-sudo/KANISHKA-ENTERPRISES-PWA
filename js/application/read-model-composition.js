@@ -22,13 +22,13 @@ function maintenanceAllocation(maintenanceRows,businessKm){
 function tripDistance(row){const start=Number(row?.start_odometer),end=Number(row?.end_odometer);if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)return null;return end-start;}
 function continuity(previousEndOdometer,currentStartOdometer){const previous=Number(previousEndOdometer),current=Number(currentStartOdometer);if(!Number.isFinite(current)||!Number.isFinite(previous))return {deltaKm:null,continuityStatus:'GAP'};const delta=current-previous;if(delta===0)return {deltaKm:0,continuityStatus:'CONTINUOUS'};if(delta>0)return {deltaKm:delta,continuityStatus:'GAP'};return {deltaKm:delta,continuityStatus:'DISCREPANCY'};}
 function previousCompletedShift(shifts,currentStart){const current=Date.parse(String(currentStart||''));return shifts.filter(row=>row.scope==='BUSINESS'&&row.status==='COMPLETED'&&Number.isFinite(Number(row.end_odometer))&&Date.parse(String(row.ended_at||''))<current).sort((a,b)=>Date.parse(String(b.ended_at||''))-Date.parse(String(a.ended_at||'')))[0]||null;}
+function continuityForShift(previous,current){return continuity(previous?.end_odometer,current?.start_odometer);}
 function buildCompletedShiftSummary({shifts,trips,revenue,expenses,businessDate}){
  const completed=shifts.filter(row=>row.scope==='BUSINESS'&&row.business_date===businessDate&&row.status==='COMPLETED'&&!row.is_deleted).sort((a,b)=>Date.parse(String(b.ended_at||''))-Date.parse(String(a.ended_at||'')));
  const shift=completed[0]||null;
  if(!shift)return Object.freeze({version:PRESENTATION_READ_MODEL_VERSION,businessDate,shiftId:null,status:'UNAVAILABLE',startedAt:null,endedAt:null,activeDutySeconds:null,businessDistanceKm:null,personalDistanceKm:null,revenuePaise:null,expensePaise:null,previousEndOdometer:null,currentStartOdometer:null,deltaKm:null,continuityStatus:'GAP'});
  const businessTrips=trips.filter(row=>row.scope==='BUSINESS'&&row.shift_id===shift.id&&row.status==='COMPLETED'&&!row.is_deleted);
- const businessDistances=businessTrips.map(tripDistance).filter(value=>value!=null);
- const businessDistanceKm=businessDistances.reduce((sum,value)=>sum+value,0);
+ const businessDistanceKm=businessTrips.map(tripDistance).filter(value=>value!=null).reduce((sum,value)=>sum+value,0);
  const personalDistanceKm=trips.filter(row=>row.scope==='PERSONAL'&&row.status==='COMPLETED'&&!row.is_deleted&&dateOf(row)===businessDate).map(tripDistance).filter(value=>value!=null).reduce((sum,value)=>sum+value,0);
  const linkedRevenue=revenue.filter(row=>row.scope!=='PERSONAL'&&!row.is_deleted&&row.work_session_id===shift.id).reduce((sum,row)=>sum+amountOf(row),0);
  const linkedExpenses=expenses.filter(row=>row.scope!=='PERSONAL'&&!row.is_deleted&&row.work_session_id===shift.id).reduce((sum,row)=>sum+amountOf(row),0);
@@ -36,15 +36,12 @@ function buildCompletedShiftSummary({shifts,trips,revenue,expenses,businessDate}
  const continuity=continuityForShift(previous,shift);
  return Object.freeze({version:PRESENTATION_READ_MODEL_VERSION,businessDate,shiftId:shift.id,status:'COMPLETED',startedAt:shift.started_at??null,endedAt:shift.ended_at??null,activeDutySeconds:workSecondsOf(shift),businessDistanceKm,personalDistanceKm,revenuePaise:linkedRevenue,expensePaise:linkedExpenses,previousEndOdometer:previous?.end_odometer??null,currentStartOdometer:Number.isFinite(Number(shift.start_odometer))?Number(shift.start_odometer):null,...continuity});
 }
-function continuityForShift(previous,current){return continuity(previous?.end_odometer,current?.start_odometer);}
 function buildDailyOperationalReport({shifts,trips,revenue,expenses,fuel,maintenance,loanPayments,fixedExpenses,businessDate}){
  const completedShifts=shifts.filter(row=>row.scope==='BUSINESS'&&row.business_date===businessDate&&row.status==='COMPLETED'&&!row.is_deleted).sort((a,b)=>Date.parse(String(a.started_at||''))-Date.parse(String(b.started_at||'')));
  const businessTrips=trips.filter(row=>row.scope==='BUSINESS'&&dateOf(row)===businessDate&&row.status==='COMPLETED'&&!row.is_deleted);
  const personalTrips=trips.filter(row=>row.scope==='PERSONAL'&&dateOf(row)===businessDate&&row.status==='COMPLETED'&&!row.is_deleted);
- const businessDistances=businessTrips.map(tripDistance).filter(value=>value!=null);
- const personalDistances=personalTrips.map(tripDistance).filter(value=>value!=null);
- const businessDistanceKm=businessDistances.reduce((sum,value)=>sum+value,0);
- const personalDistanceKm=personalDistances.reduce((sum,value)=>sum+value,0);
+ const businessDistanceKm=businessTrips.map(tripDistance).filter(value=>value!=null).reduce((sum,value)=>sum+value,0);
+ const personalDistanceKm=personalTrips.map(tripDistance).filter(value=>value!=null).reduce((sum,value)=>sum+value,0);
  const activeDutySeconds=completedShifts.reduce((sum,row)=>sum+workSecondsOf(row),0);
  const revenuePaise=businessRows(revenue,businessDate).reduce((sum,row)=>sum+amountOf(row),0);
  const expensePaise=businessRows(expenses,businessDate).reduce((sum,row)=>sum+amountOf(row),0);
@@ -63,7 +60,7 @@ function buildDailyOperationalReport({shifts,trips,revenue,expenses,fuel,mainten
 }
 export async function performanceReadModel({repository,asOf=new Date().toISOString()}={}){
  const today=String(asOf).slice(0,10);
- const [revenue,expenses,fuel,work,maintenance,loanPayments,fixedExpenses]=await Promise.all([repository.entity('revenue_records').list(),repository.entity('expense_records').list(),repository.entity('fuel_records').list(),repository.entity('work_sessions').list(),repository.entity('maintenance_records').list(),repository.entity('loan_payments').list(),repository.entity('fixed_expenses').list()]);
+ const [revenue,expenses,fuel,work,trips,maintenance,loanPayments,fixedExpenses]=await Promise.all([repository.entity('revenue_records').list(),repository.entity('expense_records').list(),repository.entity('fuel_records').list(),repository.entity('work_sessions').list(),repository.entity('rides').list(),repository.entity('maintenance_records').list(),repository.entity('loan_payments').list(),repository.entity('fixed_expenses').list()]);
  const businessRevenue=businessRows(revenue,today),businessExpenses=businessRows(expenses,today),businessFuel=businessRows(fuel,today),businessWork=businessRows(work,today),businessMaintenance=maintenance.filter(r=>String(r.scope||'BUSINESS')==='BUSINESS'&&!r.is_deleted),businessLoanPayments=businessRows(loanPayments,today);
  const revenuePaise=businessRevenue.length?businessRevenue.reduce((s,r)=>s+amountOf(r),0):null;
  const expensePaise=businessExpenses.length?businessExpenses.reduce((s,r)=>s+amountOf(r),0):0;
@@ -85,8 +82,8 @@ export async function performanceReadModel({repository,asOf=new Date().toISOStri
  const workSeconds=businessWork.length?businessWork.reduce((s,r)=>s+workSecondsOf(r),0):null;
  const history=Array.from(new Set([...revenue,...expenses,...fuel,...work,...maintenance,...loanPayments].map(dateOf).filter(Boolean))).sort().reverse().slice(0,31).map(date=>({date,revenuePaise:revenue.filter(r=>dateOf(r)===date&&String(r.scope||'BUSINESS')==='BUSINESS').reduce((s,r)=>s+amountOf(r),0),businessKm:work.filter(r=>dateOf(r)===date&&String(r.scope||'BUSINESS')==='BUSINESS').reduce((s,r)=>s+Number(r.business_km||0),0)}));
  const confidence=confidenceState([...businessRevenue,...businessExpenses,...businessFuel,...businessWork,...businessMaintenance,...businessLoanPayments]);
- const completedShiftSummary=buildCompletedShiftSummary({shifts:work,trips:[],revenue,expenses,businessDate:today});
- const dailyOperationalReport=buildDailyOperationalReport({shifts:work,trips:[],revenue,expenses,fuel,maintenance,loanPayments,fixedExpenses,businessDate:today});
+ const completedShiftSummary=buildCompletedShiftSummary({shifts:work,trips,revenue,expenses,businessDate:today});
+ const dailyOperationalReport=buildDailyOperationalReport({shifts:work,trips,revenue,expenses,fuel,maintenance,loanPayments,fixedExpenses,businessDate:today});
  let brief='Today’s position is awaiting sufficient authoritative activity.';
  if(revenuePaise!=null&&runningCostPaise!=null&&businessKm!=null)brief=`${moneyText(revenuePaise)} earned, ${moneyText(runningCostPaise)} allocated operating cost, across ${businessKm.toFixed(1)} business KM.`;
  else if(revenuePaise!=null&&runningCostPaise!=null)brief=`${moneyText(revenuePaise)} earned with ${moneyText(runningCostPaise)} allocated operating cost today.`;
