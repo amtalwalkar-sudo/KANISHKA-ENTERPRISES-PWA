@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {rollingFuelCostPerKm,projectedFuelCostForKm} from '../domain/fuel.js';
-import {rolling7DayKm,odometerAnomalyWarning,recoverDanglingShifts,calculateWorkSession,businessDateFromShiftStart} from '../domain/work.js';
+import {rolling7DayKm,odometerAnomalyWarning,recoverDanglingShifts,calculateWorkSession,businessDateFromShiftStart,validateWorkOdometer,evaluateWorkOdometer} from '../domain/work.js';
+import {deriveWorkScreenState,WORK_SCREEN_STATES,calculateElapsedDuration} from '../domain/work-lifecycle.js';
 import {fixedExpensePerBusinessKm} from '../domain/expenses.js';
 import {maintenanceProgress,provisionMaintenance} from '../domain/maintenance.js';
 import {applyPrepayment,amortize} from '../domain/loans.js';
@@ -28,4 +29,44 @@ assert.equal(profitability(lossDay).value.aboveTakeHomeTargetPaise,-500000);
 assert.equal(evaluateAlerts({loanDueDays:2}).value[0].kind,'LOAN_EMI_DUE');
 assert.equal(odometerAnomalyWarning(0,1600).warning,true);
 assert.equal(recoverDanglingShifts([{id:'d',status:'OPEN',start_at:'2026-08-01T00:00:00.000Z',is_deleted:false}],'2026-08-02T17:00:00.000Z').length,1);
+
+const state=(context={})=>deriveWorkScreenState(context).state;
+assert.equal(state(),WORK_SCREEN_STATES.DAY_START);
+assert.equal(state({day:{id:'day-1',status:'OPEN'}}),WORK_SCREEN_STATES.SHIFT_WAITING);
+assert.equal(state({day:{id:'day-1',status:'OPEN'},shift:{id:'shift-1',status:'OPEN'}}),WORK_SCREEN_STATES.SHIFT);
+assert.equal(state({day:{id:'day-1',status:'OPEN'},shift:{id:'shift-1',status:'OPEN'},trip:{id:'trip-1',scope:'BUSINESS',status:'OPEN'}}),WORK_SCREEN_STATES.BUSINESS_TRIP);
+assert.equal(state({day:{id:'day-1',status:'OPEN'},trip:{id:'trip-1',scope:'PERSONAL',status:'OPEN'}}),WORK_SCREEN_STATES.PERSONAL_TRIP);
+assert.equal(state({day:{id:'day-1',status:'COMPLETED'}}),WORK_SCREEN_STATES.DAY_ENDED);
+
+assert.deepEqual(calculateElapsedDuration(0,0),{totalSeconds:0,hours:0,minutes:0,seconds:0,isValid:true});
+assert.equal(calculateElapsedDuration(0,999).totalSeconds,0);
+assert.equal(calculateElapsedDuration(0,1000).totalSeconds,1);
+assert.equal(calculateElapsedDuration(0,59000).seconds,59);
+assert.deepEqual(calculateElapsedDuration(0,60000),{totalSeconds:60,hours:0,minutes:1,seconds:0,isValid:true});
+assert.deepEqual(calculateElapsedDuration(0,3600000),{totalSeconds:3600,hours:1,minutes:0,seconds:0,isValid:true});
+assert.equal(calculateElapsedDuration(1000,0).isValid,false);
+assert.equal(calculateElapsedDuration(-1,0).isValid,false);
+assert.equal(calculateElapsedDuration('100',1000).isValid,false);
+assert.equal(calculateElapsedDuration(0,'1000').isValid,false);
+assert.equal(calculateElapsedDuration(0,NaN).isValid,false);
+assert.equal(calculateElapsedDuration(0,Infinity).isValid,false);
+
+assert.deepEqual(evaluateWorkOdometer(100,100),{isValid:true,delta:0,requiresConfirmation:false,code:'OK'});
+assert.deepEqual(evaluateWorkOdometer(101,100),{isValid:true,delta:1,requiresConfirmation:false,code:'OK'});
+assert.equal(evaluateWorkOdometer(1100,100).requiresConfirmation,false);
+assert.deepEqual(evaluateWorkOdometer(1100.1,100),{isValid:true,delta:1000.1,requiresConfirmation:true,code:'LARGE_DELTA_WARNING'});
+assert.equal(evaluateWorkOdometer(99,100).code,'DECREASING_ODOMETER');
+assert.equal(evaluateWorkOdometer(-1,100).code,'INVALID_NUMERIC_INPUT');
+assert.equal(evaluateWorkOdometer(100,-1).code,'INVALID_NUMERIC_INPUT');
+assert.equal(evaluateWorkOdometer('101',100).code,'INVALID_NUMERIC_INPUT');
+assert.equal(evaluateWorkOdometer(101,'100').code,'INVALID_NUMERIC_INPUT');
+assert.equal(evaluateWorkOdometer(NaN,100).code,'INVALID_NUMERIC_INPUT');
+assert.equal(evaluateWorkOdometer(101,100,Infinity).requiresConfirmation,false);
+assert.equal(evaluateWorkOdometer(1100,100,0).requiresConfirmation,false);
+assert.equal(evaluateWorkOdometer(1100.1,100,1000).requiresConfirmation,true);
+assert.throws(()=>validateWorkOdometer(99,100),/Odometer cannot decrease/);
+assert.throws(()=>validateWorkOdometer('101',100),/Invalid odometer/);
+assert.equal(validateWorkOdometer(101,100),true);
+assert.equal(validateWorkOdometer(101),true);
+
 console.log('KFE domain calculations: PASS');
