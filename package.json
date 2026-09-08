@@ -59,6 +59,7 @@
     "validate:phase-6-ui-shell": "node js/testing/phase-6-ui-shell-contract.mjs",
     "validate:phase-7-reliability": "node js/testing/phase-7-reliability-contract.mjs",
     "validate:t08-persistence": "node js/testing/t08-persistence-alignment.mjs",
+    "validate:t09-sync-engine": "node js/testing/t09-sync-engine.mjs",
     "validate:e2e": "node js/testing/e2e-certification.mjs"
   },
   "dependencies": {
