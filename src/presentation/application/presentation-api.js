@@ -3,12 +3,20 @@ import { application, actions } from '../../../js/app.js';
 export function createKfePresentationApi({ app = application, commandActions = actions } = {}) {
   if (!app || typeof app !== 'object') throw new TypeError('KFE application is required.');
 
+  const getWorkScreenState = (...args) => {
+    if (typeof app.getWorkScreenState === 'function') return app.getWorkScreenState(...args);
+    if (app.work && typeof app.work.getWorkScreenState === 'function') return app.work.getWorkScreenState(...args);
+    if (app.work && typeof app.work.state === 'function') return app.work.state(...args);
+    throw new TypeError('KFE work state read model is unavailable.');
+  };
+
   const read = {
     getPerformance: (...args) => app.getPerformance(...args),
     listFuel: (...args) => app.listFuel(...args),
     getAdminState: (...args) => app.getAdminState(...args),
     getLoanReadModel: (...args) => app.getLoanReadModel(...args),
     getSettings: (...args) => app.getSettings(...args),
+    getWorkScreenState,
   };
 
   const commands = {
@@ -66,6 +74,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getAdminState: read.getAdminState,
     getLoanReadModel: read.getLoanReadModel,
     getSettings: read.getSettings,
+    getWorkScreenState: read.getWorkScreenState,
     ...commands,
   });
 }
