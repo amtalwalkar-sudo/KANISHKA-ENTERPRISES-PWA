@@ -70,7 +70,7 @@ try{
   assert.ok((await page.locator('.work-stack').innerText()).includes('Business KM'));
   assert.ok((await page.locator('.work-stack').innerText()).includes('Personal KM'));
   await reloadWork();
-  await page.locator('.work-stack').waitFor({state:'visible'});
+  await workState('.work-summary-card');
   assert.equal(await page.locator('.day-end-card').count(),0);
   assert.ok((await page.locator('.work-stack').innerText()).includes('Business KM'));
 
