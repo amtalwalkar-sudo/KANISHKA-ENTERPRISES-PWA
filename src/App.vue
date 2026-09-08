@@ -27,7 +27,7 @@ const dailyOperationalReport = ref(null)
 
 function syncRoute() {
   const next = location.hash.slice(1)
-  activeModule.value = ['Performance', 'Admin'].includes(next) ? next : 'Performance'
+  activeModule.value = ['Performance', 'Work', 'Admin'].includes(next) ? next : 'Performance'
 }
 
 async function loadPerformance() {
