@@ -4,23 +4,23 @@ import App from '../../../../App.vue';
 import { kfePresentationApi } from '../../../application/presentation-api.js'
 
 const NAV = Object.freeze([
-  { id: 'Performance', label: 'Performance' },
   { id: 'Work', label: 'Work' },
+  { id: 'Performance', label: 'Performance' },
   { id: 'Admin', label: 'Admin' },
 ])
 
-const route = ref(location.hash.slice(1) || 'Performance')
+const route = ref(location.hash.slice(1) || 'Work')
 const menuOpen = ref(false)
 const busy = ref(false)
 const error = ref('')
 const fileInput = ref(null)
 
-const activeNav = computed(() => NAV.some((item) => item.id === route.value) ? route.value : 'Performance')
+const activeNav = computed(() => NAV.some((item) => item.id === route.value) ? route.value : 'Work')
 
-function syncRoute() { route.value = location.hash.slice(1) || 'Performance' }
+function syncRoute() { route.value = location.hash.slice(1) || 'Work' }
 function navigate(path) {
   menuOpen.value = false
-  const next = String(path || 'Performance')
+  const next = String(path || 'Work')
   if (location.hash.slice(1) === next) { syncRoute(); return }
   location.hash = next
 }
