@@ -148,8 +148,17 @@ jobs:
           current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           event_sha="${{ github.sha }}"
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then event_sha="$current_sha"; fi
-          if [[ -z "$current_sha" || -z "$event_sha" || "$current_sha" != "$event_sha" ]]; then
-            echo "STATE_MISMATCH: live=$current_sha event=$event_sha"
+          if [[ -z "$current_sha" || -z "$event_sha" ]]; then
+            echo "STATE_MISMATCH: missing live or event SHA"
+            exit 1
+          fi
+          if [[ "$current_sha" != "$event_sha" ]]; then
+            relation="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${event_sha}...${current_sha}" --jq '.status')"
+            if [[ "$relation" == "ahead" ]]; then
+              echo "KFE_RUN_SUPERSEDED: event=$event_sha live=$current_sha"
+              exit 0
+            fi
+            echo "STATE_MISMATCH: live=$current_sha event=$event_sha relation=$relation"
             exit 1
           fi
           echo "validated_sha=$current_sha" >> "$GITHUB_OUTPUT"
