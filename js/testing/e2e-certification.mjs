@@ -29,8 +29,6 @@ try{
   assert.equal(await page.locator('.kfe-swipe-bar').count(),0);
   assert.equal(await page.locator('[data-kfe-action]').count(),0);
 
-  await page.evaluate(async()=>{await window.__KFE_RUNTIME__.application.resetAllData()});
-  await reloadWork();
   await workState('.day-start-card');
   await page.getByRole('spinbutton',{name:'Start odometer'}).fill('100');
   await page.getByRole('button',{name:'Start Day'}).click();
@@ -68,7 +66,7 @@ try{
   await workState('.day-end-card');
   await page.getByRole('button',{name:'End Day'}).click();
   await workState('.work-operations');
-  assert.equal(await page.locator('.work-operations button',{hasText:'Record Odometer'}).count(),0);
+  assert.equal(await page.getByRole('button',{name:'Record Odometer'}).count(),0);
   assert.match(await page.locator('.work-stack').innerText(),'Business KM');
   assert.match(await page.locator('.work-stack').innerText(),'Personal KM');
   await reloadWork();
