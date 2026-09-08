@@ -41,8 +41,23 @@ window.KFE_VUE_RUNTIME = Object.freeze({
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js').catch((error) => {
-      window.__KFE_SERVICE_WORKER_ERROR__ = String(error?.message || error || 'Service worker registration failed');
+    navigator.serviceWorker
+      .register('./service-worker.js')
+      .then(registration => {
+        // Explicitly check for an updated Service Worker on page load
+        registration.update().catch(() => {});
+      })
+      .catch(error => {
+        console.warn('SW registration failed:', error);
+      });
+
+    // Automatically reload the page when the new Service Worker claims control
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
     });
   }, { once: true });
 }
