@@ -5,6 +5,7 @@ import { kfePresentationApi } from '../../../application/presentation-api.js'
 
 const NAV = Object.freeze([
   { id: 'Performance', label: 'Performance' },
+  { id: 'Work', label: 'Work' },
   { id: 'Admin', label: 'Admin' },
 ])
 
@@ -30,8 +31,8 @@ async function backup() {
     const payload = await kfePresentationApi.exportBackup()
     const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url; anchor.download = `kfe-backup-${new Date().toISOString().slice(0, 10)}.json`; anchor.click()
+    const anchor = document.createElement('a'); anchor.href = url
+    anchor.download = `kfe-backup-${new Date().toISOString().slice(0, 10)}.json`; anchor.click()
     URL.revokeObjectURL(url); menuOpen.value = false
   } catch (e) { error.value = `Backup failed: ${String(e?.message || e)}` }
   finally { busy.value = false }
