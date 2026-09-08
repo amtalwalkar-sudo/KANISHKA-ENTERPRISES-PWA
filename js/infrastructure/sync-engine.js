@@ -40,8 +40,16 @@ export function createSyncEngine({send=null,reconcile=async()=>{},baseDelayMs=DE
   let transport=send;
   let running=false;
   let flushPromise=null;
+  let retryTimer=null;
   let disposed=false;
   const onlineHandler=()=>{void flush();};
+
+  function scheduleRetry(attemptCount){
+    if(retryTimer!==null)clearTimeout(retryTimer);
+    const delay=Math.min(maxDelayMs,baseDelayMs*(2**Math.max(0,Math.min(30,attemptCount-1))));
+    if(disposed||!isOnline()||typeof transport!=='function')return;
+    retryTimer=setTimeout(()=>{retryTimer=null;void flush();},delay);
+  }
 
   async function dispatchUnlocked(){
     if(disposed||!isOnline())return {status:'OFFLINE',processed:0};
@@ -66,6 +74,7 @@ export function createSyncEngine({send=null,reconcile=async()=>{},baseDelayMs=DE
           nextRetryAt:retryAt(attemptCount,baseDelayMs,maxDelayMs),
           status:'PENDING'
         });
+        scheduleRetry(attemptCount);
         return {status:'RETRY_SCHEDULED',processed,failedId:entry.id,attemptCount};
       }
     }
@@ -103,6 +112,7 @@ export function createSyncEngine({send=null,reconcile=async()=>{},baseDelayMs=DE
   function stop(){
     if(disposed)return;
     disposed=true;
+    if(retryTimer!==null)clearTimeout(retryTimer);
     window.removeEventListener('online',onlineHandler);
   }
 
