@@ -254,7 +254,7 @@ onUnmounted(() => {
     aria-live="polite"
   >
     <ShiftWaitingCard
-      v-if="currentWorkState === 'SHIFT_WAITING' && !dayEndSummary"
+      v-if="currentWorkState === 'SHIFT_WAITING' && !dayEndSummary?.shiftId"
       @start-shift="handleStartShift"
       @start-business-trip="handleStartBusinessTrip"
       @start-personal-trip="handleStartPersonalTrip"
