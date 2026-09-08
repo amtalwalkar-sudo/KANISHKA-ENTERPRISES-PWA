@@ -46,7 +46,11 @@ async function refreshWorkState() {
     const shift = await kfePresentationApi.read.getActiveShift()
     const startedAtEpochMs = Date.parse(String(shift?.started_at || ''))
     shiftMetrics.value = shift
-      ? { shiftId: shift.id, startOdometer: shift.start_odometer, startedAtEpochMs: Number.isFinite(startedAtEpochMs) ? startedAtEpochMs : null }
+      ? {
+          shiftId: shift.id,
+          startOdometer: shift.start_odometer,
+          startedAtEpochMs: Number.isFinite(startedAtEpochMs) ? startedAtEpochMs : null,
+        }
       : null
     personalTripMetrics.value = null
     businessTripMetrics.value = null
@@ -57,7 +61,10 @@ async function refreshWorkState() {
     const draft = await kfePresentationApi.read.getActiveTripDraft()
     const startTimeEpochMs = Date.parse(String(draft?.started_at || ''))
     personalTripMetrics.value = draft
-      ? { startOdometer: draft.start_odometer_km, startTimeEpochMs: Number.isFinite(startTimeEpochMs) ? startTimeEpochMs : null }
+      ? {
+          startOdometer: draft.start_odometer_km,
+          startTimeEpochMs: Number.isFinite(startTimeEpochMs) ? startTimeEpochMs : null,
+        }
       : null
     shiftMetrics.value = null
     businessTripMetrics.value = null
@@ -68,7 +75,10 @@ async function refreshWorkState() {
     const draft = await kfePresentationApi.read.getActiveTripDraft()
     const startTimeEpochMs = Date.parse(String(draft?.started_at || ''))
     businessTripMetrics.value = draft
-      ? { startOdometer: draft.start_odometer_km, startTimeEpochMs: Number.isFinite(startTimeEpochMs) ? startTimeEpochMs : null }
+      ? {
+          startOdometer: draft.start_odometer_km,
+          startTimeEpochMs: Number.isFinite(startTimeEpochMs) ? startTimeEpochMs : null,
+        }
       : null
     shiftMetrics.value = null
     personalTripMetrics.value = null
@@ -110,67 +120,127 @@ async function handleStartShift() {
   try {
     const latest = await kfePresentationApi.read.latestWorkOdometer()
     const odometer = Number(latest?.odometer)
-    if (!Number.isFinite(odometer) || odometer < 0) throw new Error('Authoritative start odometer is unavailable')
-    await kfePresentationApi.commands.startShift({ startOdometer: odometer })
+    if (!Number.isFinite(odometer) || odometer < 0) {
+      throw new Error('Authoritative start odometer is unavailable')
+    }
+
+    await kfePresentationApi.commands.startShift({
+      startOdometer: odometer,
+    })
     await refreshWorkState()
-  } catch (error) { console.error('Failed to start shift:', error) }
+  } catch (error) {
+    console.error('Failed to start shift:', error)
+  }
 }
 
 async function handleStartBusinessTrip() {
   try {
     const latest = await kfePresentationApi.read.latestWorkOdometer()
     const odometer = Number(latest?.odometer)
-    if (!Number.isFinite(odometer) || odometer < 0) throw new Error('Authoritative start odometer is unavailable')
-    await kfePresentationApi.commands.startTrip({ trip_type: 'BUSINESS', start_odometer_km: odometer })
+    if (!Number.isFinite(odometer) || odometer < 0) {
+      throw new Error('Authoritative start odometer is unavailable')
+    }
+
+    await kfePresentationApi.commands.startTrip({
+      trip_type: 'BUSINESS',
+      start_odometer_km: odometer,
+    })
     await refreshWorkState()
-  } catch (error) { console.error('Failed to start business trip:', error) }
+  } catch (error) {
+    console.error('Failed to start business trip:', error)
+  }
 }
 
 async function handleStartPersonalTrip() {
   try {
     const latest = await kfePresentationApi.read.latestWorkOdometer()
     const odometer = Number(latest?.odometer)
-    if (!Number.isFinite(odometer) || odometer < 0) throw new Error('Authoritative start odometer is unavailable')
-    await kfePresentationApi.commands.startTrip({ trip_type: 'PERSONAL', start_odometer_km: odometer })
+    if (!Number.isFinite(odometer) || odometer < 0) {
+      throw new Error('Authoritative start odometer is unavailable')
+    }
+
+    await kfePresentationApi.commands.startTrip({
+      trip_type: 'PERSONAL',
+      start_odometer_km: odometer,
+    })
     await refreshWorkState()
-  } catch (error) { console.error('Failed to start personal trip:', error) }
+  } catch (error) {
+    console.error('Failed to start personal trip:', error)
+  }
 }
 
 async function handleEndShift() {
   try {
-    const [shift, latest] = await Promise.all([kfePresentationApi.read.getActiveShift(), kfePresentationApi.read.latestWorkOdometer()])
+    const [shift, latest] = await Promise.all([
+      kfePresentationApi.read.getActiveShift(),
+      kfePresentationApi.read.latestWorkOdometer(),
+    ])
     const endOdometer = Number(latest?.odometer)
-    if (!shift?.id || !Number.isFinite(endOdometer) || endOdometer < 0) throw new Error('Active shift or authoritative end odometer is unavailable')
-    await kfePresentationApi.commands.endShift({ id: shift.id, endOdometer })
+    if (!shift?.id || !Number.isFinite(endOdometer) || endOdometer < 0) {
+      throw new Error('Active shift or authoritative end odometer is unavailable')
+    }
+
+    await kfePresentationApi.commands.endShift({
+      id: shift.id,
+      endOdometer,
+    })
     await refreshWorkState()
-  } catch (error) { console.error('Failed to end shift:', error) }
+  } catch (error) {
+    console.error('Failed to end shift:', error)
+  }
 }
 
 async function handleEndBusinessTrip() {
   try {
-    const [draft, latest] = await Promise.all([kfePresentationApi.read.getActiveTripDraft(), kfePresentationApi.read.latestWorkOdometer()])
+    const [draft, latest] = await Promise.all([
+      kfePresentationApi.read.getActiveTripDraft(),
+      kfePresentationApi.read.latestWorkOdometer(),
+    ])
     const endOdometer = Number(latest?.odometer)
-    if (!draft?.trip_id || !Number.isFinite(endOdometer) || endOdometer < 0) throw new Error('Active business trip or authoritative end odometer is unavailable')
-    await kfePresentationApi.commands.endTrip({ trip_type: 'BUSINESS', trip_id: draft.trip_id, end_odometer_km: endOdometer })
+    if (!draft?.trip_id || !Number.isFinite(endOdometer) || endOdometer < 0) {
+      throw new Error('Active business trip or authoritative end odometer is unavailable')
+    }
+
+    await kfePresentationApi.commands.endTrip({
+      trip_type: 'BUSINESS',
+      trip_id: draft.trip_id,
+      end_odometer_km: endOdometer,
+    })
     await refreshWorkState()
-  } catch (error) { console.error('Failed to end business trip:', error) }
+  } catch (error) {
+    console.error('Failed to end business trip:', error)
+  }
 }
 
 async function handleEndPersonalTrip() {
   try {
-    const [draft, latest] = await Promise.all([kfePresentationApi.read.getActiveTripDraft(), kfePresentationApi.read.latestWorkOdometer()])
+    const [draft, latest] = await Promise.all([
+      kfePresentationApi.read.getActiveTripDraft(),
+      kfePresentationApi.read.latestWorkOdometer(),
+    ])
     const endOdometer = Number(latest?.odometer)
-    if (!draft?.trip_id || !Number.isFinite(endOdometer) || endOdometer < 0) throw new Error('Active personal trip or authoritative end odometer is unavailable')
-    await kfePresentationApi.commands.endTrip({ trip_type: 'PERSONAL', trip_id: draft.trip_id, end_odometer_km: endOdometer })
+    if (!draft?.trip_id || !Number.isFinite(endOdometer) || endOdometer < 0) {
+      throw new Error('Active personal trip or authoritative end odometer is unavailable')
+    }
+
+    await kfePresentationApi.commands.endTrip({
+      trip_type: 'PERSONAL',
+      trip_id: draft.trip_id,
+      end_odometer_km: endOdometer,
+    })
     await refreshWorkState()
-  } catch (error) { console.error('Failed to end personal trip:', error) }
+  } catch (error) {
+    console.error('Failed to end personal trip:', error)
+  }
 }
 
 async function handleEndDay() {
   try {
     await kfePresentationApi.commands.endDay()
     await refreshWorkState()
-  } catch (error) { console.error('Failed to end day:', error) }
+  } catch (error) {
+    console.error('Failed to end day:', error)
+  }
 }
 
 function handleOnline() { online.value = true }
@@ -206,9 +276,9 @@ onUnmounted(() => {
     />
 
     <DayEndCard
-      v-else-if="currentWorkState === 'SHIFT_WAITING' || currentWorkState === 'DAY_ENDED'"
+      v-else-if="currentWorkState === 'SHIFT_WAITING'"
       :summary="dayEndSummary"
-      :day-ended="currentWorkState === 'DAY_ENDED'"
+      :day-ended="false"
       @end-day="handleEndDay"
     />
 
