@@ -41,7 +41,7 @@ window.KFE_VUE_RUNTIME = Object.freeze({
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=20260905').catch((error) => {
+    navigator.serviceWorker.register('./service-worker.js').catch((error) => {
       window.__KFE_SERVICE_WORKER_ERROR__ = String(error?.message || error || 'Service worker registration failed');
     });
   }, { once: true });
