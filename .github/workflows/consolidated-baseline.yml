@@ -249,6 +249,7 @@ jobs:
         run: |
           npm run validate:phase-k
           npm run validate:t08-persistence
+          npm run validate:t09-sync-engine
       - name: UI shell contracts
         if: ${{ steps.state.outputs.superseded != 'true' }}
         run: |
@@ -378,10 +379,3 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-      - name: Deploy GitHub Pages
-        if: ${{ steps.state.outputs.superseded != 'true' }}
-        id: deployment
-        uses: actions/deploy-pages@v4
-      - name: Report production URL
-        if: ${{ steps.state.outputs.superseded != 'true' }}
-        run: echo "KFE_PRODUCTION_URL=${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
