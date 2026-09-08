@@ -35,6 +35,7 @@ function calculatePrepayment(){
  const balance=Number(loan.remaining_balance_paise??loan.remainingBalancePaise??0)
  const requested=Number(prepayment.value||0)
  if(!Number.isInteger(balance)||balance<0||!Number.isInteger(requested)||requested<0){prepaymentResult.value=null;return}
- prepaymentResult.value=props.application.commands.applyPrepayment(balance,requested)
+ const result=props.application.commands.applyPrepayment(balance,requested)
+ prepaymentResult.value=result?.value??null
 }
 </script>
