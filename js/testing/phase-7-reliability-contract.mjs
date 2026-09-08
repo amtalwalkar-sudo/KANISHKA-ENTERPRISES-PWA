@@ -52,7 +52,7 @@ assert.equal(isValidDecimalInput('123.456'), false);
 // ---------------------------------------------------------------------------
 assert.match(shell, /Performance/);
 assert.match(shell, /Admin/);
-assert.doesNotMatch(shell, /Timeline.*Admin/s);
+assert.doesNotMatch(shell, /Work.*Performance.*Timeline.*Admin/s);
 assert.equal((shell.match(/\{ id: 'Performance'/g) || []).length, 1);
 assert.equal((shell.match(/\{ id: 'Admin'/g) || []).length, 1);
 assert.match(shell, /Settings/);
@@ -101,8 +101,14 @@ assert.equal(validateScreenMetadata(metadata, KFE_SCREEN_METADATA_RULES), true);
 // 6. Conflict-resolution contract
 // ---------------------------------------------------------------------------
 assert.ok(CONFLICT_STATES);
-const conflict = createConflictState({ localVersion: 1, remoteVersion: 2 });
-assert.equal(reviewConflict(conflict).state, conflict.state);
-assert.ok(resolveConflict(conflict));
+const conflict = createConflictState({
+  entityType: 'WorkSession',
+  entityId: 'phase-7-test',
+  local: { version: 1 },
+  remote: { version: 2 },
+});
+const reviewedConflict = reviewConflict(conflict);
+assert.equal(reviewedConflict.state, CONFLICT_STATES.REVIEW);
+assert.ok(resolveConflict(reviewedConflict, { strategy: 'remote' }));
 
 console.log('Phase 7 reliability contract: PASS');
