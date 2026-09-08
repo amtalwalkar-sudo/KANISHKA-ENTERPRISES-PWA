@@ -66,6 +66,7 @@ try{
   await workState('.day-end-card');
   await page.getByRole('button',{name:'End Day'}).click();
   await workState('.work-operations');
+  await workState('.work-summary-card');
   assert.equal(await page.getByRole('button',{name:'Record Odometer'}).count(),0);
   assert.ok((await page.locator('.work-stack').innerText()).includes('Business KM'));
   assert.ok((await page.locator('.work-stack').innerText()).includes('Personal KM'));
