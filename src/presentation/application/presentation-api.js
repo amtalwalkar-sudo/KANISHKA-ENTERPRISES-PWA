@@ -30,6 +30,18 @@ export function createKfePresentationApi({ app = application, commandActions = a
     throw new TypeError('KFE shift end command is unavailable.');
   };
 
+  const endDay = (...args) => {
+    if (app.work && typeof app.work.endDay === 'function') return app.work.endDay(...args);
+    if (typeof app.endDay === 'function') return app.endDay(...args);
+    throw new TypeError('KFE day end command is unavailable.');
+  };
+
+  const getWorkSummary = (...args) => {
+    if (app.work && typeof app.work.workSummary === 'function') return app.work.workSummary(...args);
+    if (typeof app.workSummary === 'function') return app.workSummary(...args);
+    throw new TypeError('KFE work summary read model is unavailable.');
+  };
+
   const read = {
     getPerformance: (...args) => app.getPerformance(...args),
     listFuel: (...args) => app.listFuel(...args),
@@ -39,6 +51,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getWorkScreenState,
     getActiveTripDraft: (...args) => app.activeTripDraft.read(...args),
     getActiveShift,
+    getWorkSummary,
     latestWorkOdometer: (...args) => app.latestWorkOdometer(...args),
   };
 
@@ -63,6 +76,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     endTrip: (...args) => app.endTrip(...args),
     startShift,
     endShift,
+    endDay,
   };
 
   const administrator = Object.freeze({
@@ -104,6 +118,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getWorkScreenState: read.getWorkScreenState,
     getActiveTripDraft: read.getActiveTripDraft,
     getActiveShift: read.getActiveShift,
+    getWorkSummary: read.getWorkSummary,
     latestWorkOdometer: read.latestWorkOdometer,
     ...commands,
   });
