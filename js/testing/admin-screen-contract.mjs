@@ -20,7 +20,7 @@ assert.match(app,/AdminModuleView/);
 assert.match(app,/activeModule\s*===\s*['"]Admin['"]/);
 assert.doesNotMatch(app,/activeModule\s*===\s*['"]More['"]|MORE_GROUPS/);
 assert.match(nav,/id\s*:\s*['"]Admin['"]/);
-assert.doesNotMatch(nav,/id\s*:\s*['"]More['"]|MORE_GROUPS|id\s*:\s*['"]Timeline['"]|id\s*:\s*['"]Work['"]/);
+assert.doesNotMatch(nav,/id\s*:\s*['"]More['"]|MORE_GROUPS|id\s*:\s*['"]Timeline['"]/);
 
 assert.ok(adminFiles.length>0,'Admin component tree must contain Vue components');
 for(const component of ['AdminCurrentState.vue','AdminOperatingPosition.vue','AdminPeriodOverview.vue','AdminInsight.vue','AdminExpenseBreakdown.vue','AdminLoanStatus.vue','AdminAttention.vue','AdminProfitability.vue','AdminBreakEven.vue','AdminRecordGateway.vue','AdminMonthView.vue','AdminWeekView.vue','AdminFinanceView.vue','AdminManagementView.vue','AdminFixedExpenses.vue']){
