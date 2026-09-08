@@ -10,6 +10,26 @@ export function createKfePresentationApi({ app = application, commandActions = a
     throw new TypeError('KFE work state read model is unavailable.');
   };
 
+  const getActiveShift = async (...args) => {
+    if (app.work && typeof app.work.currentContext === 'function') {
+      const context = await app.work.currentContext(...args);
+      return context?.shift ?? null;
+    }
+    throw new TypeError('KFE active shift read model is unavailable.');
+  };
+
+  const startShift = (...args) => {
+    if (app.work && typeof app.work.startShift === 'function') return app.work.startShift(...args);
+    if (typeof app.startShift === 'function') return app.startShift(...args);
+    throw new TypeError('KFE shift start command is unavailable.');
+  };
+
+  const endShift = (...args) => {
+    if (app.work && typeof app.work.endShift === 'function') return app.work.endShift(...args);
+    if (typeof app.endShift === 'function') return app.endShift(...args);
+    throw new TypeError('KFE shift end command is unavailable.');
+  };
+
   const read = {
     getPerformance: (...args) => app.getPerformance(...args),
     listFuel: (...args) => app.listFuel(...args),
@@ -18,6 +38,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getSettings: (...args) => app.getSettings(...args),
     getWorkScreenState,
     getActiveTripDraft: (...args) => app.activeTripDraft.read(...args),
+    getActiveShift,
     latestWorkOdometer: (...args) => app.latestWorkOdometer(...args),
   };
 
@@ -40,6 +61,8 @@ export function createKfePresentationApi({ app = application, commandActions = a
     saveHistoricalCorrection: (...args) => app.saveHistoricalCorrection(...args),
     startTrip: (...args) => app.startTrip(...args),
     endTrip: (...args) => app.endTrip(...args),
+    startShift,
+    endShift,
   };
 
   const administrator = Object.freeze({
@@ -80,6 +103,7 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getSettings: read.getSettings,
     getWorkScreenState: read.getWorkScreenState,
     getActiveTripDraft: read.getActiveTripDraft,
+    getActiveShift: read.getActiveShift,
     latestWorkOdometer: read.latestWorkOdometer,
     ...commands,
   });
