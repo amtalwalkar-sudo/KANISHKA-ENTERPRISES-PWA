@@ -41,8 +41,7 @@ window.KFE_VUE_RUNTIME = Object.freeze({
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('./service-worker.js')
+    navigator.serviceWorker.register('./service-worker.js')
       .then(registration => {
         // Explicitly check for an updated Service Worker on page load
         registration.update().catch(() => {});
