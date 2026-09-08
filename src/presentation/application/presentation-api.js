@@ -17,6 +17,8 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getLoanReadModel: (...args) => app.getLoanReadModel(...args),
     getSettings: (...args) => app.getSettings(...args),
     getWorkScreenState,
+    getActiveTripDraft: (...args) => app.activeTripDraft.read(...args),
+    latestWorkOdometer: (...args) => app.latestWorkOdometer(...args),
   };
 
   const commands = {
@@ -36,6 +38,8 @@ export function createKfePresentationApi({ app = application, commandActions = a
     restoreBackup: (...args) => app.restoreBackup(...args),
     resetAllData: (...args) => app.resetAllData(...args),
     saveHistoricalCorrection: (...args) => app.saveHistoricalCorrection(...args),
+    startTrip: (...args) => app.startTrip(...args),
+    endTrip: (...args) => app.endTrip(...args),
   };
 
   const administrator = Object.freeze({
@@ -75,6 +79,8 @@ export function createKfePresentationApi({ app = application, commandActions = a
     getLoanReadModel: read.getLoanReadModel,
     getSettings: read.getSettings,
     getWorkScreenState: read.getWorkScreenState,
+    getActiveTripDraft: read.getActiveTripDraft,
+    latestWorkOdometer: read.latestWorkOdometer,
     ...commands,
   });
 }
