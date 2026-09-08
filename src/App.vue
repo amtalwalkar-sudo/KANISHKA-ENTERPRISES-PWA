@@ -44,26 +44,16 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="kfe-shell" data-framework="vue">
-    <main class="kfe-viewport">
-      <section class="kfe-workspace" aria-live="polite">
-        <PerformanceModuleView
-          v-if="activeModule === 'Performance'"
-          :online="online"
-          :performance="performanceModel"
-        />
-        <AdminModuleView
-          v-else-if="activeModule === 'Admin'"
-          :application="kfePresentationApi"
-          :online="online"
-        />
-      </section>
-    </main>
-  </div>
+  <section class="kfe-workspace" aria-live="polite">
+    <PerformanceModuleView
+      v-if="activeModule === 'Performance'"
+      :online="online"
+      :performance="performanceModel"
+    />
+    <AdminModuleView
+      v-else-if="activeModule === 'Admin'"
+      :application="kfePresentationApi"
+      :online="online"
+    />
+  </section>
 </template>
-
-<style scoped>
-.kfe-shell { min-height: 100%; height: 100%; }
-.kfe-viewport { min-height: 100%; height: 100%; }
-.kfe-workspace { width: 100%; min-height: 100%; height: 100%; }
-</style>
