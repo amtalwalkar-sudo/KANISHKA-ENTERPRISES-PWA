@@ -246,6 +246,7 @@ jobs:
           npm run validate:phase-5-dashboard-application
       - name: Real persistence checks
         run: |
+          npx playwright install --with-deps chromium
           npm run validate:phase-5-vehicle-real-persistence
           npm run validate:phase-5-fuel-real-persistence
           npm run validate:phase-5-expenses-real-persistence
