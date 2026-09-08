@@ -60,8 +60,8 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
 </script>
 
 <template>
-  <div class="app-shell" data-framework="vue">
-    <header class="tier-header" aria-label="KFE header">
+  <div class="app-shell driver-shell" data-framework="vue">
+    <header class="tier-header driver-header" aria-label="KFE header">
       <span class="app-title">KFE 2.0</span>
       <div id="target-tab" aria-label="Target placeholder">Target: Active</div>
       <button class="settings-button" type="button" aria-label="Settings" :aria-expanded="menuOpen" aria-controls="settings-menu" @click="toggleSettings"><span aria-hidden="true">☰</span></button>
@@ -75,10 +75,10 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
     <div class="tier-action-bar" aria-label="Quick actions">
       <button id="fuel-btn" type="button" aria-label="Fuel entry placeholder">Fuel</button>
     </div>
-    <main id="work-viewport" aria-label="KFE work viewport">
+    <main id="work-viewport" class="driver-content" aria-label="KFE work viewport">
       <App />
     </main>
-    <nav class="tier-bottom-nav" aria-label="Primary navigation">
+    <nav class="tier-bottom-nav quick-dock" aria-label="Primary navigation">
       <button v-for="item in NAV" :key="item.id" type="button" :class="{ active: activeNav === item.id }" :aria-current="activeNav === item.id ? 'page' : undefined" @click="navigate(item.id)">{{ item.label }}</button>
     </nav>
   </div>
