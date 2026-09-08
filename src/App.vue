@@ -266,6 +266,7 @@ onUnmounted(() => {
   <section
     class="kfe-workspace"
     :class="{ 'work-stage': activeModule === 'Work' }"
+    :aria-label="activeModule === 'Work' ? 'Work' : undefined"
     aria-live="polite"
   >
     <template v-if="activeModule === 'Work'">
