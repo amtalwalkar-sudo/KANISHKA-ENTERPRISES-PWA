@@ -265,46 +265,48 @@ onUnmounted(() => {
 <template>
   <section
     class="kfe-workspace"
-    :class="{ 'work-stage': currentWorkState === 'SHIFT_WAITING' || currentWorkState === 'SHIFT' || currentWorkState === 'PERSONAL_TRIP' || currentWorkState === 'BUSINESS_TRIP' || currentWorkState === 'DAY_ENDED' }"
+    :class="{ 'work-stage': activeModule === 'Work' }"
     aria-live="polite"
   >
-    <ShiftWaitingCard
-      v-if="currentWorkState === 'SHIFT_WAITING' && !dayEndSummary?.shiftId"
-      @start-shift="handleStartShift"
-      @start-business-trip="handleStartBusinessTrip"
-      @start-personal-trip="handleStartPersonalTrip"
-    />
+    <template v-if="activeModule === 'Work'">
+      <ShiftWaitingCard
+        v-if="currentWorkState === 'SHIFT_WAITING' && !dayEndSummary?.shiftId"
+        @start-shift="handleStartShift"
+        @start-business-trip="handleStartBusinessTrip"
+        @start-personal-trip="handleStartPersonalTrip"
+      />
 
-    <DayEndCard
-      v-else-if="currentWorkState === 'SHIFT_WAITING'"
-      :summary="dayEndSummary"
-      :day-ended="false"
-      @end-day="handleEndDay"
-    />
+      <DayEndCard
+        v-else-if="currentWorkState === 'SHIFT_WAITING'"
+        :summary="dayEndSummary"
+        :day-ended="false"
+        @end-day="handleEndDay"
+      />
 
-    <WorkSummaryCard
-      v-else-if="currentWorkState === 'DAY_ENDED'"
-      :shift-summary="completedShiftSummary"
-      :daily-report="dailyOperationalReport"
-    />
+      <WorkSummaryCard
+        v-else-if="currentWorkState === 'DAY_ENDED'"
+        :shift-summary="completedShiftSummary"
+        :daily-report="dailyOperationalReport"
+      />
 
-    <ShiftCard
-      v-else-if="currentWorkState === 'SHIFT'"
-      :shift-metrics="shiftMetrics"
-      @end-shift="handleEndShift"
-    />
+      <ShiftCard
+        v-else-if="currentWorkState === 'SHIFT'"
+        :shift-metrics="shiftMetrics"
+        @end-shift="handleEndShift"
+      />
 
-    <PersonalTripCard
-      v-else-if="currentWorkState === 'PERSONAL_TRIP'"
-      :trip-metrics="personalTripMetrics"
-      @end-personal-trip="handleEndPersonalTrip"
-    />
+      <PersonalTripCard
+        v-else-if="currentWorkState === 'PERSONAL_TRIP'"
+        :trip-metrics="personalTripMetrics"
+        @end-personal-trip="handleEndPersonalTrip"
+      />
 
-    <BusinessTripCard
-      v-else-if="currentWorkState === 'BUSINESS_TRIP'"
-      :trip-metrics="businessTripMetrics"
-      @end-business-trip="handleEndBusinessTrip"
-    />
+      <BusinessTripCard
+        v-else-if="currentWorkState === 'BUSINESS_TRIP'"
+        :trip-metrics="businessTripMetrics"
+        @end-business-trip="handleEndBusinessTrip"
+      />
+    </template>
 
     <template v-else>
       <PerformanceModuleView
@@ -312,9 +314,6 @@ onUnmounted(() => {
         :online="online"
         :performance="performanceModel"
       />
-      <div v-else-if="activeModule === 'Work'" class="work-route-anchor" aria-label="Work">
-        Work
-      </div>
       <AdminModuleView
         v-else-if="activeModule === 'Admin'"
         :application="kfePresentationApi"
@@ -331,11 +330,6 @@ onUnmounted(() => {
   min-height: 0;
   overflow: hidden;
   padding: 12px;
-}
-
-.work-route-anchor {
-  width: 100%;
-  height: 100%;
 }
 
 @media (max-width: 480px) {
