@@ -1,11 +1,11 @@
 import {flushOutbox} from './outbox.js';
 
-export function createNetworkManager({sendOutbox=async()=>{},onStatus=()=>{}}={}){
+export function createNetworkManager({sendOutbox=async()=>{},dispatch=null,onStatus=()=>{}}={}){
   let retrying=false;
   const flush=async()=>{
     if(!navigator.onLine||retrying)return;
     retrying=true;
-    try{await flushOutbox(sendOutbox);}finally{retrying=false;}
+    try{await (typeof dispatch==='function'?dispatch():flushOutbox(sendOutbox));}finally{retrying=false;}
   };
   const online=()=>{onStatus(true);void flush();};
   const offline=()=>onStatus(false);
