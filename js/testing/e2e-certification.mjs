@@ -15,11 +15,15 @@ async function route(name){
 
 try{
   await route('Performance');
-  assert.deepEqual(await page.locator('.quick-dock button').allTextContents(),['Performance','Admin']);
+  assert.deepEqual(await page.locator('.quick-dock button').allTextContents(),['Performance','Work','Admin']);
   assert.equal(await page.locator('.quick-dock button.active').textContent(),'Performance');
   assert.equal(await page.locator('.empty-module').count(),0);
   assert.equal(await page.locator('.kfe-swipe-bar').count(),0);
   assert.equal(await page.locator('[data-kfe-action]').count(),0);
+
+  await page.getByRole('button',{name:'Work',exact:true}).click();
+  await page.locator('[aria-label="Work"]').waitFor({state:'attached'});
+  assert.equal(await page.locator('.quick-dock button.active').textContent(),'Work');
 
   await page.getByRole('button',{name:'Settings'}).click();
   assert.deepEqual(await page.getByRole('menuitem').allTextContents(),['Backup','Restore','Data reset']);
@@ -43,5 +47,5 @@ try{
   });
   assert.deepEqual(result,{maintenance:true,compliance:true,expense:true,revenue:true,loan:true});
   assert.deepEqual(errors,[]);
-  console.log('PASS: current-shell browser certification, settings boundary, clean active presentation surfaces, Performance/Admin routing, and core financial application contracts');
+  console.log('PASS: current-shell browser certification, settings boundary, Performance/Work/Admin routing, Work navigation, and core financial application contracts');
 }finally{await context.close();await browser.close()}
