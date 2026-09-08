@@ -19,7 +19,7 @@ const loanRepository = read('js/application/loan-repository.js');
 
 // Current presentation boundary: CurrentShell owns the header, primary navigation,
 // settings actions, and single structural viewport. App.vue owns the module canvas.
-assert.match(shell,/Performance.*Work.*Admin/s);
+assert.match(shell,/Work.*Performance.*Admin/s);
 assert.match(shell,/Work/);
 assert.doesNotMatch(shell,/More|Timeline/);
 assert.match(shell,/Settings/);
@@ -48,6 +48,7 @@ assert.match(app,/activeModule === 'Performance'/);
 assert.match(app,/activeModule === 'Work'/);
 assert.match(app,/activeModule === 'Admin'/);
 assert.match(app,/currentWorkState/);
+assert.match(app,/activeModule = ref\('Work'\)/);
 assert.doesNotMatch(app,/activeModule === 'Timeline'/);
 assert.doesNotMatch(app,/class="empty-module"/);
 assert.doesNotMatch(app,/FuelForm/);
@@ -57,10 +58,11 @@ assert.doesNotMatch(app,/FuelQuickEntry|FuelQuickAction|Quick fuel/i);
 assert.doesNotMatch(app,/Tax Reserve|tax reserve/i);
 
 // Underlying navigation is the generic primary-destination boundary and now
-// matches the current shell's Performance/Work/Admin production navigation.
-assert.match(navigation,/Performance/);
+// matches the current shell's Work/Performance/Admin production navigation.
 assert.match(navigation,/Work/);
+assert.match(navigation,/Performance/);
 assert.match(navigation,/Admin/);
+assert.match(navigation,/Work.*Performance.*Admin/s);
 assert.doesNotMatch(navigation,/More|Timeline/);
 assert.doesNotMatch(navigation,/Status/);
 assert.doesNotMatch(navigation,/Today.*Month.*Year/s);
@@ -84,4 +86,4 @@ assert.match(loanDomain,/applyPrepayment/);
 assert.doesNotMatch(css,/Tax Reserve|tax reserve/i);
 
 console.log('Phase 6 UI shell contract: PASS');
-console.log('CurrentShell boundary, active Performance/Work/Admin surfaces, settings actions, Work operational state, and underlying ERP contracts verified.');
+console.log('CurrentShell boundary, active Work/Performance/Admin surfaces, settings actions, Work operational state, and underlying ERP contracts verified.');
