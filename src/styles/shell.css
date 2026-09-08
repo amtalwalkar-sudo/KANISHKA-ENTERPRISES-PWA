@@ -2,7 +2,7 @@
 
 *,*::before,*::after{box-sizing:border-box}
 html,body,#app,#vue-runtime{width:100%;min-height:100%;margin:0}
-body{overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body{overflow:hidden;-webkit-font-smoothing:antialiased}
 button,input,textarea,select{font:inherit}
 button,:where([role="button"]),:where(a){min-width:48px;min-height:48px}
 button{border:0;cursor:pointer}
@@ -76,3 +76,20 @@ button:focus-visible,:where([role="button"]):focus-visible,:where(a):focus-visib
     transition-duration:.01ms!important;
   }
 }
+
+/* T02: four-tier viewport shell. Existing component styling remains below this boundary. */
+.app-shell{display:flex;flex-direction:column;height:var(--shell-max-height,100dvh);width:100vw;max-width:100%;background:var(--kfe-ui-bg);color:var(--kfe-ui-text);overflow:hidden;box-sizing:border-box;padding-top:var(--safe-area-top);margin:0}
+.tier-header{height:var(--tier-header-height);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px;border-bottom:1px solid var(--kfe-ui-border);flex-shrink:0;box-sizing:border-box;background:var(--kfe-ui-surface);color:var(--kfe-ui-text)}
+.tier-action-bar{height:var(--tier-action-height);display:flex;align-items:center;justify-content:flex-start;padding:0 16px;border-bottom:1px solid var(--kfe-ui-border);flex-shrink:0;box-sizing:border-box;background:var(--kfe-ui-surface);color:var(--kfe-ui-text)}
+#work-viewport{flex:1;position:relative;min-height:0;overflow:hidden;display:flex;flex-direction:column;width:100%;box-sizing:border-box}
+.tier-bottom-nav{height:calc(var(--tier-nav-height) + var(--safe-area-bottom));padding:0 8px var(--safe-area-bottom);display:flex;align-items:center;justify-content:space-around;gap:4px;border-top:1px solid var(--kfe-ui-border);background:var(--kfe-ui-surface);color:var(--kfe-ui-text);flex-shrink:0;box-sizing:border-box}
+.tier-bottom-nav button{min-height:48px;flex:1;border-radius:12px;background:transparent;color:var(--kfe-muted-text);font-weight:800}
+.tier-bottom-nav button.active{background:var(--kfe-accent-soft);color:var(--kfe-accent)}
+.app-title{font-weight:950;letter-spacing:.04em;white-space:nowrap}
+.target-badge{display:inline-flex;align-items:center;min-height:32px;padding:4px 12px;border-radius:12px;background:var(--kfe-accent-soft);color:var(--kfe-accent);font-size:.875rem;font-weight:600;white-space:nowrap}
+#target-tab{display:inline-flex;align-items:center;min-height:32px;padding:4px 12px;border-radius:12px;background:var(--kfe-accent-soft);color:var(--kfe-accent);font-size:.875rem;font-weight:600;white-space:nowrap}
+#fuel-btn{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:8px;background:var(--kfe-warning);color:var(--kfe-ui-text);font-weight:700;border:0;cursor:pointer}
+#fuel-btn:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+#work-viewport>.kfe-workspace{width:100%;max-width:none;min-height:0;height:auto;flex:1;overflow:auto;padding:14px 12px 16px}
+#work-viewport>.kfe-workspace:has(> .kfe-module-view),#work-viewport>.kfe-workspace:has(> .kfe-admin){overflow-y:auto}
+@media(max-width:480px){.tier-header{padding-inline:12px}.tier-action-bar{padding-inline:12px}.target-badge,#target-tab{font-size:.78rem;padding-inline:9px}}
