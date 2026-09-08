@@ -46,7 +46,7 @@ try{
   await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});
   await reloadWork();
   await workState('.business-trip-card');
-  assert.match(await page.locator('.work-operations').innerText(),'130');
+  assert.ok((await page.locator('.work-operations').innerText()).includes('130'));
   await page.getByRole('button',{name:'End Business Trip'}).click();
   await workState('.shift-card');
 
@@ -67,12 +67,12 @@ try{
   await page.getByRole('button',{name:'End Day'}).click();
   await workState('.work-operations');
   assert.equal(await page.getByRole('button',{name:'Record Odometer'}).count(),0);
-  assert.match(await page.locator('.work-stack').innerText(),'Business KM');
-  assert.match(await page.locator('.work-stack').innerText(),'Personal KM');
+  assert.ok((await page.locator('.work-stack').innerText()).includes('Business KM'));
+  assert.ok((await page.locator('.work-stack').innerText()).includes('Personal KM'));
   await reloadWork();
   await page.locator('.work-stack').waitFor({state:'visible'});
   assert.equal(await page.locator('.day-end-card').count(),0);
-  assert.match(await page.locator('.work-stack').innerText(),'Business KM');
+  assert.ok((await page.locator('.work-stack').innerText()).includes('Business KM'));
 
   await clickPrimary('Performance');
   assert.equal(await page.locator('.quick-dock button.active').textContent(),'Performance');
