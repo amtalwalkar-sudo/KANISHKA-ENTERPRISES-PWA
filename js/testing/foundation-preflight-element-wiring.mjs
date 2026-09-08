@@ -27,10 +27,10 @@ assert(!app.includes('empty-module'), 'Temporary empty-module presentation fallb
 assert(!app.includes("'More'"), 'Obsolete More primary destination absent');
 assert(app.includes('activeModule'), 'App keeps a minimal module presentation boundary');
 assert(app.includes("import PerformanceModuleView from './components/PerformanceModuleView.vue'"), 'Performance presentation component is imported');
-assert(app.includes('activeModule === \'Performance\''), 'Performance presentation surface is wired');
+assert(/activeModule\s*===\s*['"]Performance['"]/.test(app), 'Performance presentation surface is wired');
 assert(app.includes("import AdminModuleView from './components/AdminModuleView.vue'"), 'Admin presentation component is imported');
-assert(app.includes('activeModule === \'Admin\''), 'Admin presentation surface is wired');
-assert(app.includes("activeModule === 'Work'"), 'Work presentation route is recognized');
+assert(/activeModule\s*===\s*['"]Admin['"]/.test(app), 'Admin presentation surface is wired');
+assert(/activeModule\s*===\s*['"]Work['"]/.test(app), 'Work presentation route is recognized');
 assert(app.includes('currentWorkState'), 'Work operational state is mounted by App');
 assert(!app.includes('KfeSettingsView'), 'Legacy full Settings presentation is not mounted by App');
 assert(!app.includes('handleSaveRequest'), 'Legacy App save-request wiring is absent');
