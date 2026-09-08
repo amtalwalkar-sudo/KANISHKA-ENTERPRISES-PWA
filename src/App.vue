@@ -14,7 +14,7 @@ import ShiftCard from './presentation/ShiftCard.vue'
 import DayEndCard from './presentation/DayEndCard.vue'
 import WorkSummaryCard from './presentation/WorkSummaryCard.vue'
 
-const activeModule = ref('Performance')
+const activeModule = ref('Work')
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
 const performanceModel = ref(null)
 const currentWorkState = ref(null)
@@ -27,7 +27,7 @@ const dailyOperationalReport = ref(null)
 
 function syncRoute() {
   const next = location.hash.slice(1)
-  activeModule.value = ['Performance', 'Work', 'Admin'].includes(next) ? next : 'Performance'
+  activeModule.value = ['Work', 'Performance', 'Admin'].includes(next) ? next : 'Work'
 }
 
 async function loadPerformance() {
