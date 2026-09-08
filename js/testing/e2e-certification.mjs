@@ -13,6 +13,13 @@ async function route(name){
   await page.locator('.driver-shell').waitFor({state:'visible',timeout:30000});
 }
 
+async function clickPrimary(name){
+  const button=page.locator('.quick-dock button').filter({hasText:name}).first();
+  await button.click();
+  await page.waitForFunction(expected=>location.hash.slice(1)===expected,name);
+  await page.locator('.quick-dock button.active').filter({hasText:name}).waitFor({state:'visible'});
+}
+
 try{
   await route('Work');
   assert.deepEqual(await page.locator('.quick-dock button').allTextContents(),['Work','Performance','Admin']);
@@ -21,11 +28,10 @@ try{
   assert.equal(await page.locator('.kfe-swipe-bar').count(),0);
   assert.equal(await page.locator('[data-kfe-action]').count(),0);
 
-  await page.getByRole('button',{name:'Performance',exact:true}).click();
-  await page.locator('.quick-dock button.active').waitFor({state:'visible'});
+  await clickPrimary('Performance');
   assert.equal(await page.locator('.quick-dock button.active').textContent(),'Performance');
 
-  await page.getByRole('button',{name:'Work',exact:true}).click();
+  await clickPrimary('Work');
   await page.locator('[aria-label="Work"]').waitFor({state:'attached'});
   assert.equal(await page.locator('.quick-dock button.active').textContent(),'Work');
 
