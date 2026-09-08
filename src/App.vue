@@ -11,6 +11,7 @@ import ShiftWaitingCard from './presentation/ShiftWaitingCard.vue'
 import PersonalTripCard from './presentation/PersonalTripCard.vue'
 import BusinessTripCard from './presentation/BusinessTripCard.vue'
 import ShiftCard from './presentation/ShiftCard.vue'
+import DayEndCard from './presentation/DayEndCard.vue'
 
 const activeModule = ref('Performance')
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
@@ -19,6 +20,7 @@ const currentWorkState = ref(null)
 const personalTripMetrics = ref(null)
 const businessTripMetrics = ref(null)
 const shiftMetrics = ref(null)
+const dayEndSummary = ref(null)
 
 function syncRoute() {
   const next = location.hash.slice(1)
@@ -49,6 +51,7 @@ async function refreshWorkState() {
       : null
     personalTripMetrics.value = null
     businessTripMetrics.value = null
+    dayEndSummary.value = null
   } else if (nextState === 'PERSONAL_TRIP') {
     const draft = await kfePresentationApi.read.getActiveTripDraft()
     const startTimeEpochMs = Date.parse(String(draft?.started_at || ''))
@@ -60,6 +63,7 @@ async function refreshWorkState() {
       : null
     shiftMetrics.value = null
     businessTripMetrics.value = null
+    dayEndSummary.value = null
   } else if (nextState === 'BUSINESS_TRIP') {
     const draft = await kfePresentationApi.read.getActiveTripDraft()
     const startTimeEpochMs = Date.parse(String(draft?.started_at || ''))
@@ -71,10 +75,17 @@ async function refreshWorkState() {
       : null
     shiftMetrics.value = null
     personalTripMetrics.value = null
+    dayEndSummary.value = null
+  } else if (nextState === 'SHIFT_WAITING' || nextState === 'DAY_ENDED') {
+    dayEndSummary.value = await kfePresentationApi.read.getWorkSummary()
+    shiftMetrics.value = null
+    personalTripMetrics.value = null
+    businessTripMetrics.value = null
   } else {
     shiftMetrics.value = null
     personalTripMetrics.value = null
     businessTripMetrics.value = null
+    dayEndSummary.value = null
   }
 }
 
@@ -86,6 +97,7 @@ async function loadWorkState() {
     shiftMetrics.value = null
     personalTripMetrics.value = null
     businessTripMetrics.value = null
+    dayEndSummary.value = null
   }
 }
 
@@ -207,6 +219,15 @@ async function handleEndPersonalTrip() {
   }
 }
 
+async function handleEndDay() {
+  try {
+    await kfePresentationApi.commands.endDay()
+    await refreshWorkState()
+  } catch (error) {
+    console.error('Failed to end day:', error)
+  }
+}
+
 function handleOnline() { online.value = true }
 function handleOffline() { online.value = false }
 
@@ -229,14 +250,21 @@ onUnmounted(() => {
 <template>
   <section
     class="kfe-workspace"
-    :class="{ 'work-stage': currentWorkState === 'SHIFT_WAITING' || currentWorkState === 'SHIFT' || currentWorkState === 'PERSONAL_TRIP' || currentWorkState === 'BUSINESS_TRIP' }"
+    :class="{ 'work-stage': currentWorkState === 'SHIFT_WAITING' || currentWorkState === 'SHIFT' || currentWorkState === 'PERSONAL_TRIP' || currentWorkState === 'BUSINESS_TRIP' || currentWorkState === 'DAY_ENDED' }"
     aria-live="polite"
   >
     <ShiftWaitingCard
-      v-if="currentWorkState === 'SHIFT_WAITING'"
+      v-if="currentWorkState === 'SHIFT_WAITING' && !dayEndSummary"
       @start-shift="handleStartShift"
       @start-business-trip="handleStartBusinessTrip"
       @start-personal-trip="handleStartPersonalTrip"
+    />
+
+    <DayEndCard
+      v-else-if="currentWorkState === 'SHIFT_WAITING' || currentWorkState === 'DAY_ENDED'"
+      :summary="dayEndSummary"
+      :day-ended="currentWorkState === 'DAY_ENDED'"
+      @end-day="handleEndDay"
     />
 
     <ShiftCard
