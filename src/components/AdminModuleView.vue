@@ -47,7 +47,7 @@ watch(()=>props.online,load);onMounted(load)
 <AdminPeriodOverview :month-label="month" :period="model.month" :money="money" />
 <AdminInsight :insight="model.insight" />
 <AdminExpenseBreakdown :expense-breakdown="expenseBreakdown" :period="model.month" :money="money" />
-<AdminLoanStatus :loan-model="loanModel" :money="money" />
+<AdminLoanStatus :loan-model="loanModel" :money="money" :application="application" />
 <AdminAttention :attention="model.attention" />
 <AdminProfitability :profitability="model.profitability" :money="money" :percent="percent" :status-text="statusText" />
 <AdminBreakEven :break-even="model.breakEven" :money="money" :status-text="statusText" />
