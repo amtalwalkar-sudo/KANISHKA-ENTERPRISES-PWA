@@ -221,7 +221,9 @@ jobs:
       - name: Administrator Vehicle/Driver foundation
         run: npm run validate:administrator-foundation
       - name: Persistence and recovery
-        run: npm run validate:phase-k
+        run: |
+          npm run validate:phase-k
+          npm run validate:t08-persistence
       - name: UI shell contracts
         run: |
           npm run validate:phase-1
