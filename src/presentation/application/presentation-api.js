@@ -63,11 +63,11 @@ export function createKfePresentationApi({ app = application, commandActions = a
     const type = String(payload.trip_type || payload.tripType || '').toUpperCase();
     if (type === 'BUSINESS' && typeof app.work?.currentContext === 'function' && typeof app.work?.startDay === 'function') {
       const context = await app.work.currentContext();
-      if (!context?.day) {
-        const odometer = Number(payload.start_odometer_km ?? payload.odometer);
-        if (!Number.isFinite(odometer) || odometer < 0) throw new RangeError('A valid start odometer is required');
-        await app.work.startDay({ odometer });
-      }
+      const odometer = Number(payload.start_odometer_km ?? payload.odometer);
+      if (!Number.isFinite(odometer) || odometer < 0) throw new RangeError('A valid start odometer is required');
+      if (!context?.day) await app.work.startDay({ odometer });
+      const afterDay = await app.work.currentContext();
+      if (!afterDay?.shift && typeof app.work.startShift === 'function') await app.work.startShift({ startOdometer: odometer });
     }
     return app.startTrip(...args);
   };
