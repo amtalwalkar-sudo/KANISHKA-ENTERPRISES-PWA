@@ -47,37 +47,48 @@ async function swipeStartDay(){
   await attachSwipeEventProbes();
   try{
     const result=await page.evaluate(()=>{
-      const thumb=document.querySelector('.swipe-bar__thumb');
-      const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
-      if(!thumb||!track)throw new Error('SwipeBar elements not found');
-      const trackRect=track.getBoundingClientRect();
-      const thumbRect=thumb.getBoundingClientRect();
-      const startX=thumbRect.left+(thumbRect.width/2);
-      const endX=trackRect.left+(trackRect.width*.95);
-      const startY=thumbRect.top+(thumbRect.height/2);
-      const delta=endX-startX;
-      const required=trackRect.width*.8;
-      if(delta<=required)throw new Error(`SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
-      const eventInit={bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',isPrimary:true,clientY:startY,button:0};
-      console.log(`[E2E DIRECT POINTER] geometry startX=${startX.toFixed(2)} startY=${startY.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackRect.width.toFixed(2)} required80=${required.toFixed(2)}`);
-      console.log('[E2E DIRECT POINTER] dispatch pointerdown directly on thumb');
-      thumb.dispatchEvent(new PointerEvent('pointerdown',{...eventInit,clientX:startX,buttons:1}));
-      const steps=10;
-      for(let i=1;i<=steps;i++){
-        const currentX=startX+(endX-startX)*(i/steps);
-        thumb.dispatchEvent(new PointerEvent('pointermove',{...eventInit,clientX:currentX,buttons:1}));
+      const originalSetCapture=Element.prototype.setPointerCapture;
+      const originalReleaseCapture=Element.prototype.releasePointerCapture;
+      Element.prototype.setPointerCapture=function(id){try{originalSetCapture.call(this,id)}catch(_){}};
+      Element.prototype.releasePointerCapture=function(id){try{originalReleaseCapture.call(this,id)}catch(_){}};
+      try{
+        const thumb=document.querySelector('.swipe-bar__thumb');
+        const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
+        const slider=track?.querySelector('[role="slider"]');
+        if(!thumb||!track)throw new Error('SwipeBar elements not found');
+        const trackRect=track.getBoundingClientRect();
+        const thumbRect=thumb.getBoundingClientRect();
+        const startX=thumbRect.left+(thumbRect.width/2);
+        const endX=trackRect.left+(trackRect.width*.95);
+        const startY=thumbRect.top+(thumbRect.height/2);
+        const delta=endX-startX;
+        const required=trackRect.width*.8;
+        if(delta<=required)throw new Error(`SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
+        const eventInit={bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',isPrimary:true,clientY:startY,button:0};
+        console.log(`[E2E DIRECT POINTER] geometry startX=${startX.toFixed(2)} startY=${startY.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackRect.width.toFixed(2)} required80=${required.toFixed(2)}`);
+        console.log('[E2E DIRECT POINTER] dispatch pointerdown directly on thumb');
+        thumb.dispatchEvent(new PointerEvent('pointerdown',{...eventInit,clientX:startX,buttons:1}));
+        const steps=15;
+        for(let i=1;i<=steps;i++){
+          const currentX=startX+(endX-startX)*(i/steps);
+          thumb.dispatchEvent(new PointerEvent('pointermove',{...eventInit,clientX:currentX,buttons:1}));
+        }
+        console.log(`[E2E DIRECT POINTER] dispatch pointerup directly on thumb at x=${endX.toFixed(2)}`);
+        thumb.dispatchEvent(new PointerEvent('pointerup',{...eventInit,clientX:endX,buttons:0}));
+        return {startX,startY,endX,delta,required,ariaValueNow:slider?.getAttribute('aria-valuenow')||null};
+      }finally{
+        Element.prototype.setPointerCapture=originalSetCapture;
+        Element.prototype.releasePointerCapture=originalReleaseCapture;
       }
-      console.log(`[E2E DIRECT POINTER] dispatch pointerup directly on thumb at x=${endX.toFixed(2)}`);
-      thumb.dispatchEvent(new PointerEvent('pointerup',{...eventInit,clientX:endX,buttons:0}));
-      return {startX,startY,endX,delta,required,ariaValueNow:thumb.getAttribute('aria-valuenow')};
     });
-    console.log(`[E2E DIRECT POINTER] sequence complete; aria-valuenow=${result.ariaValueNow} delta=${result.delta.toFixed(2)} required80=${result.required.toFixed(2)}`);
+    console.log(`[E2E DIRECT POINTER] sequence complete; slider aria-valuenow=${result.ariaValueNow} delta=${result.delta.toFixed(2)} required80=${result.required.toFixed(2)}`);
     try{
       await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
     }catch(error){
       const diagnostics=await page.evaluate(()=>{
         const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
         const handle=track?.querySelector('button');
+        const slider=track?.querySelector('[role="slider"]');
         const dialogSelector='[role="dialog"][aria-labelledby="start-day-modal-title"]';
         const dialogs=[...document.querySelectorAll('[role="dialog"]')];
         const visibleDialogs=dialogs.filter(dialog=>{
@@ -87,7 +98,7 @@ async function swipeStartDay(){
         }).length;
         return {
           outerHTML:track?.outerHTML||null,
-          ariaValueNow:handle?.getAttribute('aria-valuenow')||null,
+          ariaValueNow:slider?.getAttribute('aria-valuenow')||null,
           dialogCount:document.querySelectorAll('[role="dialog"]').length,
           visibleDialogCount:visibleDialogs,
           targetDialogPresent:Boolean(document.querySelector(dialogSelector))
