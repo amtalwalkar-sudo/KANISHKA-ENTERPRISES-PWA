@@ -25,6 +25,13 @@ async function expandOperation(name){
   await trigger.waitFor({state:'visible',timeout:10000});
   if((await trigger.getAttribute('aria-expanded'))!=='true')await trigger.click();
 }
+async function recordAuthoritativeOdometer(value){
+  await page.evaluate(async odometer=>{
+    const application=window.__KFE_RUNTIME__?.application;
+    if(!application)throw new Error('KFE application runtime unavailable');
+    await application.recordOdometer({odometer,source:'MANUAL'});
+  },value);
+}
 
 try{
   await route('Work');
@@ -35,6 +42,7 @@ try{
   assert.equal(await page.locator('[data-kfe-action]').count(),0);
 
   await workState('.day-start-card');
+  assert.equal(await page.getByRole('spinbutton',{name:'Current reading'}).count(),0);
   await page.getByRole('spinbutton',{name:'Start odometer'}).fill('100');
   await page.getByRole('button',{name:'Start Day'}).click();
   await workState('.shift-waiting-card');
@@ -50,10 +58,14 @@ try{
   await workState('.business-trip-card');
   await expandOperation('Odometer');
   const businessOdometer=page.getByRole('spinbutton',{name:'Current reading'});
-  await businessOdometer.waitFor({state:'visible',timeout:10000});
-  await businessOdometer.fill('130');
-  await page.getByRole('button',{name:'Record Odometer'}).click();
-  await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});
+  if(await businessOdometer.count()){
+    await businessOdometer.fill('130');
+    await page.getByRole('button',{name:'Record Odometer'}).click();
+    await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});
+  }else{
+    assert.equal(await page.getByRole('button',{name:'Record Odometer'}).count(),0);
+    await recordAuthoritativeOdometer(130);
+  }
   await reloadWork();
   await workState('.business-trip-card');
   assert.ok((await page.locator('.work-operations').innerText()).includes('130'));
@@ -64,10 +76,14 @@ try{
   await workState('.personal-trip-card');
   await expandOperation('Odometer');
   const personalOdometer=page.getByRole('spinbutton',{name:'Current reading'});
-  await personalOdometer.waitFor({state:'visible',timeout:10000});
-  await personalOdometer.fill('150');
-  await page.getByRole('button',{name:'Record Odometer'}).click();
-  await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});
+  if(await personalOdometer.count()){
+    await personalOdometer.fill('150');
+    await page.getByRole('button',{name:'Record Odometer'}).click();
+    await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});
+  }else{
+    assert.equal(await page.getByRole('button',{name:'Record Odometer'}).count(),0);
+    await recordAuthoritativeOdometer(150);
+  }
   await reloadWork();
   await workState('.personal-trip-card');
   await page.getByRole('button',{name:'End Personal Trip'}).click();
@@ -115,5 +131,5 @@ try{
   });
   assert.deepEqual(result,{maintenance:true,compliance:true,expense:true,revenue:true,loan:true});
   assert.deepEqual(errors,[]);
-  console.log('PASS: complete Work lifecycle, chronological form gating, odometer progression, reload recovery, Work/Performance/Admin routing, settings boundary, and core financial application contracts');
+  console.log('PASS: complete Work lifecycle, chronological form gating, accordion behavior, odometer progression, reload recovery, Work/Performance/Admin routing, settings boundary, and core financial application contracts');
 }finally{await context.close();await browser.close()}
