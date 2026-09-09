@@ -33,8 +33,11 @@ jobs:
           test "$(git rev-parse HEAD)" = "$HEAD_SHA"
           git rev-parse --verify "$BASE_SHA^{commit}"
           git diff --name-only "$BASE_SHA" "$HEAD_SHA" >/dev/null
-          echo "KFE_VALIDATED_SHA=$HEAD_SHA"
-          echo "KFE_BASE_SHA=$BASE_SHA"
+          echo "KFE_VALIDATED_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "KFE_OBSERVED_CODE_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "KFE_CI_RUN_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "KFE_STATE_STATUS=FRESH" >> "$GITHUB_ENV"
+          echo "KFE_BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
       - name: Setup Node 20
         uses: actions/setup-node@v5
         with:
