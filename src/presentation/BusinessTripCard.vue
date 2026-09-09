@@ -1,17 +1,37 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const props = defineProps({
   tripMetrics: {
     type: Object,
     default: null,
   },
+  startTime: {
+    type: [String, Number],
+    default: null,
+  },
+  startOdometer: {
+    type: Number,
+    default: null,
+  },
+  currentAuthoritativeOdometer: {
+    type: Number,
+    default: null,
+  },
 })
 
 defineEmits(['end-business-trip'])
 
+const nowMs = ref(Date.now())
+let timerId = null
+
+const resolvedStartTime = computed(() => props.startTime ?? props.tripMetrics?.startTimeEpochMs ?? null)
+const resolvedStartOdometer = computed(() => props.startOdometer ?? props.tripMetrics?.startOdometer ?? null)
+const resolvedCurrentOdometer = computed(() => props.currentAuthoritativeOdometer ?? props.tripMetrics?.currentAuthoritativeOdometer ?? null)
+
 const formattedStartTime = computed(() => {
-  const epochMs = props.tripMetrics?.startTimeEpochMs
+  const value = resolvedStartTime.value
+  const epochMs = typeof value === 'number' ? value : Date.parse(value)
   if (!Number.isFinite(epochMs)) return '--'
   const date = new Date(epochMs)
   if (!Number.isFinite(date.getTime())) return '--'
@@ -19,6 +39,34 @@ const formattedStartTime = computed(() => {
     hour: '2-digit',
     minute: '2-digit',
   })
+})
+
+const elapsedLabel = computed(() => {
+  const value = resolvedStartTime.value
+  const startMs = typeof value === 'number' ? value : Date.parse(value)
+  if (!Number.isFinite(startMs) || startMs > nowMs.value) return '--'
+  const elapsedMinutes = Math.floor((nowMs.value - startMs) / 60000)
+  const hours = Math.floor(elapsedMinutes / 60)
+  const minutes = elapsedMinutes % 60
+  if (hours > 0) return `Elapsed: ${hours}h ${minutes}m`
+  return `Elapsed: ${minutes}m`
+})
+
+const distanceLabel = computed(() => {
+  const start = resolvedStartOdometer.value
+  const current = resolvedCurrentOdometer.value
+  if (!Number.isFinite(start) || !Number.isFinite(current) || current < start) return '—'
+  return `Distance: ${(current - start).toFixed(1)} km`
+})
+
+onMounted(() => {
+  timerId = window.setInterval(() => {
+    nowMs.value = Date.now()
+  }, 30000)
+})
+
+onUnmounted(() => {
+  if (timerId !== null) window.clearInterval(timerId)
 })
 </script>
 
@@ -33,11 +81,19 @@ const formattedStartTime = computed(() => {
       <div v-if="tripMetrics" class="metrics-grid">
         <div class="metric-item">
           <span class="metric-label">Start Odometer</span>
-          <span class="metric-value">{{ tripMetrics.startOdometer ?? '--' }}</span>
+          <span class="metric-value">{{ resolvedStartOdometer ?? '--' }}</span>
         </div>
         <div class="metric-item">
           <span class="metric-label">Start Time</span>
           <span class="metric-value">{{ formattedStartTime }}</span>
+        </div>
+        <div class="metric-item operational-context">
+          <span class="metric-label">Elapsed</span>
+          <span class="metric-value">{{ elapsedLabel.replace('Elapsed: ', '') }}</span>
+        </div>
+        <div class="metric-item operational-context">
+          <span class="metric-label">Distance</span>
+          <span class="metric-value">{{ distanceLabel.replace('Distance: ', '') }}</span>
         </div>
       </div>
       <p v-else class="status-notice">
@@ -118,6 +174,8 @@ const formattedStartTime = computed(() => {
   border-radius: 14px;
   background: var(--kfe-ui-bg);
 }
+
+.operational-context .metric-value { font-size: 1.08rem; }
 
 .metric-label {
   color: var(--kfe-muted-text);
