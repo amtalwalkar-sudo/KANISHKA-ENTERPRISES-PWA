@@ -46,27 +46,22 @@ async function swipeStartDay(){
   await track.waitFor({state:'visible',timeout:10000});
   await attachSwipeEventProbes();
   try{
-    const geometry=await page.evaluate(()=>{
-      const track=document.querySelector('.swipe-bar');
-      const handle=track?.querySelector('.swipe-bar__thumb');
-      if(!track||!handle)throw new Error('Start Day SwipeBar geometry target unavailable');
-      const trackRect=track.getBoundingClientRect();
-      const handleRect=handle.getBoundingClientRect();
-      const startX=handleRect.left+(handleRect.width/2);
-      const startY=handleRect.top+(handleRect.height/2);
-      const endX=trackRect.left+(trackRect.width*.95);
-      const delta=endX-startX;
-      const required=trackRect.width*.8;
-      console.log(`[E2E NATIVE TOUCH] geometry startX=${startX.toFixed(2)} startY=${startY.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackRect.width.toFixed(2)} required80=${required.toFixed(2)}`);
-      if(delta<=required)throw new Error(`Native SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
-      return {startX,startY,endX,endY:startY,delta,required};
-    });
-    console.log(`[E2E NATIVE TOUCH] executing direct thumb drag from (${geometry.startX.toFixed(2)},${geometry.startY.toFixed(2)}) to (${geometry.endX.toFixed(2)},${geometry.endY.toFixed(2)})`);
-    await page.mouse.move(geometry.startX,geometry.startY);
+    const trackBox=await track.boundingBox();
+    const thumbBox=await thumb.boundingBox();
+    if(!trackBox||!thumbBox)throw new Error('Start Day SwipeBar geometry unavailable');
+    const startX=thumbBox.x+(thumbBox.width/2);
+    const startY=thumbBox.y+(thumbBox.height/2);
+    const endX=trackBox.x+(trackBox.width*.95);
+    const delta=endX-startX;
+    const required=trackBox.width*.8;
+    console.log(`[E2E NATIVE TOUCH] geometry startX=${startX.toFixed(2)} startY=${startY.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackBox.width.toFixed(2)} required80=${required.toFixed(2)}`);
+    if(delta<=required)throw new Error(`Native SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
+    console.log(`[E2E NATIVE TOUCH] executing direct thumb drag from (${startX.toFixed(2)},${startY.toFixed(2)}) to (${endX.toFixed(2)},${startY.toFixed(2)})`);
+    await page.mouse.move(startX,startY);
     await page.mouse.down();
-    await page.mouse.move(geometry.endX,geometry.endY,{steps:15});
+    await page.mouse.move(endX,startY,{steps:15});
     await page.mouse.up();
-    console.log(`[E2E NATIVE TOUCH] direct thumb drag dispatched; delta=${geometry.delta.toFixed(2)} required80=${geometry.required.toFixed(2)}`);
+    console.log(`[E2E NATIVE TOUCH] direct thumb drag dispatched; delta=${delta.toFixed(2)} required80=${required.toFixed(2)}`);
     try{
       await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
     }catch(error){
