@@ -27,69 +27,33 @@ async function swipeStartDay(){
   await thumb.waitFor({state:'visible',timeout:10000});
   await track.waitFor({state:'visible',timeout:10000});
   try{
-    await page.evaluate(async()=>{
+    const geometry=await page.evaluate(()=>{
       const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
       const handle=track?.querySelector('button');
       if(!track||!handle)throw new Error('Start Day SwipeBar geometry target unavailable');
-      const snapshot=label=>{
-        const trackRect=track.getBoundingClientRect();
-        const handleRect=handle.getBoundingClientRect();
-        const fill=track.querySelector('.swipe-bar__fill');
-        const dialogs=[...document.querySelectorAll('[role="dialog"]')].map(dialog=>({visible:!!(dialog.offsetWidth||dialog.offsetHeight||dialog.getClientRects().length),display:getComputedStyle(dialog).display,visibility:getComputedStyle(dialog).visibility,opacity:getComputedStyle(dialog).opacity}));
-        const ariaValue=handle.getAttribute('aria-valuenow');
-        const progress=ariaValue===null?null:Number(ariaValue);
-        const fillStyle=fill?{width:getComputedStyle(fill).width,transform:getComputedStyle(fill).transform,inlineWidth:fill.style.width,inlineTransform:fill.style.transform}:null;
-        const handleStyle={transform:getComputedStyle(handle).transform,left:getComputedStyle(handle).left,inlineTransform:handle.style.transform,inlineLeft:handle.style.left};
-        console.log(`[E2E POINTER] ${label} root=${JSON.stringify(track.outerHTML)} aria-valuenow=${ariaValue} progress=${progress===null?'n/a':(progress*100).toFixed(2)+'%'} fill=${JSON.stringify(fillStyle)} handleStyle=${JSON.stringify(handleStyle)} trackRect=${JSON.stringify({left:trackRect.left,top:trackRect.top,width:trackRect.width,height:trackRect.height})} handleRect=${JSON.stringify({left:handleRect.left,top:handleRect.top,width:handleRect.width,height:handleRect.height})} modalCount=${dialogs.length} modalVisibility=${JSON.stringify(dialogs)}`);
-      };
       const trackRect=track.getBoundingClientRect();
       const handleRect=handle.getBoundingClientRect();
       const startX=handleRect.left+(handleRect.width/2);
       const startY=handleRect.top+(handleRect.height/2);
       const endX=trackRect.left+(trackRect.width*.95);
-      const endY=startY;
       const delta=endX-startX;
       const required=trackRect.width*.8;
-      console.log(`[E2E POINTER] geometry startX=${startX.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackRect.width.toFixed(2)} required80=${required.toFixed(2)}`);
-      if(delta<=required)throw new Error(`Synthetic SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
-      snapshot('before-pointerdown');
-      const originalCapture=handle.setPointerCapture;
-      const originalRelease=handle.releasePointerCapture;
-      let captureCalls=0;
-      let releaseCalls=0;
-      const log=message=>console.log(`[E2E POINTER] ${message}`);
-      handle.setPointerCapture=pointerId=>{captureCalls++;log(`setPointerCapture(${pointerId}) bypassed for synthetic pointer`);};
-      handle.releasePointerCapture=pointerId=>{releaseCalls++;log(`releasePointerCapture(${pointerId}) bypassed for synthetic pointer`);};
-      const make=(type,x,y,buttons)=>new PointerEvent(type,{bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',isPrimary:true,clientX:x,clientY:y,buttons,button:0});
-      const yieldToBrowser=()=>new Promise(resolve=>setTimeout(resolve,10));
-      try{
-        log('pointerdown dispatch');
-        handle.dispatchEvent(make('pointerdown',startX,startY,1));
-        snapshot('after-pointerdown');
-        await yieldToBrowser();
-        const steps=12;
-        for(let i=1;i<=steps;i++){
-          const x=startX+(endX-startX)*(i/steps);
-          handle.dispatchEvent(make('pointermove',x,endY,1));
-          snapshot(`after-pointermove-${i}`);
-          await yieldToBrowser();
-        }
-        log(`pointermove sequence complete; finalX=${endX.toFixed(2)} delta=${delta.toFixed(2)}`);
-        await yieldToBrowser();
-        handle.dispatchEvent(make('pointerup',endX,endY,0));
-        snapshot('after-pointerup');
-        log(`pointerup dispatch complete; captureCalls=${captureCalls}; releaseCalls=${releaseCalls}`);
-      }finally{
-        handle.setPointerCapture=originalCapture;
-        handle.releasePointerCapture=originalRelease;
-        log('pointer capture methods restored');
-      }
+      console.log(`[E2E NATIVE TOUCH] geometry startX=${startX.toFixed(2)} startY=${startY.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackRect.width.toFixed(2)} required80=${required.toFixed(2)}`);
+      if(delta<=required)throw new Error(`Native SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
+      return {startX,startY,endX,endY:startY,delta,required};
     });
+    console.log(`[E2E NATIVE TOUCH] executing touchscreen tap at (${geometry.startX.toFixed(2)},${geometry.startY.toFixed(2)}) then native mouse drag to (${geometry.endX.toFixed(2)},${geometry.endY.toFixed(2)})`);
+    await page.touchscreen.tap(geometry.startX,geometry.startY);
+    await page.mouse.move(geometry.startX,geometry.startY);
+    await page.mouse.down();
+    await page.mouse.move(geometry.endX,geometry.endY,{steps:15});
+    await page.mouse.up();
+    console.log(`[E2E NATIVE TOUCH] native drag dispatched; delta=${geometry.delta.toFixed(2)} required80=${geometry.required.toFixed(2)}`);
     await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
   }catch(error){
-    console.log(`[E2E POINTER] swipeStartDay failure: ${String(error?.message||error)}`);
-    try{await page.screenshot({path:'swipe-failure.png',fullPage:true});}catch(screenshotError){console.log(`[E2E POINTER] screenshot failure: ${String(screenshotError?.message||screenshotError)}`);}
-    try{await context.tracing.stop({path:'trace.zip'});}catch(traceError){console.log(`[E2E POINTER] trace stop failure: ${String(traceError?.message||traceError)}`);}
+    console.log(`[E2E NATIVE TOUCH] swipeStartDay failure: ${String(error?.message||error)}`);
+    try{await page.screenshot({path:'swipe-failure.png',fullPage:true});}catch(screenshotError){console.log(`[E2E NATIVE TOUCH] screenshot failure: ${String(screenshotError?.message||screenshotError)}`);}
+    try{await context.tracing.stop({path:'trace.zip'});}catch(traceError){console.log(`[E2E NATIVE TOUCH] trace stop failure: ${String(traceError?.message||traceError)}`);}
     throw error;
   }
 }
