@@ -1,0 +1,150 @@
+name: KFE 2.0 PR full validation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: kfe-pr-full-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  full-validation:
+    name: Full validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout exact PR revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Verify PR state identity and base visibility
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
+          git rev-parse --verify "$BASE_SHA^{commit}"
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" >/dev/null
+          echo "KFE_VALIDATED_SHA=$HEAD_SHA"
+          echo "KFE_BASE_SHA=$BASE_SHA"
+      - name: Setup Node 20
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Build application
+        run: GITHUB_ACTIONS=true npm run build
+      - name: Core contract gates
+        run: |
+          npm run validate:kfe-screen-contract
+          npm run validate:foundation-preflight
+          npm run validate:governance
+      - name: Foundation domain contracts
+        run: |
+          npm run validate:settings
+          npm run validate:vehicle-domain
+          npm run validate:fixed-expense-lifecycle
+      - name: Architecture and foundation
+        run: |
+          npm run validate:architecture
+          npm run validate:foundation
+          npm run validate:foundation-audit
+      - name: Refactor readiness contracts
+        run: |
+          npm run validate:shell-resolver
+          npm run validate:replaceable-shell
+          npm run validate:vehicle-driver-ui-decoupling
+          npm run validate:admin-screen
+          npm run validate:performance-foundation
+      - name: Domain and lifecycle
+        run: |
+          npm run validate:domain
+          npm run validate:phase-i
+          npm run validate:phase-j
+          npm run validate:phase-l
+          npm run validate:phase-m
+          npm run validate:phase-n
+      - name: Administrator Vehicle/Driver foundation
+        run: npm run validate:administrator-foundation
+      - name: Persistence and recovery
+        run: |
+          npm run validate:phase-k
+          npm run validate:t08-persistence
+          npm run validate:t09-sync-engine
+      - name: UI shell contracts
+        run: |
+          npm run validate:phase-1
+          npm run validate:phase-2
+          npm run validate:phase-3
+          npm run validate:phase-5
+          npm run validate:phase-5-replication
+          npm run validate:phase-5-module-contracts
+          npm run validate:phase-5-completion-integrity
+          npm run validate:phase-6-ui-shell
+          npm run validate:phase-7-reliability
+      - name: Module application boundaries
+        run: |
+          npm run validate:phase-5-vehicle
+          npm run validate:phase-5-fuel-application
+          npm run validate:phase-5-expenses-application
+          npm run validate:phase-5-revenue-application
+          npm run validate:phase-5-loans-application
+          npm run validate:phase-5-renewals-compliance-application
+          npm run validate:phase-5-maintenance-application
+          npm run validate:phase-5-profitability-application
+          npm run validate:phase-5-dashboard-application
+      - name: Real persistence checks
+        run: |
+          npx playwright install --with-deps chromium
+          npm run validate:phase-5-vehicle-real-persistence
+          npm run validate:phase-5-fuel-real-persistence
+          npm run validate:phase-5-expenses-real-persistence
+          npm run validate:phase-5-loans-real-persistence
+          npm run validate:phase-5-renewals-compliance-real-persistence
+          npm run validate:phase-5-maintenance-real-persistence
+          npm run validate:fixed-expense-real-persistence
+      - name: Runtime syntax and domain contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in js/app.js js/core/*.js js/domain/*.js js/application/*.js js/services/*.js; do node --check "$f"; done
+      - name: Runtime identity and service-worker boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { profitability } from './js/domain/dashboard.js';
+          const input={revenue:1000000,fuel:100000,maintenanceProvision:50000,fixedOverhead:100000,loanPrincipal:100000,loanInterest:20000,otherBusinessCosts:30000,takeHomeTargetPaise:200000};
+          const output=profitability(input);
+          if(output.value?.netProfitPaise!==600000) process.exit(1);
+          console.log('DIRECT_PROFITABILITY_RESULT='+JSON.stringify(output));
+          NODE
+          test -f js/pwa/sw-strategies.js
+          grep -q "importScripts('./js/pwa/sw-strategies.js')" service-worker.js
+          grep -q "event.request.mode==='navigate'" service-worker.js
+          grep -q "kfe-outbox-retry" service-worker.js
+      - name: Browser certification
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 600s npx playwright install --with-deps chromium
+          nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/ >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:4173/ >/dev/null
+          npm run validate:e2e
+      - name: Legacy resilience and offline validation
+        run: node js/testing/app-resilience-reliability-offline.mjs
+      - name: Final validation marker
+        run: echo 'KFE_PR_FULL_VALIDATION=PASS'
