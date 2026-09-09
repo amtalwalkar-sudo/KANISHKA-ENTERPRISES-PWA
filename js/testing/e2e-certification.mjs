@@ -5,8 +5,8 @@ const browser=await chromium.launch({headless:true});
 const context=await browser.newContext();
 const page=await context.newPage();
 const errors=[];
-page.on('pageerror',e=>errors.push(String(e?.message||e)));
-page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+page.on('pageerror',e=>{console.log(`[BROWSER ERROR] ${e.message}`);errors.push(String(e?.message||e))});
+page.on('console',m=>{console.log(`[BROWSER CONSOLE] ${m.type()}: ${m.text()}`);if(m.type()==='error')errors.push(m.text())});
 
 async function route(name){
   await page.goto(`http://127.0.0.1:4173/#${encodeURIComponent(name)}`,{waitUntil:'networkidle'});
@@ -56,14 +56,14 @@ try{
   await reloadWork();
   await workState('.shift-card');
 
-  console.log('BUSINESS_TRIP_TRACE pre-click state:',await page.evaluate(()=>window.kfePresentationApi.read.getWorkScreenState()));
+  const windowKeys=await page.evaluate(()=>Object.keys(window).filter(k=>k.toLowerCase().includes('kfe')||k.toLowerCase().includes('app')||k.startsWith('__')));
+  console.log('[DIAGNOSTIC] Matching window keys:',windowKeys);
   await page.getByRole('button',{name:'Business Trip'}).click();
-  console.log('BUSINESS_TRIP_TRACE post-click state:',await page.evaluate(()=>window.kfePresentationApi.read.getWorkScreenState()));
-  console.log('BUSINESS_TRIP_TRACE DOM visibility:',{
+  await workState('.business-trip-card');
+  console.log('[DIAGNOSTIC] Business Trip DOM visibility:',{
     shiftCard:await page.locator('.shift-card').isVisible(),
     businessTripCard:await page.locator('.business-trip-card').isVisible()
   });
-  await workState('.business-trip-card');
   const businessOdometerForm=await expandOperationIfPresent('Odometer');
   if(businessOdometerForm){
     const businessOdometer=page.getByRole('spinbutton',{name:'Current reading'});
