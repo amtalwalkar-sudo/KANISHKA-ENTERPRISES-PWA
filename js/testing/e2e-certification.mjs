@@ -25,16 +25,20 @@ async function swipeStartDay(){
   const track=page.locator('[data-testid="kfe-swipe-bar"]');
   await thumb.waitFor({state:'visible',timeout:10000});
   await track.waitFor({state:'visible',timeout:10000});
-  const geometry=await track.evaluate(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}});
-  const thumbGeometry=await thumb.evaluate(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}});
-  if(!geometry.width||!thumbGeometry.width)throw new Error('Start Day SwipeBar geometry unavailable');
-  const startX=thumbGeometry.x+thumbGeometry.width/2;
-  const startY=thumbGeometry.y+thumbGeometry.height/2;
-  const targetX=geometry.x+geometry.width*.9;
-  const targetY=startY;
-  await page.evaluate(({startX,startY,targetX,targetY})=>{
-    const handle=document.querySelector('[data-testid="kfe-swipe-bar"] button');
-    if(!handle)throw new Error('Start Day SwipeBar handle unavailable');
+  await page.evaluate(()=>{
+    const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
+    const handle=track?.querySelector('button');
+    if(!track||!handle)throw new Error('Start Day SwipeBar geometry target unavailable');
+    const trackRect=track.getBoundingClientRect();
+    const handleRect=handle.getBoundingClientRect();
+    const startX=handleRect.left+(handleRect.width/2);
+    const startY=handleRect.top+(handleRect.height/2);
+    const endX=trackRect.left+(trackRect.width*.95);
+    const endY=startY;
+    const delta=endX-startX;
+    const required=trackRect.width*.8;
+    console.log(`[E2E POINTER] geometry startX=${startX.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackRect.width.toFixed(2)} required80=${required.toFixed(2)}`);
+    if(delta<=required)throw new Error(`Synthetic SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
     const originalCapture=handle.setPointerCapture;
     const originalRelease=handle.releasePointerCapture;
     let captureCalls=0;
@@ -48,18 +52,18 @@ async function swipeStartDay(){
       handle.dispatchEvent(make('pointerdown',startX,startY,1));
       const steps=12;
       for(let i=1;i<=steps;i++){
-        const x=startX+(targetX-startX)*(i/steps);
-        handle.dispatchEvent(make('pointermove',x,targetY,1));
+        const x=startX+(endX-startX)*(i/steps);
+        handle.dispatchEvent(make('pointermove',x,endY,1));
       }
-      log('pointermove sequence complete');
-      handle.dispatchEvent(make('pointerup',targetX,targetY,0));
+      log(`pointermove sequence complete; finalX=${endX.toFixed(2)} delta=${delta.toFixed(2)}`);
+      handle.dispatchEvent(make('pointerup',endX,endY,0));
       log(`pointerup dispatch complete; captureCalls=${captureCalls}; releaseCalls=${releaseCalls}`);
     }finally{
       handle.setPointerCapture=originalCapture;
       handle.releasePointerCapture=originalRelease;
       log('pointer capture methods restored');
     }
-  },{startX,startY,targetX,targetY});
+  });
   await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
 }
 async function expandOperationIfPresent(name){
