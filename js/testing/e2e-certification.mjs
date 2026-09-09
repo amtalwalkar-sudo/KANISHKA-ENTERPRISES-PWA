@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 const browser=await chromium.launch({headless:true});
 const context=await browser.newContext({...devices['Pixel 5']});
+await context.tracing.start({screenshots:true,snapshots:true});
 const page=await context.newPage();
 const errors=[];
 page.on('pageerror',e=>{console.log(`[BROWSER ERROR] ${e.message}`);errors.push(String(e?.message||e))});
@@ -25,50 +26,72 @@ async function swipeStartDay(){
   const track=page.locator('[data-testid="kfe-swipe-bar"]');
   await thumb.waitFor({state:'visible',timeout:10000});
   await track.waitFor({state:'visible',timeout:10000});
-  await page.evaluate(async()=>{
-    const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
-    const handle=track?.querySelector('button');
-    if(!track||!handle)throw new Error('Start Day SwipeBar geometry target unavailable');
-    const trackRect=track.getBoundingClientRect();
-    const handleRect=handle.getBoundingClientRect();
-    const startX=handleRect.left+(handleRect.width/2);
-    const startY=handleRect.top+(handleRect.height/2);
-    const endX=trackRect.left+(trackRect.width*.95);
-    const endY=startY;
-    const delta=endX-startX;
-    const required=trackRect.width*.8;
-    console.log(`[E2E POINTER] geometry startX=${startX.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackRect.width.toFixed(2)} required80=${required.toFixed(2)}`);
-    if(delta<=required)throw new Error(`Synthetic SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
-    const originalCapture=handle.setPointerCapture;
-    const originalRelease=handle.releasePointerCapture;
-    let captureCalls=0;
-    let releaseCalls=0;
-    const log=message=>console.log(`[E2E POINTER] ${message}`);
-    handle.setPointerCapture=pointerId=>{captureCalls++;log(`setPointerCapture(${pointerId}) bypassed for synthetic pointer`);};
-    handle.releasePointerCapture=pointerId=>{releaseCalls++;log(`releasePointerCapture(${pointerId}) bypassed for synthetic pointer`);};
-    const make=(type,x,y,buttons)=>new PointerEvent(type,{bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',isPrimary:true,clientX:x,clientY:y,buttons,button:0});
-    const yieldToBrowser=()=>new Promise(resolve=>setTimeout(resolve,10));
-    try{
-      log('pointerdown dispatch');
-      handle.dispatchEvent(make('pointerdown',startX,startY,1));
-      await yieldToBrowser();
-      const steps=12;
-      for(let i=1;i<=steps;i++){
-        const x=startX+(endX-startX)*(i/steps);
-        handle.dispatchEvent(make('pointermove',x,endY,1));
+  try{
+    await page.evaluate(async()=>{
+      const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
+      const handle=track?.querySelector('button');
+      if(!track||!handle)throw new Error('Start Day SwipeBar geometry target unavailable');
+      const snapshot=label=>{
+        const trackRect=track.getBoundingClientRect();
+        const handleRect=handle.getBoundingClientRect();
+        const fill=track.querySelector('.swipe-bar__fill');
+        const dialogs=[...document.querySelectorAll('[role="dialog"]')].map(dialog=>({visible:!!(dialog.offsetWidth||dialog.offsetHeight||dialog.getClientRects().length),display:getComputedStyle(dialog).display,visibility:getComputedStyle(dialog).visibility,opacity:getComputedStyle(dialog).opacity}));
+        const ariaValue=handle.getAttribute('aria-valuenow');
+        const progress=ariaValue===null?null:Number(ariaValue);
+        const fillStyle=fill?{width:getComputedStyle(fill).width,transform:getComputedStyle(fill).transform,inlineWidth:fill.style.width,inlineTransform:fill.style.transform}:null;
+        const handleStyle={transform:getComputedStyle(handle).transform,left:getComputedStyle(handle).left,inlineTransform:handle.style.transform,inlineLeft:handle.style.left};
+        console.log(`[E2E POINTER] ${label} root=${JSON.stringify(track.outerHTML)} aria-valuenow=${ariaValue} progress=${progress===null?'n/a':(progress*100).toFixed(2)+'%'} fill=${JSON.stringify(fillStyle)} handleStyle=${JSON.stringify(handleStyle)} trackRect=${JSON.stringify({left:trackRect.left,top:trackRect.top,width:trackRect.width,height:trackRect.height})} handleRect=${JSON.stringify({left:handleRect.left,top:handleRect.top,width:handleRect.width,height:handleRect.height})} modalCount=${dialogs.length} modalVisibility=${JSON.stringify(dialogs)}`);
+      };
+      const trackRect=track.getBoundingClientRect();
+      const handleRect=handle.getBoundingClientRect();
+      const startX=handleRect.left+(handleRect.width/2);
+      const startY=handleRect.top+(handleRect.height/2);
+      const endX=trackRect.left+(trackRect.width*.95);
+      const endY=startY;
+      const delta=endX-startX;
+      const required=trackRect.width*.8;
+      console.log(`[E2E POINTER] geometry startX=${startX.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackRect.width.toFixed(2)} required80=${required.toFixed(2)}`);
+      if(delta<=required)throw new Error(`Synthetic SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
+      snapshot('before-pointerdown');
+      const originalCapture=handle.setPointerCapture;
+      const originalRelease=handle.releasePointerCapture;
+      let captureCalls=0;
+      let releaseCalls=0;
+      const log=message=>console.log(`[E2E POINTER] ${message}`);
+      handle.setPointerCapture=pointerId=>{captureCalls++;log(`setPointerCapture(${pointerId}) bypassed for synthetic pointer`);};
+      handle.releasePointerCapture=pointerId=>{releaseCalls++;log(`releasePointerCapture(${pointerId}) bypassed for synthetic pointer`);};
+      const make=(type,x,y,buttons)=>new PointerEvent(type,{bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',isPrimary:true,clientX:x,clientY:y,buttons,button:0});
+      const yieldToBrowser=()=>new Promise(resolve=>setTimeout(resolve,10));
+      try{
+        log('pointerdown dispatch');
+        handle.dispatchEvent(make('pointerdown',startX,startY,1));
+        snapshot('after-pointerdown');
         await yieldToBrowser();
+        const steps=12;
+        for(let i=1;i<=steps;i++){
+          const x=startX+(endX-startX)*(i/steps);
+          handle.dispatchEvent(make('pointermove',x,endY,1));
+          snapshot(`after-pointermove-${i}`);
+          await yieldToBrowser();
+        }
+        log(`pointermove sequence complete; finalX=${endX.toFixed(2)} delta=${delta.toFixed(2)}`);
+        await yieldToBrowser();
+        handle.dispatchEvent(make('pointerup',endX,endY,0));
+        snapshot('after-pointerup');
+        log(`pointerup dispatch complete; captureCalls=${captureCalls}; releaseCalls=${releaseCalls}`);
+      }finally{
+        handle.setPointerCapture=originalCapture;
+        handle.releasePointerCapture=originalRelease;
+        log('pointer capture methods restored');
       }
-      log(`pointermove sequence complete; finalX=${endX.toFixed(2)} delta=${delta.toFixed(2)}`);
-      await yieldToBrowser();
-      handle.dispatchEvent(make('pointerup',endX,endY,0));
-      log(`pointerup dispatch complete; captureCalls=${captureCalls}; releaseCalls=${releaseCalls}`);
-    }finally{
-      handle.setPointerCapture=originalCapture;
-      handle.releasePointerCapture=originalRelease;
-      log('pointer capture methods restored');
-    }
-  });
-  await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
+    });
+    await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
+  }catch(error){
+    console.log(`[E2E POINTER] swipeStartDay failure: ${String(error?.message||error)}`);
+    try{await page.screenshot({path:'swipe-failure.png',fullPage:true});}catch(screenshotError){console.log(`[E2E POINTER] screenshot failure: ${String(screenshotError?.message||screenshotError)}`);}
+    try{await context.tracing.stop({path:'trace.zip'});}catch(traceError){console.log(`[E2E POINTER] trace stop failure: ${String(traceError?.message||traceError)}`);}
+    throw error;
+  }
 }
 async function expandOperationIfPresent(name){
   const trigger=page.getByRole('button',{name:new RegExp(`^${name}\\s*[+−-]?$`)}).first();
@@ -87,19 +110,13 @@ async function recordAuthoritativeOdometer(value){
 async function diagnosticWorkState(label){
   return page.evaluate(async stateLabel=>{
     const application=window.__KFE_RUNTIME__?.application;
-    const candidates=[
-      application?.getWorkScreenState,
-      application?.work?.getWorkScreenState,
-      application?.work?.state
-    ].filter(fn=>typeof fn==='function');
+    const candidates=[application?.getWorkScreenState,application?.work?.getWorkScreenState,application?.work?.state].filter(fn=>typeof fn==='function');
     if(candidates.length===0)return {label:stateLabel,state:'UNKNOWN',error:'KFE work state read model unavailable'};
     try{
       const value=await candidates[0].call(application?.getWorkScreenState?application:application.work);
       const state=typeof value==='string'?value:value?.state;
       return {label:stateLabel,state:state||'UNKNOWN'};
-    }catch(error){
-      return {label:stateLabel,state:'UNKNOWN',error:String(error?.message||error)};
-    }
+    }catch(error){return {label:stateLabel,state:'UNKNOWN',error:String(error?.message||error)};}
   },label);
 }
 
@@ -110,7 +127,6 @@ try{
   assert.equal(await page.locator('.empty-module').count(),0);
   assert.equal(await page.locator('.kfe-swipe-bar').count(),0);
   assert.equal(await page.locator('[data-kfe-action]').count(),0);
-
   await workState('.day-start-card');
   assert.equal(await page.getByRole('spinbutton',{name:'Current reading'}).count(),0);
   await swipeStartDay();
@@ -120,12 +136,10 @@ try{
   await workState('.shift-waiting-card');
   await workState('.work-operations');
   assert.equal(await page.getByRole('spinbutton',{name:'Current reading'}).count(),0);
-
   await page.getByRole('button',{name:'Start Shift'}).click();
   await workState('.shift-card');
   await reloadWork();
   await workState('.shift-card');
-
   const windowKeys=await page.evaluate(()=>Object.keys(window).filter(k=>k.toLowerCase().includes('kfe')||k.toLowerCase().includes('app')||k.startsWith('__')));
   console.log('[DIAGNOSTIC] Matching window keys:',windowKeys);
   console.log('[DIAGNOSTIC] Work State Before Click:',await diagnosticWorkState('before-click'));
@@ -150,7 +164,6 @@ try{
   assert.ok(/Distance\s*30\.0\s*km/i.test(cardText),`Expected Business Trip distance 30.0 km in .business-trip-card text, got: ${cardText}`);
   await page.getByRole('button',{name:'End Business Trip'}).click();
   await workState('.shift-card');
-
   await page.getByRole('button',{name:'Personal Trip'}).click();
   await workState('.personal-trip-card');
   const personalOdometerForm=await expandOperationIfPresent('Odometer');
@@ -167,7 +180,6 @@ try{
   await workState('.personal-trip-card');
   await page.getByRole('button',{name:'End Personal Trip'}).click();
   await workState('.shift-card');
-
   await page.getByRole('button',{name:'End Shift'}).click();
   await workState('.day-end-card');
   await reloadWork();
@@ -185,19 +197,15 @@ try{
   await workState('.work-summary-card');
   assert.equal(await page.locator('.day-end-card').count(),0);
   assert.ok(/Business\s+Distance\s+30\.0\s*km/i.test(await page.locator('.work-stack').innerText()));
-
   await clickPrimary('Performance');
   assert.equal(await page.locator('.quick-dock button.active').textContent(),'Performance');
   await clickPrimary('Work');
   await page.locator('[aria-label="Work"]').waitFor({state:'attached'});
-
   await page.getByRole('button',{name:'Settings'}).click();
   assert.deepEqual(await page.getByRole('menuitem').allTextContents(),['Backup','Restore','Data reset']);
   await page.getByRole('button',{name:'Settings'}).click();
-
   await route('Admin');
   assert.equal(await page.locator('.quick-dock button.active').textContent(),'Admin');
-
   const result=await page.evaluate(async()=>{
     const a=window.__KFE_RUNTIME__?.application;
     if(!a) throw new Error('KFE application runtime unavailable');
