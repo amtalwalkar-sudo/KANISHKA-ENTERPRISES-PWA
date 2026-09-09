@@ -57,7 +57,7 @@ async function swipeStartDay(){
       const endX=trackRect.left+trackRect.width*.95;
       const hit=document.elementFromPoint(startX,startY);
       console.log(`[E2E NATIVE HIT TEST] start=${startX.toFixed(2)},${startY.toFixed(2)} element=${hit?.tagName||null} class=${typeof hit?.className==='string'?hit.className:null}`);
-      return {startX,startY,endX,trackWidth:trackRect.width,hitClass:typeof hit?.className==='string'?hit.className:null};
+      return {startX,startY,endX,trackWidth:trackRect.width};
     });
     await page.addStyleTag({content:'.swipe-bar__label { pointer-events: none !important; }'});
     console.log(`[E2E NATIVE DRAG] startX=${target.startX.toFixed(2)} startY=${target.startY.toFixed(2)} endX=${target.endX.toFixed(2)} trackWidth=${target.trackWidth.toFixed(2)}`);
@@ -66,17 +66,10 @@ async function swipeStartDay(){
       Element.prototype.releasePointerCapture=function(){};
     });
     const trackBox=await track.boundingBox();
-    const thumbBox=await thumb.boundingBox();
-    if(!trackBox||!thumbBox)throw new Error('SwipeBar geometry unavailable');
-    const startX=thumbBox.x+thumbBox.width/2;
-    const startY=thumbBox.y+thumbBox.height/2;
-    const endX=trackBox.x+(trackBox.width*.95);
-    await page.mouse.move(startX,startY);
+    if(!trackBox)throw new Error('SwipeBar track geometry unavailable');
+    await page.mouse.move(target.startX,target.startY);
     await page.mouse.down();
-    for(let i=1;i<=15;i++){
-      const currentX=startX+(endX-startX)*(i/15);
-      await page.mouse.move(currentX,startY);
-    }
+    await page.mouse.move(target.endX,target.startY,{steps:15});
     await page.mouse.up();
     try{
       await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
