@@ -10,7 +10,7 @@ export async function queueOutbox(payload){
   const createdAt=payload.created_at??payload.queuedAt??new Date().toISOString();
   const existing=(await all('outbox')).find(entry=>entry.id===id);
   const attempts=Number(existing?.attempt_count??existing?.attemptCount??payload.attempt_count??payload.attemptCount??0);
-  const entry={...existing,...payload,id,created_at:createdAt,queuedAt:payload.queuedAt??existing?.queuedAt??createdAt,deliveryKey:payload.deliveryKey??existing?.deliveryKey??id,attempt_count:attempts,attemptCount:attempts,status:'pending',nextRetryAt:payload.nextRetryAt??existing?.nextRetryAt??createdAt};
+  const entry={...existing,...payload,id,created_at:createdAt,queuedAt:payload.queuedAt??existing?.queuedAt??createdAt,deliveryKey:payload.deliveryKey??existing?.deliveryKey??id,attempt_count:attempts,attemptCount:attempts,status:'PENDING',nextRetryAt:payload.nextRetryAt??existing?.nextRetryAt??createdAt};
   await write('outbox',entry);
   return structuredClone(entry);
 }
@@ -19,7 +19,7 @@ export async function flushOutbox(send){
   if(typeof send!=='function')throw new TypeError('send must be a function');
   if(flushPromise)return flushPromise;
   flushPromise=(async()=>{
-    const entries=(await all('outbox')).filter(entry=>{const status=String(entry?.status||'pending').toLowerCase();return status==='pending';}).filter(entry=>{
+    const entries=(await all('outbox')).filter(entry=>{const status=String(entry?.status||'PENDING').toUpperCase();return status==='PENDING';}).filter(entry=>{
       const next=Date.parse(String(entry?.nextRetryAt||entry?.created_at||''));
       return !Number.isFinite(next)||next<=Date.now();
     }).sort((a,b)=>{
@@ -32,7 +32,7 @@ export async function flushOutbox(send){
         if(entry?.id!=null)await remove('outbox',entry.id);
       }catch(error){
         const attempts=Number(entry?.attempt_count??entry?.attemptCount??0)+1;
-        await write('outbox',{...entry,attempt_count:attempts,attemptCount:attempts,lastError:String(error?.message||error||'Delivery failed'),lastAttemptAt:new Date().toISOString(),nextRetryAt:new Date().toISOString(),status:'pending'});
+        await write('outbox',{...entry,attempt_count:attempts,attemptCount:attempts,lastError:String(error?.message||error||'Delivery failed'),lastAttemptAt:new Date().toISOString(),nextRetryAt:new Date().toISOString(),status:'PENDING'});
         throw error;
       }
     }
