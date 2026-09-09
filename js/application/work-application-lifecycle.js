@@ -9,6 +9,8 @@ function number(value,name){const result=Number(value);if(!Number.isFinite(resul
 function whole(value,name){const result=number(value,name);if(!Number.isInteger(result))throw new RangeError(`${name} must be a whole number`);return result;}
 function reading(value,name){const result=number(value,name);if(result<0)throw new RangeError(`${name} must not be negative`);return result;}
 function active(records){return records.filter(record=>!record.is_deleted&&record.status!=='CANCELLED');}
+function validTimestamp(value){return typeof value==='string'&&Number.isFinite(Date.parse(value));}
+function timestampOrNull(...values){for(const value of values)if(validTimestamp(value))return value;return null;}
 
 export class TerminalStateError extends Error { constructor(message='Lifecycle is terminal: DAY_ENDED') { super(message); this.name='TerminalStateError'; } }
 export class InvalidTransitionError extends Error { constructor(message='Invalid lifecycle transition') { super(message); this.name='InvalidTransitionError'; } }
@@ -27,7 +29,55 @@ export function createWorkApplication({repository,telemetry}){
  const days=repository.entity('work_days'),shifts=repository.entity('work_sessions'),trips=repository.entity('rides'),allocations=repository.entity('odometer_allocations'),revenues=repository.entity('revenue_records'),odometerEvents=repository.entity('operational_events');
  const auditStore='audit';
  async function latestOdometer(){const [dayRows,shiftRows,tripRows,eventRows]=await Promise.all([days.list(),shifts.list(),trips.list(),odometerEvents.list()]);const candidates=[];for(const day of active(dayRows)){if(Number.isFinite(Number(day.start_odometer)))candidates.push({at:day.started_at,odometer:Number(day.start_odometer)});}for(const shift of active(shiftRows)){if(Number.isFinite(Number(shift.end_odometer))&&shift.ended_at)candidates.push({at:shift.ended_at,odometer:Number(shift.end_odometer)});else if(Number.isFinite(Number(shift.start_odometer))&&shift.started_at)candidates.push({at:shift.started_at,odometer:Number(shift.start_odometer)});}for(const trip of active(tripRows)){if(Number.isFinite(Number(trip.end_odometer))&&trip.ended_at)candidates.push({at:trip.ended_at,odometer:Number(trip.end_odometer)});else if(Number.isFinite(Number(trip.start_odometer))&&trip.started_at)candidates.push({at:trip.started_at,odometer:Number(trip.start_odometer)});}for(const event of active(eventRows)){if(event.event_type==='ODOMETER_READING'&&Number.isFinite(Number(event.odometer))&&event.occurred_at)candidates.push({at:event.occurred_at,odometer:Number(event.odometer)});}candidates.sort((a,b)=>Date.parse(String(b.at||''))-Date.parse(String(a.at||'')));return candidates[0]||null;}
- async function currentContext(businessDate=localDate()){const [dayRows,shiftRows,tripRows,revenueRows]=await Promise.all([days.list(),shifts.list(),trips.list(),revenues.list()]);const day=active(dayRows).find(row=>row.business_date===businessDate&&row.status==='OPEN')||active(dayRows).find(row=>row.business_date===businessDate&&row.status==='COMPLETED')||null;const shift=active(shiftRows).filter(row=>row.scope==='BUSINESS'&&row.business_date===businessDate&&row.status==='OPEN').sort((a,b)=>Date.parse(b.started_at)-Date.parse(a.started_at))[0]||null;const trip=active(tripRows).filter(row=>row.status==='OPEN').sort((a,b)=>Date.parse(a.started_at||a.start_at)-Date.parse(b.started_at||b.start_at))[0]||null;const todayBusinessTrips=active(tripRows).filter(row=>row.scope==='BUSINESS'&&String(row.business_date||'')===businessDate&&row.status==='COMPLETED').length;const todayRevenuePaise=active(revenueRows).filter(row=>row.scope==='BUSINESS'&&String(row.business_date||'')===businessDate).reduce((sum,row)=>sum+Number(row.amount_paise||0),0);return {day,shift,trip,todayBusinessTrips,todayRevenuePaise,latest:await latestOdometer()};}
+ function closeRecord(record,endedAt){return {...record,status:'COMPLETED',ended_at:endedAt,updated_at:endedAt,synced:false};}
+ async function sanitizePersistedContext(dayRows,shiftRows,tripRows){
+  const activeDays=active(dayRows).filter(row=>row.status==='OPEN');
+  const activeShifts=active(shiftRows).filter(row=>row.scope==='BUSINESS'&&row.status==='OPEN');
+  const activeTrips=active(tripRows).filter(row=>row.status==='OPEN');
+  const changes=[];
+  const completedDays=active(dayRows).filter(row=>row.status==='COMPLETED');
+  const completedDayById=new Map(completedDays.map(row=>[row.id,row]));
+  const completedDayByDate=new Map(completedDays.map(row=>[String(row.business_date||''),row]));
+  const shiftById=new Map(shiftRows.map(row=>[row.id,row]));
+
+  for(const shift of activeShifts){
+   const parentDay=completedDayByDate.get(String(shift.business_date||''));
+   if(parentDay){const endedAt=timestampOrNull(parentDay.ended_at);if(endedAt){changes.push({store:'work_sessions',record:closeRecord(shift,endedAt),reason:'OPEN_SHIFT_ON_COMPLETED_DAY'});}}
+  }
+  const effectiveShifts=new Map(shiftRows.map(row=>{const change=changes.find(item=>item.store==='work_sessions'&&item.record.id===row.id);return [row.id,change?.record||row];}));
+  for(const ride of activeTrips.filter(row=>row.scope==='BUSINESS')){
+   const parentShift=ride.shift_id?effectiveShifts.get(ride.shift_id)||shiftById.get(ride.shift_id):null;
+   const parentDay=parentShift?.business_date?completedDayByDate.get(String(parentShift.business_date)):completedDayByDate.get(String(ride.business_date||''));
+   const parentShiftEnded=parentShift?.status==='COMPLETED'?parentShift.ended_at:null;
+   const parentDayEnded=parentDay?.status==='COMPLETED'?parentDay.ended_at:null;
+   const endedAt=timestampOrNull(parentShiftEnded,parentDayEnded,ride.updated_at,ride.started_at);
+   const parentMissingOrClosed=!parentShift||parentShift.status!=='OPEN'||!parentDay||parentDay.status!=='OPEN';
+   if(parentMissingOrClosed&&endedAt)changes.push({store:'rides',record:closeRecord(ride,endedAt),reason:'ORPHAN_BUSINESS_TRIP'});
+  }
+  function staleByCreation(records){return records.filter(row=>row.status==='OPEN').sort((a,b)=>Date.parse(String(b.created_at||b.started_at||''))-Date.parse(String(a.created_at||a.started_at||'')));}
+  const latestDay=staleByCreation(activeDays)[0]||null;
+  for(const day of activeDays)if(latestDay&&day.id!==latestDay.id){const endedAt=timestampOrNull(day.updated_at,day.started_at);if(endedAt)changes.push({store:'work_days',record:closeRecord(day,endedAt),reason:'STALE_ACTIVE_DAY'});}
+  const latestShift=staleByCreation(activeShifts)[0]||null;
+  for(const shift of activeShifts)if(latestShift&&shift.id!==latestShift.id&&!changes.some(item=>item.store==='work_sessions'&&item.record.id===shift.id)){const endedAt=timestampOrNull(shift.updated_at,shift.started_at);if(endedAt)changes.push({store:'work_sessions',record:closeRecord(shift,endedAt),reason:'STALE_ACTIVE_SHIFT'});}
+  const latestTrip=staleByCreation(activeTrips)[0]||null;
+  for(const trip of activeTrips)if(latestTrip&&trip.id!==latestTrip.id&&!changes.some(item=>item.store==='rides'&&item.record.id===trip.id)){const endedAt=timestampOrNull(trip.updated_at,trip.started_at);if(endedAt)changes.push({store:'rides',record:closeRecord(trip,endedAt),reason:'STALE_ACTIVE_TRIP'});}
+  if(!changes.length)return {dayRows,shiftRows,tripRows};
+  const names=[...new Set(changes.map(change=>change.store)),auditStore];
+  await repository.atomic(names,stores=>{for(const change of changes)stores[change.store].put(change.record);for(const change of changes){stores[auditStore].put({id:`sanitize:${change.reason}:${change.record.id}:${Date.parse(change.record.ended_at)}`,eventType:'SANITIZE_PERSISTED_CONTEXT',timestamp:Date.parse(change.record.ended_at),previousState:'CORRUPTED_PERSISTED_CONTEXT',nextState:'SANITIZED_PERSISTED_CONTEXT',entityId:change.record.id,reason:change.reason});}});
+  const dayMap=new Map(dayRows.map(row=>[row.id,row]));const shiftMap=new Map(shiftRows.map(row=>[row.id,row]));const tripMap=new Map(tripRows.map(row=>[row.id,row]));
+  for(const change of changes){if(change.store==='work_days')dayMap.set(change.record.id,change.record);if(change.store==='work_sessions')shiftMap.set(change.record.id,change.record);if(change.store==='rides')tripMap.set(change.record.id,change.record);}
+  return {dayRows:[...dayMap.values()],shiftRows:[...shiftMap.values()],tripRows:[...tripMap.values()]};
+ }
+ async function currentContext(businessDate=localDate()){
+  const [dayRows0,shiftRows0,tripRows0,revenueRows]=await Promise.all([days.list(),shifts.list(),trips.list(),revenues.list()]);
+  const {dayRows,shiftRows,tripRows}=await sanitizePersistedContext(dayRows0,shiftRows0,tripRows0);
+  const day=active(dayRows).find(row=>row.business_date===businessDate&&row.status==='OPEN')||active(dayRows).find(row=>row.business_date===businessDate&&row.status==='COMPLETED')||null;
+  const shift=active(shiftRows).filter(row=>row.scope==='BUSINESS'&&row.business_date===businessDate&&row.status==='OPEN').sort((a,b)=>Date.parse(b.started_at)-Date.parse(a.started_at))[0]||null;
+  const trip=active(tripRows).filter(row=>row.status==='OPEN').sort((a,b)=>Date.parse(a.started_at||a.start_at)-Date.parse(b.started_at||b.start_at))[0]||null;
+  const todayBusinessTrips=active(tripRows).filter(row=>row.scope==='BUSINESS'&&String(row.business_date||'')===businessDate&&row.status==='COMPLETED').length;
+  const todayRevenuePaise=active(revenueRows).filter(row=>row.scope==='BUSINESS'&&String(row.business_date||'')===businessDate).reduce((sum,row)=>sum+Number(row.amount_paise||0),0);
+  return {day,shift,trip,todayBusinessTrips,todayRevenuePaise,latest:await latestOdometer()};
+ }
  async function state(){const context=await currentContext(localDate());return deriveWorkScreenState({day:context.day,shift:context.shift,trip:context.trip,latestOdometer:context.latest?.odometer,todayBusinessTrips:context.todayBusinessTrips,todayRevenuePaise:context.todayRevenuePaise});}
  async function telemetryEvent(eventType,entityType,entityId,options={}){return telemetry?.recordEvent({eventType,entityType,entityId,actionMode:options.actionMode||'SWIPE',direction:options.direction??null,occurredAt:options.occurredAt,context:{business_date:localDate()}})||null;}
  async function syncTracking(){const screen=await state();telemetry?.setActive(Boolean(screen.day.status==='OPEN'||screen.shift.active||screen.trip.active));return screen;}
