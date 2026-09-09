@@ -20,10 +20,12 @@ async function clickPrimary(name){
 }
 async function reloadWork(){await page.reload({waitUntil:'networkidle'});await page.locator('[aria-label="Work"]').waitFor({state:'attached'});}
 async function workState(selector){await page.locator(selector).waitFor({state:'visible',timeout:10000});}
-async function expandOperation(name){
+async function expandOperationIfPresent(name){
   const trigger=page.getByRole('button',{name:new RegExp(`^${name}\\s*[+−-]?$`)}).first();
+  if(await trigger.count()===0)return false;
   await trigger.waitFor({state:'visible',timeout:10000});
   if((await trigger.getAttribute('aria-expanded'))!=='true')await trigger.click();
+  return true;
 }
 async function recordAuthoritativeOdometer(value){
   await page.evaluate(async odometer=>{
@@ -56,9 +58,9 @@ try{
 
   await page.getByRole('button',{name:'Business Trip'}).click();
   await workState('.business-trip-card');
-  await expandOperation('Odometer');
-  const businessOdometer=page.getByRole('spinbutton',{name:'Current reading'});
-  if(await businessOdometer.count()){
+  const businessOdometerForm=await expandOperationIfPresent('Odometer');
+  if(businessOdometerForm){
+    const businessOdometer=page.getByRole('spinbutton',{name:'Current reading'});
     await businessOdometer.fill('130');
     await page.getByRole('button',{name:'Record Odometer'}).click();
     await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});
@@ -74,9 +76,9 @@ try{
 
   await page.getByRole('button',{name:'Personal Trip'}).click();
   await workState('.personal-trip-card');
-  await expandOperation('Odometer');
-  const personalOdometer=page.getByRole('spinbutton',{name:'Current reading'});
-  if(await personalOdometer.count()){
+  const personalOdometerForm=await expandOperationIfPresent('Odometer');
+  if(personalOdometerForm){
+    const personalOdometer=page.getByRole('spinbutton',{name:'Current reading'});
     await personalOdometer.fill('150');
     await page.getByRole('button',{name:'Record Odometer'}).click();
     await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});
