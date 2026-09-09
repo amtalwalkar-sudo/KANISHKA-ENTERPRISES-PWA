@@ -20,6 +20,21 @@ async function clickPrimary(name){
 }
 async function reloadWork(){await page.reload({waitUntil:'networkidle'});await page.locator('[aria-label="Work"]').waitFor({state:'attached'});}
 async function workState(selector){await page.locator(selector).waitFor({state:'visible',timeout:10000});}
+async function swipeStartDay(){
+  const thumb=page.getByRole('button',{name:'Swipe right to start day'});
+  const track=page.locator('.kfe-swipe-bar');
+  await thumb.waitFor({state:'visible',timeout:10000});
+  const thumbBox=await thumb.boundingBox();
+  const trackBox=await track.boundingBox();
+  if(!thumbBox||!trackBox)throw new Error('Start Day SwipeBar geometry unavailable');
+  const startX=thumbBox.x+thumbBox.width/2;
+  const startY=thumbBox.y+thumbBox.height/2;
+  const endX=trackBox.x+trackBox.width*.9;
+  await page.mouse.move(startX,startY);
+  await page.mouse.down();
+  await page.mouse.move(endX,startY,{steps:12});
+  await page.mouse.up();
+}
 async function expandOperationIfPresent(name){
   const trigger=page.getByRole('button',{name:new RegExp(`^${name}\\s*[+−-]?$`)}).first();
   if(await trigger.count()===0)return false;
@@ -63,6 +78,8 @@ try{
 
   await workState('.day-start-card');
   assert.equal(await page.getByRole('spinbutton',{name:'Current reading'}).count(),0);
+  await swipeStartDay();
+  await page.getByRole('spinbutton',{name:'Start odometer'}).waitFor({state:'visible',timeout:10000});
   await page.getByRole('spinbutton',{name:'Start odometer'}).fill('100');
   await page.getByRole('button',{name:'Start Day'}).click();
   await workState('.shift-waiting-card');
