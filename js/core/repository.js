@@ -5,6 +5,9 @@ import {createConfigurationSchema,assertConfigurationSchema} from './schemas.js'
 const KEY='kfe:state:v1';
 function clone(value){return structuredClone(value);}
 function assertStoreName(name){if(typeof name!=='string'||!name)throw new TypeError('Repository store name is required');return name;}
+function outboxRecord({id,event_type,payload,created_at=new Date().toISOString()}={}){if(typeof id!=='string'||!id)throw new TypeError('Outbox event id is required');if(typeof event_type!=='string'||!event_type)throw new TypeError('Outbox event_type is required');return {id,event_type,payload:clone(payload??{}),status:'pending',attempt_count:0,created_at};}
+function eventForMutation(store,record){if(!record||typeof record!=='object'||typeof record.id!=='string')return null;const status=String(record.status||'').toUpperCase();const scope=String(record.scope||record.trip_type||'').toUpperCase();let event_type=null;switch(store){case 'work_days':event_type=status==='OPEN'?'WORK_DAY_STARTED':status==='COMPLETED'?'WORK_DAY_ENDED':null;break;case 'work_sessions':event_type=status==='OPEN'?'SHIFT_STARTED':status==='COMPLETED'?'SHIFT_ENDED':null;break;case 'rides':if(status==='OPEN')event_type=scope==='PERSONAL'?'PERSONAL_TRIP_STARTED':'BUSINESS_TRIP_STARTED';else if(status==='COMPLETED')event_type=scope==='PERSONAL'?'PERSONAL_TRIP_ENDED':'BUSINESS_TRIP_ENDED';break;case 'operational_events':if(record.event_type==='ODOMETER_READING')event_type='ODOMETER_CAPTURED';break;default:break;}if(!event_type)return null;const created_at=record.updated_at||record.occurred_at||record.ended_at||record.started_at||record.created_at||new Date().toISOString();return outboxRecord({id:`event:${event_type}:${record.id}`,event_type,payload:{entity_store:store,entity_id:record.id,record},created_at});}
+function instrumentStores(stores,captured){return Object.freeze(Object.fromEntries(Object.entries(stores).map(([name,store])=>[name,new Proxy(store,{get(target,property){if(property==='put'||property==='add'){return (...args)=>{if(args[0]&&typeof args[0]==='object')captured.push({store:name,record:args[0]});return target[property](...args);};}const value=target[property];return typeof value==='function'?value.bind(target):value;}})])));}
 
 export function createEntityRepository(storeName){
   assertStoreName(storeName);
@@ -55,7 +58,7 @@ export function createRepository({initial={}}={}){
   }
   async function save(next){memory=clone(next);const now=new Date().toISOString();await write('state',{id:KEY,value:memory,created_at:now,updated_at:now,synced:false,is_deleted:false});return clone(memory);}
   async function clear(){memory=clone(initial);await remove('state',KEY);return clone(memory);}
-  async function atomic(storeNames,operation){const db=await openKfeDb();return runAtomicTransaction(db,storeNames,operation);}
+  async function atomic(storeNames,operation,outboxPayload=null){const db=await openKfeDb();const names=outboxPayload&& !storeNames.includes('outbox')?[...storeNames,'outbox']:storeNames;return runAtomicTransaction(db,names,(stores,transaction)=>{const result=operation(stores,transaction);if(outboxPayload)stores.outbox.put(outboxRecord(outboxPayload));return result;});}
   async function exportSnapshot(){
     await openKfeDb();
     const stores={};
@@ -76,4 +79,24 @@ export function createRepository({initial={}}={}){
     }).then(()=>{memory=clone(initial);hydrationPromise=null;return true;});
   }
   return {load,save,clear,atomic,exportSnapshot,importSnapshot,createRecord:(data,meta)=>createRecord(data,meta),updateRecord:(existing,changes)=>updateRecord(existing,changes),softDeleteRecord,assertRecord:assertAuthoritativeRecord,entity:(store)=>createEntityRepository(store),configuration:(store)=>createConfigurationRepository(store),async getIdempotency(id){return read('idempotency',id);},async saveIdempotency(entry){return write('idempotency',entry);}};
+}
+
+export function createOutboxRepository(base){
+  if(!base||typeof base!=='object'||typeof base.atomic!=='function'||typeof base.entity!=='function')throw new TypeError('Repository is required');
+  function atomic(storeNames,operation){
+    const captured=[];
+    return base.atomic([...storeNames,'outbox'].filter((name,index,names)=>names.indexOf(name)===index),(stores,transaction)=>{const result=operation(instrumentStores(stores,captured),transaction);for(const mutation of captured){const event=eventForMutation(mutation.store,mutation.record);if(event){stores.outbox.put(event);break;}}return result;});
+  }
+  function entity(storeName){
+    const baseEntity=base.entity(storeName);
+    return Object.freeze({
+      async get(id){return baseEntity.get(id);},
+      async list(){return baseEntity.list();},
+      async create(data={},meta={}){const record=base.createRecord(data,meta);base.assertRecord(record);await atomic([storeName],stores=>{stores[storeName].put(record);return record;});return clone(record);},
+      async update(existing,changes={}){const record=base.updateRecord(existing,changes);base.assertRecord(record);await atomic([storeName],stores=>{stores[storeName].put(record);return record;});return clone(record);},
+      async softDelete(existing){const record=base.softDeleteRecord(existing);base.assertRecord(record);await atomic([storeName],stores=>{stores[storeName].put(record);return record;});return clone(record);},
+      assert:baseEntity.assert
+    });
+  }
+  return Object.freeze({...base,atomic,entity});
 }
