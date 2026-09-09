@@ -38,6 +38,7 @@ export function createWorkApplication({repository,telemetry}){
   const completedDays=active(dayRows).filter(row=>row.status==='COMPLETED');
   const completedDayById=new Map(completedDays.map(row=>[row.id,row]));
   const completedDayByDate=new Map(completedDays.map(row=>[String(row.business_date||''),row]));
+  const activeDayByDate=new Map(activeDays.map(row=>[String(row.business_date||''),row]));
   const shiftById=new Map(shiftRows.map(row=>[row.id,row]));
 
   for(const shift of activeShifts){
@@ -47,7 +48,7 @@ export function createWorkApplication({repository,telemetry}){
   const effectiveShifts=new Map(shiftRows.map(row=>{const change=changes.find(item=>item.store==='work_sessions'&&item.record.id===row.id);return [row.id,change?.record||row];}));
   for(const ride of activeTrips.filter(row=>row.scope==='BUSINESS')){
    const parentShift=ride.shift_id?effectiveShifts.get(ride.shift_id)||shiftById.get(ride.shift_id):null;
-   const parentDay=parentShift?.business_date?completedDayByDate.get(String(parentShift.business_date)):completedDayByDate.get(String(ride.business_date||''));
+   const parentDay=(parentShift?.business_date?activeDayByDate.get(String(parentShift.business_date)):null)||completedDayByDate.get(String(parentShift?.business_date||ride.business_date||''));
    const parentShiftEnded=parentShift?.status==='COMPLETED'?parentShift.ended_at:null;
    const parentDayEnded=parentDay?.status==='COMPLETED'?parentDay.ended_at:null;
    const endedAt=timestampOrNull(parentShiftEnded,parentDayEnded,ride.updated_at,ride.started_at);
