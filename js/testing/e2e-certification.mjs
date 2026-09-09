@@ -127,13 +127,12 @@ try{
   const stackText=await page.locator('.work-stack').innerText();
   console.log('[DIAGNOSTIC] .work-stack raw innerText:',JSON.stringify(stackText));
   console.log('[DIAGNOSTIC] Business KM present:',stackText.includes('Business KM'));
-  // TEMPORARY DIAGNOSTIC: intentionally do not fail on the unknown Business KM label.
-  assert.ok(true);
-  assert.ok((await page.locator('.work-stack').innerText()).includes('Personal KM'));
+  assert.ok(/Business\s+Distance\s+30\.0\s*km/i.test(stackText),`Expected Business Distance 30.0 km in .work-stack text, got: ${stackText}`);
+  assert.ok(/Personal\s+Distance\s+20\.0\s*km/i.test(stackText),`Expected Personal Distance 20.0 km in .work-stack text, got: ${stackText}`);
   await reloadWork();
   await workState('.work-summary-card');
   assert.equal(await page.locator('.day-end-card').count(),0);
-  assert.ok((await page.locator('.work-stack').innerText()).includes('Business KM'));
+  assert.ok(/Business\s+Distance\s+30\.0\s*km/i.test(await page.locator('.work-stack').innerText()));
 
   await clickPrimary('Performance');
   assert.equal(await page.locator('.quick-dock button.active').textContent(),'Performance');
