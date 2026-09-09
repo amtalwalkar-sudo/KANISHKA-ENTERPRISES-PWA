@@ -20,6 +20,11 @@ async function clickPrimary(name){
 }
 async function reloadWork(){await page.reload({waitUntil:'networkidle'});await page.locator('[aria-label="Work"]').waitFor({state:'attached'});}
 async function workState(selector){await page.locator(selector).waitFor({state:'visible',timeout:10000});}
+async function expandOperation(name){
+  const trigger=page.getByRole('button',{name:new RegExp(`^${name}\\s*[+−-]?$`)}).first();
+  await trigger.waitFor({state:'visible',timeout:10000});
+  if((await trigger.getAttribute('aria-expanded'))!=='true')await trigger.click();
+}
 
 try{
   await route('Work');
@@ -33,6 +38,8 @@ try{
   await page.getByRole('spinbutton',{name:'Start odometer'}).fill('100');
   await page.getByRole('button',{name:'Start Day'}).click();
   await workState('.shift-waiting-card');
+  await workState('.work-operations');
+  assert.equal(await page.getByRole('spinbutton',{name:'Current reading'}).count(),0);
 
   await page.getByRole('button',{name:'Start Shift'}).click();
   await workState('.shift-card');
@@ -41,7 +48,10 @@ try{
 
   await page.getByRole('button',{name:'Business Trip'}).click();
   await workState('.business-trip-card');
-  await page.getByRole('spinbutton',{name:'Current reading'}).fill('130');
+  await expandOperation('Odometer');
+  const businessOdometer=page.getByRole('spinbutton',{name:'Current reading'});
+  await businessOdometer.waitFor({state:'visible',timeout:10000});
+  await businessOdometer.fill('130');
   await page.getByRole('button',{name:'Record Odometer'}).click();
   await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});
   await reloadWork();
@@ -52,7 +62,10 @@ try{
 
   await page.getByRole('button',{name:'Personal Trip'}).click();
   await workState('.personal-trip-card');
-  await page.getByRole('spinbutton',{name:'Current reading'}).fill('150');
+  await expandOperation('Odometer');
+  const personalOdometer=page.getByRole('spinbutton',{name:'Current reading'});
+  await personalOdometer.waitFor({state:'visible',timeout:10000});
+  await personalOdometer.fill('150');
   await page.getByRole('button',{name:'Record Odometer'}).click();
   await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});
   await reloadWork();
@@ -65,9 +78,9 @@ try{
   await reloadWork();
   await workState('.day-end-card');
   await page.getByRole('button',{name:'End Day'}).click();
-  await workState('.work-operations');
   await workState('.work-summary-card');
   assert.equal(await page.getByRole('button',{name:'Record Odometer'}).count(),0);
+  assert.equal(await page.locator('.work-operations').count(),0);
   assert.ok((await page.locator('.work-stack').innerText()).includes('Business KM'));
   assert.ok((await page.locator('.work-stack').innerText()).includes('Personal KM'));
   await reloadWork();
@@ -102,5 +115,5 @@ try{
   });
   assert.deepEqual(result,{maintenance:true,compliance:true,expense:true,revenue:true,loan:true});
   assert.deepEqual(errors,[]);
-  console.log('PASS: complete Work lifecycle, odometer progression, reload recovery, Work/Performance/Admin routing, settings boundary, and core financial application contracts');
+  console.log('PASS: complete Work lifecycle, chronological form gating, odometer progression, reload recovery, Work/Performance/Admin routing, settings boundary, and core financial application contracts');
 }finally{await context.close();await browser.close()}
