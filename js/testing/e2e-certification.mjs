@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 const browser=await chromium.launch({headless:true});
 const context=await browser.newContext({...devices['Pixel 5']});
 const page=await context.newPage();
+const cdp=await context.newCDPSession(page);
 const errors=[];
 page.on('pageerror',e=>{console.log(`[BROWSER ERROR] ${e.message}`);errors.push(String(e?.message||e))});
 page.on('console',m=>{console.log(`[BROWSER CONSOLE] ${m.type()}: ${m.text()}`);if(m.type()==='error')errors.push(m.text())});
@@ -25,9 +26,21 @@ async function swipeStartDay(){
   const track=page.locator('[data-testid="kfe-swipe-bar"]');
   await thumb.waitFor({state:'visible',timeout:10000});
   await track.waitFor({state:'visible',timeout:10000});
+  const thumbBox=await thumb.boundingBox();
   const trackBox=await track.boundingBox();
-  if(!trackBox)throw new Error('Start Day SwipeBar geometry unavailable');
-  await thumb.dragTo(track,{targetPosition:{x:trackBox.width*.9,y:trackBox.height/2}});
+  if(!thumbBox||!trackBox)throw new Error('Start Day SwipeBar geometry unavailable');
+  const startX=thumbBox.x+thumbBox.width/2;
+  const startY=thumbBox.y+thumbBox.height/2;
+  const endX=trackBox.x+trackBox.width*.9;
+  const steps=12;
+  const point=(x,y)=>({x:Math.round(x),y:Math.round(y),radiusX:1,radiusY:1,force:1,id:1});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point(startX,startY)]});
+  for(let i=1;i<=steps;i++){
+    const x=startX+(endX-startX)*(i/steps);
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[point(x,startY)]});
+  }
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
 }
 async function expandOperationIfPresent(name){
   const trigger=page.getByRole('button',{name:new RegExp(`^${name}\\s*[+−-]?$`)}).first();
