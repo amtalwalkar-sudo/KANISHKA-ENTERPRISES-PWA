@@ -328,9 +328,11 @@ jobs:
         run: GITHUB_ACTIONS=true npm run build
       - name: Invalidate runtime cache for this deployment
         if: ${{ steps.state.outputs.superseded != 'true' }}
+        shell: bash
         env:
           DEPLOY_SHA: ${{ steps.state.outputs.validated_sha }}
         run: |
+          set -euo pipefail
           CACHE_VERSION="kanishka-fleet-kfe2-${DEPLOY_SHA}"
           sed -i "s/^const CACHE_NAME='[^']*';/const CACHE_NAME='${CACHE_VERSION}';/" dist/service-worker.js
           grep -q "const CACHE_NAME='${CACHE_VERSION}';" dist/service-worker.js
