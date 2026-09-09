@@ -22,7 +22,7 @@ async function reloadWork(){await page.reload({waitUntil:'networkidle'});await p
 async function workState(selector){await page.locator(selector).waitFor({state:'visible',timeout:10000});}
 async function swipeStartDay(){
   const thumb=page.getByRole('button',{name:'Swipe right to start day'});
-  const track=page.locator('.kfe-swipe-bar');
+  const track=page.locator('[data-testid="kfe-swipe-bar"]');
   await thumb.waitFor({state:'visible',timeout:10000});
   const thumbBox=await thumb.boundingBox();
   const trackBox=await track.boundingBox();
