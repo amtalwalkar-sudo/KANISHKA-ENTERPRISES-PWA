@@ -124,6 +124,9 @@ try{
   await workState('.work-summary-card');
   assert.equal(await page.getByRole('button',{name:'Record Odometer'}).count(),0);
   assert.equal(await page.locator('.work-operations').count(),0);
+  const stackText=await page.locator('.work-stack').innerText();
+  console.log('[DIAGNOSTIC] .work-stack raw innerText:',JSON.stringify(stackText));
+  console.log('[DIAGNOSTIC] Business KM present:',stackText.includes('Business KM'));
   assert.ok((await page.locator('.work-stack').innerText()).includes('Business KM'));
   assert.ok((await page.locator('.work-stack').innerText()).includes('Personal KM'));
   await reloadWork();
