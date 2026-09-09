@@ -24,8 +24,8 @@ function isSurfaceAllowed(state, targetSurface) {
 function getDefaultSurface() { return 'Work' }
 
 async function readFsmState() {
-  try { fsmState.value = await kfePresentationApi.read.getWorkScreenState() }
-  catch { fsmState.value = null }
+  try { fsmState.value = await kfePresentationApi.read.getWorkScreenState(); syncRoute() }
+  catch { fsmState.value = null; activeSurface.value = getDefaultSurface() }
 }
 
 function syncRoute() {
