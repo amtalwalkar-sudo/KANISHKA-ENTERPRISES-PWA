@@ -25,7 +25,7 @@ async function swipeStartDay(){
   const track=page.locator('[data-testid="kfe-swipe-bar"]');
   await thumb.waitFor({state:'visible',timeout:10000});
   await track.waitFor({state:'visible',timeout:10000});
-  await page.evaluate(()=>{
+  await page.evaluate(async()=>{
     const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
     const handle=track?.querySelector('button');
     if(!track||!handle)throw new Error('Start Day SwipeBar geometry target unavailable');
@@ -46,16 +46,20 @@ async function swipeStartDay(){
     const log=message=>console.log(`[E2E POINTER] ${message}`);
     handle.setPointerCapture=pointerId=>{captureCalls++;log(`setPointerCapture(${pointerId}) bypassed for synthetic pointer`);};
     handle.releasePointerCapture=pointerId=>{releaseCalls++;log(`releasePointerCapture(${pointerId}) bypassed for synthetic pointer`);};
-    const make=(type,x,y,buttons)=>new PointerEvent(type,{bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',isPrimary:true,clientX:x,clientY:y,buttons});
+    const make=(type,x,y,buttons)=>new PointerEvent(type,{bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',isPrimary:true,clientX:x,clientY:y,buttons,button:0});
+    const yieldToBrowser=()=>new Promise(resolve=>setTimeout(resolve,10));
     try{
       log('pointerdown dispatch');
       handle.dispatchEvent(make('pointerdown',startX,startY,1));
+      await yieldToBrowser();
       const steps=12;
       for(let i=1;i<=steps;i++){
         const x=startX+(endX-startX)*(i/steps);
         handle.dispatchEvent(make('pointermove',x,endY,1));
+        await yieldToBrowser();
       }
       log(`pointermove sequence complete; finalX=${endX.toFixed(2)} delta=${delta.toFixed(2)}`);
+      await yieldToBrowser();
       handle.dispatchEvent(make('pointerup',endX,endY,0));
       log(`pointerup dispatch complete; captureCalls=${captureCalls}; releaseCalls=${releaseCalls}`);
     }finally{
