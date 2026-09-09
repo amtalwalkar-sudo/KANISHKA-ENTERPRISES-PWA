@@ -15,9 +15,9 @@ import ShiftCard from './presentation/ShiftCard.vue'
 import DayEndCard from './presentation/DayEndCard.vue'
 import WorkSummaryCard from './presentation/WorkSummaryCard.vue'
 import WorkOperationsCard from './presentation/WorkOperationsCard.vue'
-import StartDayModal from './components/modals/StartDayModal.vue'
-import EndTripModal from './components/modals/EndTripModal.vue'
-import EndShiftModal from './components/modals/EndShiftModal.vue'
+import StartDayModal from './components/StartDayModal.vue'
+import EndTripModal from './components/EndTripModal.vue'
+import EndShiftModal from './components/EndShiftModal.vue'
 
 const props=defineProps({activeSurface:{type:String,default:'Work'}})
 const emit=defineEmits(['surface-select'])
