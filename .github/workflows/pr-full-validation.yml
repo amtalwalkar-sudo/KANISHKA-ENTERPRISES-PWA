@@ -107,7 +107,7 @@ jobs:
           npm run validate:phase-5-dashboard-application
       - name: Real persistence checks
         run: |
-          npx playwright install --with-deps chromium
+          npx playwright install chromium
           npm run validate:phase-5-vehicle-real-persistence
           npm run validate:phase-5-fuel-real-persistence
           npm run validate:phase-5-expenses-real-persistence
@@ -139,7 +139,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          timeout 600s npx playwright install --with-deps chromium
+          npx playwright install chromium
           nohup npm run dev -- --host 127.0.0.1 --port 4173 >/tmp/kfe-vite.log 2>&1 &
           for i in $(seq 1 30); do
             curl -fsS http://127.0.0.1:4173/ >/dev/null && break
