@@ -67,10 +67,28 @@ async function swipeStartDay(){
     });
     const trackBox=await track.boundingBox();
     if(!trackBox)throw new Error('SwipeBar track geometry unavailable');
+    const logTrackRect=async(label)=>{
+      const rect=await page.evaluate(()=>{
+        const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
+        const thumb=document.querySelector('.swipe-bar__thumb');
+        const trackRect=track?.getBoundingClientRect();
+        const thumbRect=thumb?.getBoundingClientRect();
+        return {trackWidth:trackRect?.width,trackLeft:trackRect?.left,trackTop:trackRect?.top,trackHeight:trackRect?.height,thumbLeft:thumbRect?.left,thumbTop:thumbRect?.top};
+      });
+      console.log(`[TRACK RECT DIAGNOSTIC] ${label}`,rect);
+      return rect;
+    };
+    await logTrackRect('before-pointerdown');
     await page.mouse.move(target.startX,target.startY);
     await page.mouse.down();
-    await page.mouse.move(target.endX,target.startY,{steps:15});
+    await logTrackRect('after-pointerdown');
+    for(let i=1;i<=15;i++){
+      const currentX=target.startX+(target.endX-target.startX)*(i/15);
+      await page.mouse.move(currentX,target.startY);
+      await logTrackRect(`after-pointermove-${i}`);
+    }
     await page.mouse.up();
+    await logTrackRect('after-pointerup');
     try{
       await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
     }catch(error){
