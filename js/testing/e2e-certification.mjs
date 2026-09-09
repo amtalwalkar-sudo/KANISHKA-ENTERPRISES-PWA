@@ -61,7 +61,23 @@ async function swipeStartDay(){
     });
     await page.addStyleTag({content:'.swipe-bar__label { pointer-events: none !important; }'});
     console.log(`[E2E NATIVE DRAG] startX=${target.startX.toFixed(2)} startY=${target.startY.toFixed(2)} endX=${target.endX.toFixed(2)} trackWidth=${target.trackWidth.toFixed(2)}`);
-    await thumb.dragTo(track,{targetPosition:{x:target.trackWidth*.95,y:target.startY-(await track.boundingBox()).y}});
+    await page.evaluate(()=>{
+      Element.prototype.setPointerCapture=function(){};
+      Element.prototype.releasePointerCapture=function(){};
+    });
+    const trackBox=await track.boundingBox();
+    const thumbBox=await thumb.boundingBox();
+    if(!trackBox||!thumbBox)throw new Error('SwipeBar geometry unavailable');
+    const startX=thumbBox.x+thumbBox.width/2;
+    const startY=thumbBox.y+thumbBox.height/2;
+    const endX=trackBox.x+(trackBox.width*.95);
+    await page.mouse.move(startX,startY);
+    await page.mouse.down();
+    for(let i=1;i<=15;i++){
+      const currentX=startX+(endX-startX)*(i/15);
+      await page.mouse.move(currentX,startY);
+    }
+    await page.mouse.up();
     try{
       await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
     }catch(error){
