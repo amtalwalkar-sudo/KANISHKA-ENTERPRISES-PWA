@@ -29,24 +29,26 @@ async function attachSwipeEventProbes(){
     if(track.dataset.kfeEventProbeAttached==='true')return;
     const types=['pointerdown','pointermove','pointerup','pointercancel','touchstart','touchmove','touchend','touchcancel'];
     for(const type of types){
-      const target=type.startsWith('pointer')?handle:track;
-      target.addEventListener(type,e=>{
-        console.log(`[EVENT PROBE] ${type}: pointerType=${e.pointerType}, pointerId=${e.pointerId}, isTrusted=${e.isTrusted}, buttons=${e.buttons}, clientX=${e.clientX}, clientY=${e.clientY}, aria-valuenow=${handle.getAttribute('aria-valuenow')}`);
-      },{capture:true});
+      const targets=[track,handle];
+      for(const target of targets){
+        target.addEventListener(type,e=>{
+          console.log(`[EVENT PROBE] ${type}: pointerType=${e.pointerType}, pointerId=${e.pointerId}, isTrusted=${e.isTrusted}, buttons=${e.buttons}, clientX=${e.clientX}, clientY=${e.clientY}, aria-valuenow=${handle.getAttribute('aria-valuenow')}`);
+        },{capture:true});
+      }
     }
     track.dataset.kfeEventProbeAttached='true';
   });
 }
 async function swipeStartDay(){
-  const thumb=page.getByRole('button',{name:'Swipe right to start day'});
-  const track=page.locator('[data-testid="kfe-swipe-bar"]');
+  const thumb=page.locator('.swipe-bar__thumb');
+  const track=page.locator('.swipe-bar');
   await thumb.waitFor({state:'visible',timeout:10000});
   await track.waitFor({state:'visible',timeout:10000});
   await attachSwipeEventProbes();
   try{
     const geometry=await page.evaluate(()=>{
-      const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
-      const handle=track?.querySelector('button');
+      const track=document.querySelector('.swipe-bar');
+      const handle=track?.querySelector('.swipe-bar__thumb');
       if(!track||!handle)throw new Error('Start Day SwipeBar geometry target unavailable');
       const trackRect=track.getBoundingClientRect();
       const handleRect=handle.getBoundingClientRect();
@@ -59,13 +61,12 @@ async function swipeStartDay(){
       if(delta<=required)throw new Error(`Native SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
       return {startX,startY,endX,endY:startY,delta,required};
     });
-    console.log(`[E2E NATIVE TOUCH] executing touchscreen tap at (${geometry.startX.toFixed(2)},${geometry.startY.toFixed(2)}) then native mouse drag to (${geometry.endX.toFixed(2)},${geometry.endY.toFixed(2)})`);
-    await page.touchscreen.tap(geometry.startX,geometry.startY);
+    console.log(`[E2E NATIVE TOUCH] executing direct thumb drag from (${geometry.startX.toFixed(2)},${geometry.startY.toFixed(2)}) to (${geometry.endX.toFixed(2)},${geometry.endY.toFixed(2)})`);
     await page.mouse.move(geometry.startX,geometry.startY);
     await page.mouse.down();
     await page.mouse.move(geometry.endX,geometry.endY,{steps:15});
     await page.mouse.up();
-    console.log(`[E2E NATIVE TOUCH] native drag dispatched; delta=${geometry.delta.toFixed(2)} required80=${geometry.required.toFixed(2)}`);
+    console.log(`[E2E NATIVE TOUCH] direct thumb drag dispatched; delta=${geometry.delta.toFixed(2)} required80=${geometry.required.toFixed(2)}`);
     try{
       await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
     }catch(error){
