@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 2
+          fetch-depth: 0
       - name: Setup Node 20
         uses: actions/setup-node@v5
         with:
@@ -328,11 +328,9 @@ jobs:
         run: GITHUB_ACTIONS=true npm run build
       - name: Invalidate runtime cache for this deployment
         if: ${{ steps.state.outputs.superseded != 'true' }}
-        shell: bash
         env:
           DEPLOY_SHA: ${{ steps.state.outputs.validated_sha }}
         run: |
-          set -euo pipefail
           CACHE_VERSION="kanishka-fleet-kfe2-${DEPLOY_SHA}"
           sed -i "s/^const CACHE_NAME='[^']*';/const CACHE_NAME='${CACHE_VERSION}';/" dist/service-worker.js
           grep -q "const CACHE_NAME='${CACHE_VERSION}';" dist/service-worker.js
