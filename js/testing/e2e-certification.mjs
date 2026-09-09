@@ -56,13 +56,7 @@ try{
   await reloadWork();
   await workState('.shift-card');
 
-  console.log('BUSINESS_TRIP_TRACE pre-click state:',await page.evaluate(()=>window.kfePresentationApi.read.getWorkScreenState()));
   await page.getByRole('button',{name:'Business Trip'}).click();
-  console.log('BUSINESS_TRIP_TRACE post-click state:',await page.evaluate(()=>window.kfePresentationApi.read.getWorkScreenState()));
-  console.log('BUSINESS_TRIP_TRACE DOM visibility:',{
-    shiftCard:await page.locator('.shift-card').isVisible(),
-    businessTripCard:await page.locator('.business-trip-card').isVisible()
-  });
   await workState('.business-trip-card');
   const businessOdometerForm=await expandOperationIfPresent('Odometer');
   if(businessOdometerForm){
