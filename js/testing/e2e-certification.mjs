@@ -34,6 +34,24 @@ async function recordAuthoritativeOdometer(value){
     await application.recordOdometer({odometer,source:'MANUAL'});
   },value);
 }
+async function diagnosticWorkState(label){
+  return page.evaluate(async stateLabel=>{
+    const application=window.__KFE_RUNTIME__?.application;
+    const candidates=[
+      application?.getWorkScreenState,
+      application?.work?.getWorkScreenState,
+      application?.work?.state
+    ].filter(fn=>typeof fn==='function');
+    if(candidates.length===0)return {label:stateLabel,state:'UNKNOWN',error:'KFE work state read model unavailable'};
+    try{
+      const value=await candidates[0].call(application?.getWorkScreenState?application:application.work);
+      const state=typeof value==='string'?value:value?.state;
+      return {label:stateLabel,state:state||'UNKNOWN'};
+    }catch(error){
+      return {label:stateLabel,state:'UNKNOWN',error:String(error?.message||error)};
+    }
+  },label);
+}
 
 try{
   await route('Work');
@@ -58,12 +76,11 @@ try{
 
   const windowKeys=await page.evaluate(()=>Object.keys(window).filter(k=>k.toLowerCase().includes('kfe')||k.toLowerCase().includes('app')||k.startsWith('__')));
   console.log('[DIAGNOSTIC] Matching window keys:',windowKeys);
+  console.log('[DIAGNOSTIC] Work State Before Click:',await diagnosticWorkState('before-click'));
   await page.getByRole('button',{name:'Business Trip'}).click();
+  console.log('[DIAGNOSTIC] Work State Immediately After Click:',await diagnosticWorkState('immediately-after-click'));
+  console.log('[DIAGNOSTIC] DOM Visibility -> ShiftCard:',await page.locator('.shift-card').isVisible(),'BusinessTripCard:',await page.locator('.business-trip-card').isVisible());
   await workState('.business-trip-card');
-  console.log('[DIAGNOSTIC] Business Trip DOM visibility:',{
-    shiftCard:await page.locator('.shift-card').isVisible(),
-    businessTripCard:await page.locator('.business-trip-card').isVisible()
-  });
   const businessOdometerForm=await expandOperationIfPresent('Odometer');
   if(businessOdometerForm){
     const businessOdometer=page.getByRole('spinbutton',{name:'Current reading'});
