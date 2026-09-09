@@ -24,16 +24,10 @@ async function swipeStartDay(){
   const thumb=page.getByRole('button',{name:'Swipe right to start day'});
   const track=page.locator('[data-testid="kfe-swipe-bar"]');
   await thumb.waitFor({state:'visible',timeout:10000});
-  const thumbBox=await thumb.boundingBox();
+  await track.waitFor({state:'visible',timeout:10000});
   const trackBox=await track.boundingBox();
-  if(!thumbBox||!trackBox)throw new Error('Start Day SwipeBar geometry unavailable');
-  const startX=thumbBox.x+thumbBox.width/2;
-  const startY=thumbBox.y+thumbBox.height/2;
-  const endX=trackBox.x+trackBox.width*.9;
-  await page.mouse.move(startX,startY);
-  await page.mouse.down();
-  await page.mouse.move(endX,startY,{steps:12});
-  await page.mouse.up();
+  if(!trackBox)throw new Error('Start Day SwipeBar geometry unavailable');
+  await thumb.dragTo(track,{targetPosition:{x:trackBox.width*.9,y:trackBox.height/2}});
 }
 async function expandOperationIfPresent(name){
   const trigger=page.getByRole('button',{name:new RegExp(`^${name}\\s*[+−-]?$`)}).first();
