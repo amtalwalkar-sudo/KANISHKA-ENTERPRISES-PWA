@@ -13,8 +13,8 @@ export function validateBackupFSMInvariants(stores){
   const shifts=(stores?.work_sessions||[]).filter(record=>record&&!record.is_deleted&&record.status==='OPEN');
   const openDays=days.filter(record=>record.status==='OPEN');
   if(openDays.length>1) throw new InvalidBackupSchemaError('Backup contains multiple active day records');
-  const completedDayIds=new Set(days.filter(record=>record.status==='COMPLETED').map(record=>record.id));
-  if(shifts.some(record=>completedDayIds.has(record.day_id)||completedDayIds.has(record.work_day_id))) throw new InvalidBackupSchemaError('Backup contains an open shift for a completed day');
+  const completedDates=new Set(days.filter(record=>record.status==='COMPLETED').map(record=>record.business_date));
+  if(shifts.some(record=>completedDates.has(record.business_date))) throw new InvalidBackupSchemaError('Backup contains an open shift for a completed day');
   return true;
 }
 export async function restoreKfeSnapshot(snapshot,relationships=[]){
