@@ -93,7 +93,9 @@ try{
   }
   await reloadWork();
   await workState('.business-trip-card');
-  assert.ok((await page.locator('.business-trip-card').innerText()).includes('130'));
+  const cardText=await page.locator('.business-trip-card').innerText();
+  console.log('[DIAGNOSTIC] .business-trip-card raw innerText:',JSON.stringify(cardText));
+  assert.ok(cardText.includes('130'));
   await page.getByRole('button',{name:'End Business Trip'}).click();
   await workState('.shift-card');
 
