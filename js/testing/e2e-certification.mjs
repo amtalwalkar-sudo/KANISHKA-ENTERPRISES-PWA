@@ -21,11 +21,28 @@ async function clickPrimary(name){
 }
 async function reloadWork(){await page.reload({waitUntil:'networkidle'});await page.locator('[aria-label="Work"]').waitFor({state:'attached'});}
 async function workState(selector){await page.locator(selector).waitFor({state:'visible',timeout:10000});}
+async function attachSwipeEventProbes(){
+  await page.evaluate(()=>{
+    const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
+    const handle=track?.querySelector('button');
+    if(!track||!handle)throw new Error('SwipeBar event probe target unavailable');
+    if(track.dataset.kfeEventProbeAttached==='true')return;
+    const types=['pointerdown','pointermove','pointerup','pointercancel','touchstart','touchmove','touchend','touchcancel'];
+    for(const type of types){
+      const target=type.startsWith('pointer')?handle:track;
+      target.addEventListener(type,e=>{
+        console.log(`[EVENT PROBE] ${type}: pointerType=${e.pointerType}, pointerId=${e.pointerId}, isTrusted=${e.isTrusted}, buttons=${e.buttons}, clientX=${e.clientX}, clientY=${e.clientY}, aria-valuenow=${handle.getAttribute('aria-valuenow')}`);
+      },{capture:true});
+    }
+    track.dataset.kfeEventProbeAttached='true';
+  });
+}
 async function swipeStartDay(){
   const thumb=page.getByRole('button',{name:'Swipe right to start day'});
   const track=page.locator('[data-testid="kfe-swipe-bar"]');
   await thumb.waitFor({state:'visible',timeout:10000});
   await track.waitFor({state:'visible',timeout:10000});
+  await attachSwipeEventProbes();
   try{
     const geometry=await page.evaluate(()=>{
       const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
@@ -49,7 +66,34 @@ async function swipeStartDay(){
     await page.mouse.move(geometry.endX,geometry.endY,{steps:15});
     await page.mouse.up();
     console.log(`[E2E NATIVE TOUCH] native drag dispatched; delta=${geometry.delta.toFixed(2)} required80=${geometry.required.toFixed(2)}`);
-    await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
+    try{
+      await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
+    }catch(error){
+      const diagnostics=await page.evaluate(()=>{
+        const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
+        const handle=track?.querySelector('button');
+        const dialogSelector='[role="dialog"][aria-labelledby="start-day-modal-title"]';
+        const dialogs=[...document.querySelectorAll('[role="dialog"]')];
+        const visibleDialogs=dialogs.filter(dialog=>{
+          const style=getComputedStyle(dialog);
+          const rect=dialog.getBoundingClientRect();
+          return style.display!=='none'&&style.visibility!=='hidden'&&rect.width>0&&rect.height>0;
+        }).length;
+        return {
+          outerHTML:track?.outerHTML||null,
+          ariaValueNow:handle?.getAttribute('aria-valuenow')||null,
+          dialogCount:document.querySelectorAll('[role="dialog"]').length,
+          visibleDialogCount:visibleDialogs,
+          targetDialogPresent:Boolean(document.querySelector(dialogSelector))
+        };
+      });
+      console.log('[E2E DIAGNOSTIC] SwipeBar outerHTML:',diagnostics.outerHTML);
+      console.log('[E2E DIAGNOSTIC] aria-valuenow:',diagnostics.ariaValueNow);
+      console.log('[E2E DIAGNOSTIC] dialog count:',diagnostics.dialogCount);
+      console.log('[E2E DIAGNOSTIC] visible dialog count:',diagnostics.visibleDialogCount);
+      try{await page.screenshot({path:'swipe-failure.png',fullPage:true});}catch(screenshotError){console.log(`[E2E DIAGNOSTIC] screenshot failure: ${String(screenshotError?.message||screenshotError)}`);}
+      throw error;
+    }
   }catch(error){
     console.log(`[E2E NATIVE TOUCH] swipeStartDay failure: ${String(error?.message||error)}`);
     try{await page.screenshot({path:'swipe-failure.png',fullPage:true});}catch(screenshotError){console.log(`[E2E NATIVE TOUCH] screenshot failure: ${String(screenshotError?.message||screenshotError)}`);}
