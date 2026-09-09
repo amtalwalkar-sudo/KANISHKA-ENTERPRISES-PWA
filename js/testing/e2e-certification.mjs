@@ -32,22 +32,33 @@ async function swipeStartDay(){
   const startY=thumbGeometry.y+thumbGeometry.height/2;
   const targetX=geometry.x+geometry.width*.9;
   const targetY=startY;
-  const eventLog=[];
   await page.evaluate(({startX,startY,targetX,targetY})=>{
     const handle=document.querySelector('[data-testid="kfe-swipe-bar"] button');
     if(!handle)throw new Error('Start Day SwipeBar handle unavailable');
-    const make=(type,x,y,buttons)=>new PointerEvent(type,{bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',isPrimary:true,clientX:x,clientY:y,buttons});
+    const originalCapture=handle.setPointerCapture;
+    const originalRelease=handle.releasePointerCapture;
+    let captureCalls=0;
+    let releaseCalls=0;
     const log=message=>console.log(`[E2E POINTER] ${message}`);
-    log('pointerdown dispatch');
-    handle.dispatchEvent(make('pointerdown',startX,startY,1));
-    const steps=12;
-    for(let i=1;i<=steps;i++){
-      const x=startX+(targetX-startX)*(i/steps);
-      handle.dispatchEvent(make('pointermove',x,targetY,1));
+    handle.setPointerCapture=pointerId=>{captureCalls++;log(`setPointerCapture(${pointerId}) bypassed for synthetic pointer`);};
+    handle.releasePointerCapture=pointerId=>{releaseCalls++;log(`releasePointerCapture(${pointerId}) bypassed for synthetic pointer`);};
+    const make=(type,x,y,buttons)=>new PointerEvent(type,{bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',isPrimary:true,clientX:x,clientY:y,buttons});
+    try{
+      log('pointerdown dispatch');
+      handle.dispatchEvent(make('pointerdown',startX,startY,1));
+      const steps=12;
+      for(let i=1;i<=steps;i++){
+        const x=startX+(targetX-startX)*(i/steps);
+        handle.dispatchEvent(make('pointermove',x,targetY,1));
+      }
+      log('pointermove sequence complete');
+      handle.dispatchEvent(make('pointerup',targetX,targetY,0));
+      log(`pointerup dispatch complete; captureCalls=${captureCalls}; releaseCalls=${releaseCalls}`);
+    }finally{
+      handle.setPointerCapture=originalCapture;
+      handle.releasePointerCapture=originalRelease;
+      log('pointer capture methods restored');
     }
-    log('pointermove sequence complete');
-    handle.dispatchEvent(make('pointerup',targetX,targetY,0));
-    log('pointerup dispatch complete');
   },{startX,startY,targetX,targetY});
   await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
 }
