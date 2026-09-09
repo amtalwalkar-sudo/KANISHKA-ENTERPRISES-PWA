@@ -21,7 +21,7 @@ assert.match(resolverSource, /KFE_SHELL_NAMES\.CURRENT/);
 assert.match(selectionSource, /localStorage/);
 assert.match(selectionSource, /getItem/);
 assert.match(selectionSource, /setItem/);
-assert.match(currentShellSource, /<App\s*\/>/);
+assert.match(currentShellSource, /<App\s+:active-surface="activeSurface"\s+@surface-select="navigate"\s*\/>/);
 assert.match(currentShellSource, /\.\.\/\.\.\/\.\.\/\.\.\/App\.vue/);
 
 console.log('KFE shell resolver contract: PASS');
