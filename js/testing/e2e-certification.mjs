@@ -1,8 +1,8 @@
-import {chromium} from 'playwright';
+import {chromium, devices} from 'playwright';
 import assert from 'node:assert/strict';
 
 const browser=await chromium.launch({headless:true});
-const context=await browser.newContext();
+const context=await browser.newContext({...devices['Pixel 5']});
 const page=await context.newPage();
 const errors=[];
 page.on('pageerror',e=>{console.log(`[BROWSER ERROR] ${e.message}`);errors.push(String(e?.message||e))});
@@ -172,5 +172,5 @@ try{
   });
   assert.deepEqual(result,{maintenance:true,compliance:true,expense:true,revenue:true,loan:true});
   assert.deepEqual(errors,[]);
-  console.log('PASS: complete Work lifecycle, chronological form gating, accordion behavior, odometer progression, reload recovery, Work/Performance/Admin routing, settings boundary, and core financial application contracts');
+  console.log('PASS: Android Pixel 5 Work lifecycle, chronological form gating, accordion behavior, odometer progression, reload recovery, Work/Performance/Admin routing, settings boundary, and core financial application contracts');
 }finally{await context.close();await browser.close()}
