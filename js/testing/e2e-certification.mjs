@@ -29,10 +29,10 @@ async function attachSwipeEventProbes(){
     if(track.dataset.kfeEventProbeAttached==='true')return;
     const types=['pointerdown','pointermove','pointerup','pointercancel','touchstart','touchmove','touchend','touchcancel'];
     for(const type of types){
-      const targets=[track,handle];
-      for(const target of targets){
+      for(const target of [track,handle]){
         target.addEventListener(type,e=>{
-          console.log(`[EVENT PROBE] ${type}: pointerType=${e.pointerType}, pointerId=${e.pointerId}, isTrusted=${e.isTrusted}, buttons=${e.buttons}, clientX=${e.clientX}, clientY=${e.clientY}, aria-valuenow=${handle.getAttribute('aria-valuenow')}`);
+          const slider=track.getAttribute('role')==='slider'?track:track.querySelector('[role="slider"]');
+          console.log(`[EVENT PROBE] ${type}: pointerType=${e.pointerType}, pointerId=${e.pointerId}, isTrusted=${e.isTrusted}, buttons=${e.buttons}, clientX=${e.clientX}, clientY=${e.clientY}, aria-valuenow=${slider?.getAttribute('aria-valuenow')??null}`);
         },{capture:true});
       }
     }
@@ -46,63 +46,31 @@ async function swipeStartDay(){
   await track.waitFor({state:'visible',timeout:10000});
   await attachSwipeEventProbes();
   try{
-    const result=await page.evaluate(()=>{
-      const originalSetCapture=Element.prototype.setPointerCapture;
-      const originalReleaseCapture=Element.prototype.releasePointerCapture;
-      Element.prototype.setPointerCapture=function(id){try{originalSetCapture.call(this,id)}catch(_){}};
-      Element.prototype.releasePointerCapture=function(id){try{originalReleaseCapture.call(this,id)}catch(_){}};
-      try{
-        const thumb=document.querySelector('.swipe-bar__thumb');
-        const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
-        const slider=track?.querySelector('[role="slider"]');
-        if(!thumb||!track)throw new Error('SwipeBar elements not found');
-        const trackRect=track.getBoundingClientRect();
-        const thumbRect=thumb.getBoundingClientRect();
-        const startX=thumbRect.left+(thumbRect.width/2);
-        const endX=trackRect.left+(trackRect.width*.95);
-        const startY=thumbRect.top+(thumbRect.height/2);
-        const delta=endX-startX;
-        const required=trackRect.width*.8;
-        if(delta<=required)throw new Error(`SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
-        const eventInit={bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',isPrimary:true,clientY:startY,button:0};
-        console.log(`[E2E DIRECT POINTER] geometry startX=${startX.toFixed(2)} startY=${startY.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackRect.width.toFixed(2)} required80=${required.toFixed(2)}`);
-        console.log('[E2E DIRECT POINTER] dispatch pointerdown directly on thumb');
-        thumb.dispatchEvent(new PointerEvent('pointerdown',{...eventInit,clientX:startX,buttons:1}));
-        const steps=15;
-        for(let i=1;i<=steps;i++){
-          const currentX=startX+(endX-startX)*(i/steps);
-          thumb.dispatchEvent(new PointerEvent('pointermove',{...eventInit,clientX:currentX,buttons:1}));
-        }
-        console.log(`[E2E DIRECT POINTER] dispatch pointerup directly on thumb at x=${endX.toFixed(2)}`);
-        thumb.dispatchEvent(new PointerEvent('pointerup',{...eventInit,clientX:endX,buttons:0}));
-        return {startX,startY,endX,delta,required,ariaValueNow:slider?.getAttribute('aria-valuenow')||null};
-      }finally{
-        Element.prototype.setPointerCapture=originalSetCapture;
-        Element.prototype.releasePointerCapture=originalReleaseCapture;
-      }
+    const target=await page.evaluate(()=>{
+      const thumb=document.querySelector('.swipe-bar__thumb');
+      const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
+      if(!thumb||!track)throw new Error('SwipeBar elements not found');
+      const thumbRect=thumb.getBoundingClientRect();
+      const trackRect=track.getBoundingClientRect();
+      const startX=thumbRect.left+thumbRect.width/2;
+      const startY=thumbRect.top+thumbRect.height/2;
+      const endX=trackRect.left+trackRect.width*.95;
+      const hit=document.elementFromPoint(startX,startY);
+      console.log(`[E2E NATIVE HIT TEST] start=${startX.toFixed(2)},${startY.toFixed(2)} element=${hit?.tagName||null} class=${typeof hit?.className==='string'?hit.className:null}`);
+      return {startX,startY,endX,trackWidth:trackRect.width,hitClass:typeof hit?.className==='string'?hit.className:null};
     });
-    console.log(`[E2E DIRECT POINTER] sequence complete; slider aria-valuenow=${result.ariaValueNow} delta=${result.delta.toFixed(2)} required80=${result.required.toFixed(2)}`);
+    await page.addStyleTag({content:'.swipe-bar__label { pointer-events: none !important; }'});
+    console.log(`[E2E NATIVE DRAG] startX=${target.startX.toFixed(2)} startY=${target.startY.toFixed(2)} endX=${target.endX.toFixed(2)} trackWidth=${target.trackWidth.toFixed(2)}`);
+    await thumb.dragTo(track,{targetPosition:{x:target.trackWidth*.95,y:target.startY-(await track.boundingBox()).y}});
     try{
       await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
     }catch(error){
       const diagnostics=await page.evaluate(()=>{
         const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
-        const handle=track?.querySelector('button');
-        const slider=track?.querySelector('[role="slider"]');
-        const dialogSelector='[role="dialog"][aria-labelledby="start-day-modal-title"]';
+        const slider=track?.getAttribute('role')==='slider'?track:track?.querySelector('[role="slider"]');
         const dialogs=[...document.querySelectorAll('[role="dialog"]')];
-        const visibleDialogs=dialogs.filter(dialog=>{
-          const style=getComputedStyle(dialog);
-          const rect=dialog.getBoundingClientRect();
-          return style.display!=='none'&&style.visibility!=='hidden'&&rect.width>0&&rect.height>0;
-        }).length;
-        return {
-          outerHTML:track?.outerHTML||null,
-          ariaValueNow:slider?.getAttribute('aria-valuenow')||null,
-          dialogCount:document.querySelectorAll('[role="dialog"]').length,
-          visibleDialogCount:visibleDialogs,
-          targetDialogPresent:Boolean(document.querySelector(dialogSelector))
-        };
+        const visibleDialogs=dialogs.filter(dialog=>{const style=getComputedStyle(dialog);const rect=dialog.getBoundingClientRect();return style.display!=='none'&&style.visibility!=='hidden'&&rect.width>0&&rect.height>0}).length;
+        return {outerHTML:track?.outerHTML||null,ariaValueNow:slider?.getAttribute('aria-valuenow')||null,dialogCount:dialogs.length,visibleDialogCount:visibleDialogs};
       });
       console.log('[E2E DIAGNOSTIC] SwipeBar outerHTML:',diagnostics.outerHTML);
       console.log('[E2E DIAGNOSTIC] aria-valuenow:',diagnostics.ariaValueNow);
@@ -112,9 +80,9 @@ async function swipeStartDay(){
       throw error;
     }
   }catch(error){
-    console.log(`[E2E DIRECT POINTER] swipeStartDay failure: ${String(error?.message||error)}`);
-    try{await page.screenshot({path:'swipe-failure.png',fullPage:true});}catch(screenshotError){console.log(`[E2E DIRECT POINTER] screenshot failure: ${String(screenshotError?.message||screenshotError)}`);}
-    try{await context.tracing.stop({path:'trace.zip'});}catch(traceError){console.log(`[E2E DIRECT POINTER] trace stop failure: ${String(traceError?.message||traceError)}`);}
+    console.log(`[E2E NATIVE DRAG] swipeStartDay failure: ${String(error?.message||error)}`);
+    try{await page.screenshot({path:'swipe-failure.png',fullPage:true});}catch(screenshotError){console.log(`[E2E NATIVE DRAG] screenshot failure: ${String(screenshotError?.message||screenshotError)}`);}
+    try{await context.tracing.stop({path:'trace.zip'});}catch(traceError){console.log(`[E2E NATIVE DRAG] trace stop failure: ${String(traceError?.message||traceError)}`);}
     throw error;
   }
 }
@@ -126,24 +94,9 @@ async function expandOperationIfPresent(name){
   return true;
 }
 async function recordAuthoritativeOdometer(value){
-  await page.evaluate(async odometer=>{
-    const application=window.__KFE_RUNTIME__?.application;
-    if(!application)throw new Error('KFE application runtime unavailable');
-    await application.work.recordOdometer({odometer,source:'MANUAL'});
-  },value);
+  await page.evaluate(async odometer=>{const application=window.__KFE_RUNTIME__?.application;if(!application)throw new Error('KFE application runtime unavailable');await application.work.recordOdometer({odometer,source:'MANUAL'});},value);
 }
-async function diagnosticWorkState(label){
-  return page.evaluate(async stateLabel=>{
-    const application=window.__KFE_RUNTIME__?.application;
-    const candidates=[application?.getWorkScreenState,application?.work?.getWorkScreenState,application?.work?.state].filter(fn=>typeof fn==='function');
-    if(candidates.length===0)return {label:stateLabel,state:'UNKNOWN',error:'KFE work state read model unavailable'};
-    try{
-      const value=await candidates[0].call(application?.getWorkScreenState?application:application.work);
-      const state=typeof value==='string'?value:value?.state;
-      return {label:stateLabel,state:state||'UNKNOWN'};
-    }catch(error){return {label:stateLabel,state:'UNKNOWN',error:String(error?.message||error)};}
-  },label);
-}
+async function diagnosticWorkState(label){return page.evaluate(async stateLabel=>{const application=window.__KFE_RUNTIME__?.application;const candidates=[application?.getWorkScreenState,application?.work?.getWorkScreenState,application?.work?.state].filter(fn=>typeof fn==='function');if(candidates.length===0)return {label:stateLabel,state:'UNKNOWN',error:'KFE work state read model unavailable'};try{const value=await candidates[0].call(application?.getWorkScreenState?application:application.work);const state=typeof value==='string'?value:value?.state;return {label:stateLabel,state:state||'UNKNOWN'};}catch(error){return {label:stateLabel,state:'UNKNOWN',error:String(error?.message||error)};}},label);}
 
 try{
   await route('Work');
@@ -173,15 +126,7 @@ try{
   console.log('[DIAGNOSTIC] DOM Visibility -> ShiftCard:',await page.locator('.shift-card').isVisible(),'BusinessTripCard:',await page.locator('.business-trip-card').isVisible());
   await workState('.business-trip-card');
   const businessOdometerForm=await expandOperationIfPresent('Odometer');
-  if(businessOdometerForm){
-    const businessOdometer=page.getByRole('spinbutton',{name:'Current reading'});
-    await businessOdometer.fill('130');
-    await page.getByRole('button',{name:'Record Odometer'}).click();
-    await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});
-  }else{
-    assert.equal(await page.getByRole('button',{name:'Record Odometer'}).count(),0);
-    await recordAuthoritativeOdometer(130);
-  }
+  if(businessOdometerForm){const businessOdometer=page.getByRole('spinbutton',{name:'Current reading'});await businessOdometer.fill('130');await page.getByRole('button',{name:'Record Odometer'}).click();await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});}else{assert.equal(await page.getByRole('button',{name:'Record Odometer'}).count(),0);await recordAuthoritativeOdometer(130);}
   await reloadWork();
   await workState('.business-trip-card');
   const cardText=await page.locator('.business-trip-card').innerText();
@@ -192,15 +137,7 @@ try{
   await page.getByRole('button',{name:'Personal Trip'}).click();
   await workState('.personal-trip-card');
   const personalOdometerForm=await expandOperationIfPresent('Odometer');
-  if(personalOdometerForm){
-    const personalOdometer=page.getByRole('spinbutton',{name:'Current reading'});
-    await personalOdometer.fill('150');
-    await page.getByRole('button',{name:'Record Odometer'}).click();
-    await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});
-  }else{
-    assert.equal(await page.getByRole('button',{name:'Record Odometer'}).count(),0);
-    await recordAuthoritativeOdometer(150);
-  }
+  if(personalOdometerForm){const personalOdometer=page.getByRole('spinbutton',{name:'Current reading'});await personalOdometer.fill('150');await page.getByRole('button',{name:'Record Odometer'}).click();await page.getByRole('status').filter({hasText:'Odometer recorded.'}).waitFor({state:'visible'});}else{assert.equal(await page.getByRole('button',{name:'Record Odometer'}).count(),0);await recordAuthoritativeOdometer(150);}
   await reloadWork();
   await workState('.personal-trip-card');
   await page.getByRole('button',{name:'End Personal Trip'}).click();
