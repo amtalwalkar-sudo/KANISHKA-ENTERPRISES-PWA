@@ -31,7 +31,7 @@ async function recordAuthoritativeOdometer(value){
   await page.evaluate(async odometer=>{
     const application=window.__KFE_RUNTIME__?.application;
     if(!application)throw new Error('KFE application runtime unavailable');
-    await application.recordOdometer({odometer,source:'MANUAL'});
+    await application.work.recordOdometer({odometer,source:'MANUAL'});
   },value);
 }
 async function diagnosticWorkState(label){
