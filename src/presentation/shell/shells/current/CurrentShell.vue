@@ -9,21 +9,40 @@ const NAV = Object.freeze([
   { id: 'Admin', label: 'Admin' },
 ])
 
-const route = ref(location.hash.slice(1) || 'Work')
+const FSM_STATES = Object.freeze(['DAY_START', 'SHIFT_WAITING', 'SHIFT', 'PERSONAL_TRIP', 'BUSINESS_TRIP', 'DAY_ENDED'])
+const activeSurface = ref('Work')
+const fsmState = ref(null)
 const menuOpen = ref(false)
 const busy = ref(false)
 const error = ref('')
 const fileInput = ref(null)
 
-const activeNav = computed(() => NAV.some((item) => item.id === route.value) ? route.value : 'Work')
+function isSurfaceAllowed(state, targetSurface) {
+  return FSM_STATES.includes(String(state || '')) && NAV.some((item) => item.id === targetSurface)
+}
 
-function syncRoute() { route.value = location.hash.slice(1) || 'Work' }
+function getDefaultSurface() { return 'Work' }
+
+async function readFsmState() {
+  try { fsmState.value = await kfePresentationApi.read.getWorkScreenState(); syncRoute() }
+  catch { fsmState.value = null; activeSurface.value = getDefaultSurface() }
+}
+
+function syncRoute() {
+  const next = location.hash.slice(1)
+  if (isSurfaceAllowed(fsmState.value, next)) activeSurface.value = next
+  else if (!isSurfaceAllowed(fsmState.value, activeSurface.value)) activeSurface.value = getDefaultSurface()
+}
+
 function navigate(path) {
   menuOpen.value = false
-  const next = String(path || 'Work')
-  if (location.hash.slice(1) === next) { syncRoute(); return }
+  const next = String(path || '')
+  if (!isSurfaceAllowed(fsmState.value, next)) return
+  if (activeSurface.value === next) { syncRoute(); return }
+  activeSurface.value = next
   location.hash = next
 }
+
 function toggleSettings() { error.value = ''; menuOpen.value = !menuOpen.value }
 async function backup() {
   busy.value = true; error.value = ''
@@ -56,7 +75,7 @@ async function resetData() {
   try { await kfePresentationApi.resetAllData(); location.reload() }
   catch (e) { error.value = `Reset failed: ${String(e?.message || e)}`; busy.value = false }
 }
-onMounted(() => window.addEventListener('hashchange', syncRoute))
+onMounted(() => { window.addEventListener('hashchange', syncRoute); void readFsmState() })
 onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
 </script>
 
@@ -77,10 +96,10 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
       <button id="fuel-btn" type="button" aria-label="Fuel entry placeholder">Fuel</button>
     </div>
     <main id="work-viewport" class="driver-content" aria-label="KFE work viewport">
-      <App />
+      <App :active-surface="activeSurface" @surface-select="navigate" />
     </main>
     <nav class="tier-bottom-nav quick-dock" aria-label="Primary navigation">
-      <button v-for="item in NAV" :key="item.id" type="button" :class="{ active: activeNav === item.id }" :aria-current="activeNav === item.id ? 'page' : undefined" @click="navigate(item.id)">{{ item.label }}</button>
+      <button v-for="item in NAV" :key="item.id" type="button" :class="{ active: activeSurface === item.id }" :aria-current="activeSurface === item.id ? 'page' : undefined" @click="navigate(item.id)">{{ item.label }}</button>
     </nav>
   </div>
 </template>
