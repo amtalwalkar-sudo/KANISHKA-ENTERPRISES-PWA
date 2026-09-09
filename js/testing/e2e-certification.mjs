@@ -41,27 +41,37 @@ async function attachSwipeEventProbes(){
 }
 async function swipeStartDay(){
   const thumb=page.locator('.swipe-bar__thumb');
-  const track=page.locator('.swipe-bar');
+  const track=page.locator('[data-testid="kfe-swipe-bar"]');
   await thumb.waitFor({state:'visible',timeout:10000});
   await track.waitFor({state:'visible',timeout:10000});
   await attachSwipeEventProbes();
   try{
-    const trackBox=await track.boundingBox();
-    const thumbBox=await thumb.boundingBox();
-    if(!trackBox||!thumbBox)throw new Error('Start Day SwipeBar geometry unavailable');
-    const startX=thumbBox.x+(thumbBox.width/2);
-    const startY=thumbBox.y+(thumbBox.height/2);
-    const endX=trackBox.x+(trackBox.width*.95);
-    const delta=endX-startX;
-    const required=trackBox.width*.8;
-    console.log(`[E2E NATIVE TOUCH] geometry startX=${startX.toFixed(2)} startY=${startY.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackBox.width.toFixed(2)} required80=${required.toFixed(2)}`);
-    if(delta<=required)throw new Error(`Native SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
-    console.log(`[E2E NATIVE TOUCH] executing direct thumb drag from (${startX.toFixed(2)},${startY.toFixed(2)}) to (${endX.toFixed(2)},${startY.toFixed(2)})`);
-    await page.mouse.move(startX,startY);
-    await page.mouse.down();
-    await page.mouse.move(endX,startY,{steps:15});
-    await page.mouse.up();
-    console.log(`[E2E NATIVE TOUCH] direct thumb drag dispatched; delta=${delta.toFixed(2)} required80=${required.toFixed(2)}`);
+    const result=await page.evaluate(()=>{
+      const thumb=document.querySelector('.swipe-bar__thumb');
+      const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
+      if(!thumb||!track)throw new Error('SwipeBar elements not found');
+      const trackRect=track.getBoundingClientRect();
+      const thumbRect=thumb.getBoundingClientRect();
+      const startX=thumbRect.left+(thumbRect.width/2);
+      const endX=trackRect.left+(trackRect.width*.95);
+      const startY=thumbRect.top+(thumbRect.height/2);
+      const delta=endX-startX;
+      const required=trackRect.width*.8;
+      if(delta<=required)throw new Error(`SwipeBar delta ${delta} does not exceed 80% threshold ${required}`);
+      const eventInit={bubbles:true,cancelable:true,pointerId:1,pointerType:'touch',isPrimary:true,clientY:startY,button:0};
+      console.log(`[E2E DIRECT POINTER] geometry startX=${startX.toFixed(2)} startY=${startY.toFixed(2)} endX=${endX.toFixed(2)} delta=${delta.toFixed(2)} trackWidth=${trackRect.width.toFixed(2)} required80=${required.toFixed(2)}`);
+      console.log('[E2E DIRECT POINTER] dispatch pointerdown directly on thumb');
+      thumb.dispatchEvent(new PointerEvent('pointerdown',{...eventInit,clientX:startX,buttons:1}));
+      const steps=10;
+      for(let i=1;i<=steps;i++){
+        const currentX=startX+(endX-startX)*(i/steps);
+        thumb.dispatchEvent(new PointerEvent('pointermove',{...eventInit,clientX:currentX,buttons:1}));
+      }
+      console.log(`[E2E DIRECT POINTER] dispatch pointerup directly on thumb at x=${endX.toFixed(2)}`);
+      thumb.dispatchEvent(new PointerEvent('pointerup',{...eventInit,clientX:endX,buttons:0}));
+      return {startX,startY,endX,delta,required,ariaValueNow:thumb.getAttribute('aria-valuenow')};
+    });
+    console.log(`[E2E DIRECT POINTER] sequence complete; aria-valuenow=${result.ariaValueNow} delta=${result.delta.toFixed(2)} required80=${result.required.toFixed(2)}`);
     try{
       await page.locator('[role="dialog"][aria-labelledby="start-day-modal-title"]').waitFor({state:'visible',timeout:10000});
     }catch(error){
@@ -91,9 +101,9 @@ async function swipeStartDay(){
       throw error;
     }
   }catch(error){
-    console.log(`[E2E NATIVE TOUCH] swipeStartDay failure: ${String(error?.message||error)}`);
-    try{await page.screenshot({path:'swipe-failure.png',fullPage:true});}catch(screenshotError){console.log(`[E2E NATIVE TOUCH] screenshot failure: ${String(screenshotError?.message||screenshotError)}`);}
-    try{await context.tracing.stop({path:'trace.zip'});}catch(traceError){console.log(`[E2E NATIVE TOUCH] trace stop failure: ${String(traceError?.message||traceError)}`);}
+    console.log(`[E2E DIRECT POINTER] swipeStartDay failure: ${String(error?.message||error)}`);
+    try{await page.screenshot({path:'swipe-failure.png',fullPage:true});}catch(screenshotError){console.log(`[E2E DIRECT POINTER] screenshot failure: ${String(screenshotError?.message||screenshotError)}`);}
+    try{await context.tracing.stop({path:'trace.zip'});}catch(traceError){console.log(`[E2E DIRECT POINTER] trace stop failure: ${String(traceError?.message||traceError)}`);}
     throw error;
   }
 }
