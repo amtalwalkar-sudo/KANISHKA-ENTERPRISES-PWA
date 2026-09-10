@@ -60,7 +60,7 @@
     "validate:phase-6-ui-shell": "node js/testing/phase-6-ui-shell-contract.mjs",
     "validate:phase-7-reliability": "node js/testing/phase-7-reliability-contract.mjs",
     "validate:e2e": "node js/testing/e2e-certification.mjs",
-    "test": "vitest run"
+    "test": "npx vitest run"
   },
   "dependencies": {
     "dexie": "^4.4.6",
