@@ -1,24 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import AuthoritativeRecordFormRole from '@/components/AuthoritativeRecordFormRole.vue'
 
 const routes = [
   {
     path: '/',
-    redirect: '/modules'
-  },
-  {
-    path: '/modules',
-    name: 'Modules',
-    component: () => import('@/components/KfeModuleView.vue')
-  },
-  {
-    path: '/history',
-    name: 'History',
-    component: () => import('@/components/HistoricalEntriesView.vue')
-  },
-  {
-    path: '/form',
-    name: 'Form',
-    component: () => import('@/components/AuthoritativeRecordFormRole.vue')
+    name: 'Home',
+    component: AuthoritativeRecordFormRole
   }
 ]
 

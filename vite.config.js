@@ -30,10 +30,14 @@ export default defineConfig({
         ]
       },
       workbox: {
+        mode: 'development',
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       }
     })
   ],
+  build: {
+    minify: false
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

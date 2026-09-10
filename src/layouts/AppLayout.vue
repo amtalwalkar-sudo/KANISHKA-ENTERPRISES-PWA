@@ -1,88 +1,146 @@
 <script setup>
-defineProps({
-  title: { type: String, default: 'Kanishka Enterprises' },
-  subtitle: { type: String, default: '' }
-})
+import { ref } from 'vue'
+import { useOfflineQueueStore } from '@/stores/index.js'
+import { exportDatabase, importDatabase } from '@/db/backup.js'
+import { useToast } from '@/composables/useToast.js'
 
-const emit = defineEmits(['back', 'refresh'])
+const offlineQueueStore = useOfflineQueueStore()
+const toast = useToast()
+const fileInput = ref(null)
+const importing = ref(false)
+
+async function handleBackup() {
+  try {
+    await exportDatabase()
+    toast.success('Database backup downloaded.')
+  } catch (err) {
+    toast.error(`Backup failed: ${err.message}`)
+  }
+}
+
+function triggerRestore() {
+  fileInput.value?.click()
+}
+
+async function handleFileSelect(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  importing.value = true
+  try {
+    const count = await importDatabase(file)
+    toast.success(`Restored ${count} records successfully.`)
+  } catch (err) {
+    toast.error(`Restore failed: ${err.message}`)
+  } finally {
+    importing.value = false
+    event.target.value = ''
+  }
+}
 </script>
 
 <template>
   <div class="app-layout">
     <header class="app-header">
-      <div class="header-left">
-        <button v-if="$attrs.onBack" type="button" class="btn-icon" @click="emit('back')">←</button>
-        <div>
-          <h1 class="app-title">{{ title }}</h1>
-          <p v-if="subtitle" class="app-subtitle">{{ subtitle }}</p>
-        </div>
+      <div class="brand">
+        <h1 class="brand-title">Kanishka Enterprises</h1>
+        <span
+          class="status-badge"
+          :class="{ online: offlineQueueStore.isOnline, offline: !offlineQueueStore.isOnline }"
+        >
+          {{ offlineQueueStore.isOnline ? 'Online' : 'Offline' }}
+        </span>
       </div>
+
       <div class="header-actions">
-        <slot name="actions">
-          <button v-if="$attrs.onRefresh" type="button" class="btn-icon" @click="emit('refresh')">↻</button>
-        </slot>
+        <button class="hdr-btn" @click="handleBackup" title="Export Backup JSON">
+          Backup
+        </button>
+
+        <button class="hdr-btn" :disabled="importing" @click="triggerRestore" title="Restore Snapshot JSON">
+          {{ importing ? 'Restoring...' : 'Restore' }}
+        </button>
+
+        <input
+          ref="fileInput"
+          type="file"
+          accept=".json"
+          class="hidden-input"
+          @change="handleFileSelect"
+        />
       </div>
     </header>
 
     <main class="app-main">
       <slot />
     </main>
-
-    <footer v-if="$slots.footer" class="app-footer">
-      <slot name="footer" />
-    </footer>
   </div>
 </template>
 
 <style scoped>
 .app-layout {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  background-color: var(--bg-app, #f8fafc);
-  color: var(--text-main, #0f172a);
+  background-color: var(--bg-body, #f8fafc);
 }
 .app-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 0.8rem 1rem;
-  background: var(--bg-surface, #ffffff);
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-surface, #ffffff);
   border-bottom: 1px solid var(--border-color, #e2e8f0);
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
-.header-left {
+.brand {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
 }
-.app-title {
-  margin: 0;
-  font-size: 1rem;
+.brand-title {
+  font-size: var(--font-size-md, 1rem);
   font-weight: 700;
-}
-.app-subtitle {
+  color: var(--text-main, #0f172a);
   margin: 0;
-  font-size: 0.65rem;
-  color: var(--text-muted, #64748b);
 }
-.btn-icon {
-  background: transparent;
-  border: none;
-  font-size: 1rem;
+.status-badge {
+  font-size: var(--font-size-xs, 0.7rem);
+  padding: 0.15rem 0.4rem;
+  border-radius: 9999px;
+  font-weight: 600;
+}
+.status-badge.online {
+  background-color: #dcfce7;
+  color: #166534;
+}
+.status-badge.offline {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.hdr-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: 600;
+  border: 1px solid var(--border-color, #cbd5e1);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-surface, #ffffff);
+  color: var(--text-main, #334155);
   cursor: pointer;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
+}
+.hdr-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.hidden-input {
+  display: none;
 }
 .app-main {
   flex: 1;
   padding: 1rem;
-}
-.app-footer {
-  padding: 0.8rem 1rem;
-  background: var(--bg-surface, #ffffff);
-  border-top: 1px solid var(--border-color, #e2e8f0);
 }
 </style>

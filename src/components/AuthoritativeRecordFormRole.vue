@@ -3,15 +3,13 @@ import FormLayout from '@/layouts/FormLayout.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import { useForm } from '@/composables/useForm.js'
+import { useRecordForm } from '@/composables/useRecordForm.js'
 import { useToast } from '@/composables/useToast.js'
-import { useRecordsStore } from '@/stores/records.js'
-import { saveLocalRecord, enqueueOfflineAction } from '@/db/index.js'
-import { toPaise } from '@/domain/math/index.js'
 
 const toast = useToast()
-const recordsStore = useRecordsStore()
+const { submitRecord, busy: syncing, error: submitError } = useRecordForm()
 
-const { form, busy, error, reset, submit } = useForm({
+const { form, busy: formBusy, reset, submit } = useForm({
   record_type: 'REVENUE',
   amount: '',
   notes: '',
@@ -20,33 +18,8 @@ const { form, busy, error, reset, submit } = useForm({
 
 async function handleFormSubmit() {
   await submit(async (formData) => {
-    if (!formData.amount || Number(formData.amount) <= 0) {
-      throw new Error('Please enter a valid amount greater than zero.')
-    }
-
-    const amountPaise = toPaise(Number(formData.amount))
-    const record = {
-      entityId: `rec-${Date.now()}`,
-      record_type: formData.record_type,
-      amount_paise: amountPaise,
-      notes: formData.notes,
-      date: formData.date,
-      status: navigator.onLine ? 'SYNCED' : 'PENDING'
-    }
-
-    // Save to Dexie IndexedDB
-    await saveLocalRecord(record)
-
-    // Queue for server sync if offline
-    if (!navigator.onLine) {
-      await enqueueOfflineAction('CREATE', 'RECORD', record)
-    }
-
-    // Update Pinia state
-    recordsStore.addRecord(record)
-
-    toast.success(`Record saved ${navigator.onLine ? 'and synced' : 'locally (offline)'}`)
-    reset()
+    const success = await submitRecord(formData)
+    if (success) reset()
   })
 }
 
@@ -59,18 +32,18 @@ function handleCancel() {
 <template>
   <FormLayout
     title="Authoritative Record Form"
-    subtitle="Submit entry with offline-first Dexie.js & Pinia synchronization"
-    :loading="busy"
+    subtitle="Submit entry with decoupled architecture"
+    :loading="formBusy || syncing"
     @submit="handleFormSubmit"
     @cancel="handleCancel"
   >
-    <div v-if="error" class="form-error-alert">
-      {{ error }}
+    <div v-if="submitError" class="form-error-alert">
+      {{ submitError }}
     </div>
 
     <div class="form-group">
       <label class="form-label">Record Type</label>
-      <select v-model="form.record_type" class="type-select" :disabled="busy">
+      <select v-model="form.record_type" class="type-select" :disabled="formBusy || syncing">
         <option value="REVENUE">Revenue</option>
         <option value="EXPENSE">Expense</option>
         <option value="FUEL">Fuel</option>
@@ -83,7 +56,7 @@ function handleCancel() {
       label="Amount (₹)"
       placeholder="0.00"
       required
-      :disabled="busy"
+      :disabled="formBusy || syncing"
     />
 
     <BaseInput
@@ -91,7 +64,7 @@ function handleCancel() {
       type="date"
       label="Date"
       required
-      :disabled="busy"
+      :disabled="formBusy || syncing"
     />
 
     <BaseInput
@@ -99,14 +72,14 @@ function handleCancel() {
       type="text"
       label="Notes / Description"
       placeholder="Optional entry details..."
-      :disabled="busy"
+      :disabled="formBusy || syncing"
     />
 
     <template #actions>
-      <BaseButton type="button" variant="secondary" :disabled="busy" @click="handleCancel">
+      <BaseButton type="button" variant="secondary" :disabled="formBusy || syncing" @click="handleCancel">
         Clear
       </BaseButton>
-      <BaseButton type="submit" variant="primary" :loading="busy">
+      <BaseButton type="submit" variant="primary" :loading="formBusy || syncing">
         Save Record
       </BaseButton>
     </template>

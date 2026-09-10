@@ -1,5 +1,3 @@
-import { createPinia } from 'pinia'
-
-export const pinia = createPinia()
-export * from './records.js'
-export * from './offlineQueue.js'
+export { pinia } from './pinia.js'
+export { useRecordsStore } from './recordsStore.js'
+export { useOfflineQueueStore } from './offlineQueueStore.js'
