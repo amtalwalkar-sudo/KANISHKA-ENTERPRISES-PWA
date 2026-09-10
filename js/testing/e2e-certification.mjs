@@ -83,14 +83,21 @@ async function swipeStartDay(){
       const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
       if(!thumb||!track)throw new Error('SwipeBar math diagnostic target unavailable');
       if(thumb.dataset.kfeMathDiagnosticAttached==='true')return;
+      let observedStartX=null;
       ['pointerdown','pointermove','pointerup'].forEach(eventType=>{
         thumb.addEventListener(eventType,e=>{
+          if(eventType==='pointerdown')observedStartX=e.clientX;
           const trackRect=track?.getBoundingClientRect();
           const thumbRect=thumb?.getBoundingClientRect();
+          const denominator=trackRect?.width;
+          const numerator=typeof observedStartX==='number'?e.clientX-observedStartX:undefined;
+          const observedProgress=typeof numerator==='number'&&typeof denominator==='number'?(numerator/denominator):undefined;
           console.log(`[MATH DIAGNOSTIC] ${eventType}:`,{
             clientX:e.clientX,
-            startX:window.__KFE_SWIPE_START_X__ ?? null,
-            trackWidth:trackRect?.width,
+            startX:observedStartX,
+            trackWidth:denominator,
+            numerator,
+            observedProgress,
             thumbWidth:thumbRect?.width,
             currentTargetClass:e.currentTarget?.className,
             targetClass:e.target?.className
