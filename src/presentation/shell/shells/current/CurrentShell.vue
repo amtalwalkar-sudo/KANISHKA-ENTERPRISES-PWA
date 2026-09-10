@@ -1,29 +1,44 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import App from '../../../../App.vue';
 import { kfePresentationApi } from '../../../application/presentation-api.js'
+import WorkModuleView from '../../../../components/WorkModuleView.vue'
+import PerformanceModuleRole from '../../../../components/PerformanceModuleRole.vue'
+import AdminModuleView from '../../../../components/AdminModuleView.vue'
 
 const NAV = Object.freeze([
+  { id: 'Work', label: 'Work' },
   { id: 'Performance', label: 'Performance' },
   { id: 'Admin', label: 'Admin' },
 ])
 
-const route = ref(location.hash.slice(1) || 'Performance')
-const menuOpen = ref(false)
+const route = ref(location.hash.slice(1) || 'Work')
 const busy = ref(false)
 const error = ref('')
+const performanceModel = ref(null)
+const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
 const fileInput = ref(null)
 
-const activeNav = computed(() => NAV.some((item) => item.id === route.value) ? route.value : 'Performance')
+const activeNav = computed(() => NAV.some((item) => item.id === route.value) ? route.value : 'Work')
 
-function syncRoute() { route.value = location.hash.slice(1) || 'Performance' }
+function syncRoute() { route.value = location.hash.slice(1) || 'Work' }
 function navigate(path) {
-  menuOpen.value = false
-  const next = String(path || 'Performance')
+  const next = String(path || 'Work')
   if (location.hash.slice(1) === next) { syncRoute(); return }
   location.hash = next
 }
-function toggleSettings() { error.value = ''; menuOpen.value = !menuOpen.value }
+
+async function loadPerformance() {
+  try {
+    performanceModel.value = await kfePresentationApi.read.getPerformance()
+  } catch (e) {
+    performanceModel.value = { error: String(e?.message || e) }
+  }
+}
+
+function requestRestore() {
+  if (!busy.value) fileInput.value?.click()
+}
+
 async function backup() {
   busy.value = true; error.value = ''
   try {
@@ -32,11 +47,11 @@ async function backup() {
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url; anchor.download = `kfe-backup-${new Date().toISOString().slice(0, 10)}.json`; anchor.click()
-    URL.revokeObjectURL(url); menuOpen.value = false
+    URL.revokeObjectURL(url)
   } catch (e) { error.value = `Backup failed: ${String(e?.message || e)}` }
   finally { busy.value = false }
 }
-function requestRestore() { if (!busy.value) fileInput.value?.click() }
+
 async function restore(event) {
   const file = event.target.files?.[0]; event.target.value = ''; if (!file) return
   busy.value = true; error.value = ''
@@ -48,6 +63,7 @@ async function restore(event) {
   } catch (e) { error.value = `Restore failed: ${String(e?.message || e)}` }
   finally { busy.value = false }
 }
+
 async function resetData() {
   if (!confirm('RESET ALL KFE DATA? This permanently removes local ERP records from this device.')) return
   if (!confirm('Final confirmation: erase all local ERP data?')) return
@@ -55,53 +71,183 @@ async function resetData() {
   try { await kfePresentationApi.resetAllData(); location.reload() }
   catch (e) { error.value = `Reset failed: ${String(e?.message || e)}`; busy.value = false }
 }
-onMounted(() => window.addEventListener('hashchange', syncRoute))
+
+onMounted(() => {
+  window.addEventListener('hashchange', syncRoute)
+  void loadPerformance()
+})
 onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
 </script>
 
 <template>
-  <div class="driver-shell">
-    <header class="driver-header" aria-label="KFE header">
-      <button class="settings-button" type="button" aria-label="Settings" :aria-expanded="menuOpen" aria-controls="settings-menu" @click="toggleSettings"><span aria-hidden="true">☰</span></button>
-      <div v-if="menuOpen" id="settings-menu" class="settings-menu" role="menu">
-        <button type="button" role="menuitem" :disabled="busy" @click="backup">Backup</button>
-        <button type="button" role="menuitem" :disabled="busy" @click="requestRestore">Restore</button>
-        <button type="button" role="menuitem" :disabled="busy" @click="resetData">Data reset</button>
+  <div class="shell-container">
+    <!-- Global Shell Header -->
+    <header class="global-header">
+      <span class="app-title">KFE ERP</span>
+      <div class="header-actions">
+        <button type="button" :disabled="busy" @click="backup">Backup</button>
+        <button type="button" :disabled="busy" @click="requestRestore">Restore</button>
+        <button type="button" class="btn-danger-subtle" :disabled="busy" @click="resetData">Reset</button>
       </div>
       <input ref="fileInput" hidden type="file" accept="application/json,.json" @change="restore">
     </header>
-    <main class="driver-content">
-      <div class="content-surface">
-        <p v-if="error" class="shell-error" role="alert">{{ error }}</p>
-        <App />
+
+    <main class="module-stage">
+      <p v-if="error" class="shell-error" role="alert">{{ error }}</p>
+
+      <WorkModuleView
+        v-if="activeNav === 'Work'"
+      />
+
+      <div v-else-if="activeNav === 'Performance'" class="scroll-container">
+        <PerformanceModuleRole :performance="performanceModel" />
+      </div>
+
+      <div v-else-if="activeNav === 'Admin'" class="scroll-container">
+        <AdminModuleView
+          :application="kfePresentationApi"
+          :online="online"
+        />
       </div>
     </main>
+
     <nav class="quick-dock" aria-label="Primary navigation">
-      <button v-for="item in NAV" :key="item.id" type="button" :class="{ active: activeNav === item.id }" :aria-current="activeNav === item.id ? 'page' : undefined" @click="navigate(item.id)">{{ item.label }}</button>
+      <button
+        v-for="item in NAV"
+        :key="item.id"
+        type="button"
+        :class="{ active: activeNav === item.id }"
+        @click="navigate(item.id)"
+      >
+        {{ item.label }}
+      </button>
     </nav>
   </div>
 </template>
 
 <style scoped>
 :global(*), :global(*::before), :global(*::after) { box-sizing: border-box; }
-:global(html), :global(body), :global(#app), :global(#vue-runtime) { min-height: 100%; margin: 0; }
-:global(body) { overflow: hidden; background: #fff; color: #111; }
-.driver-shell { min-height: 100dvh; padding-top: calc(48px + env(safe-area-inset-top)); padding-bottom: calc(64px + env(safe-area-inset-bottom)); overflow: hidden; background: #fff; color: #111; }
-.driver-header { position: fixed; inset: 0 0 auto; z-index: 12000; min-height: calc(48px + env(safe-area-inset-top)); padding: calc(4px + env(safe-area-inset-top)) 8px 4px; display: flex; justify-content: flex-end; align-items: center; border-bottom: 1px solid #ddd; background: #fff; }
-.settings-button { width: 40px; height: 40px; border: 0; padding: 0; background: transparent; color: #111; font: inherit; font-size: 1.2rem; }
-.settings-button:focus-visible, .settings-menu button:focus-visible, .quick-dock button:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
-.settings-menu { position: absolute; top: calc(48px + env(safe-area-inset-top)); right: 8px; width: 150px; display: grid; padding: 4px; border: 1px solid #ddd; background: #fff; }
-.settings-menu button { min-height: 42px; border: 0; border-bottom: 1px solid #eee; background: #fff; color: #111; text-align: left; padding: 0 10px; font: inherit; font-size: .85rem; }
-.settings-menu button:last-child { border-bottom: 0; }
-.settings-menu button:disabled { opacity: .5; }
-.driver-content { height: calc(100dvh - 48px - 64px); overflow: hidden; }
-.content-surface { width: 100%; height: 100%; min-height: 0; overflow: hidden; }
-.shell-error { position: fixed; top: calc(48px + env(safe-area-inset-top)); left: 8px; right: 8px; z-index: 11999; margin: 0; padding: 8px; border: 1px solid #ddd; background: #fff; font-size: .75rem; }
-:deep(.kfe-topbar), :deep(.kfe-bottom-nav) { display: none !important; }
-:deep(.kfe-shell) { min-height: 0 !important; height: 100% !important; overflow: hidden; }
-:deep(.kfe-viewport) { min-height: 0 !important; height: 100% !important; overflow-y: auto !important; overflow-x: hidden; }
-:deep(.kfe-workspace) { padding-bottom: 0 !important; }
-.quick-dock { position: fixed; inset: auto 0 0; z-index: 12000; min-height: calc(64px + env(safe-area-inset-bottom)); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; border-top: 1px solid #ddd; background: #fff; }
-.quick-dock button { min-height: 48px; border: 0; background: transparent; color: #555; font: inherit; font-size: .78rem; }
-.quick-dock button.active { color: #111; font-weight: 700; }
+:global(html), :global(body), :global(#app) { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
+
+.shell-container {
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-active: #eff6ff;
+  --border-color: #e2e8f0;
+  --border-subtle: #f1f5f9;
+  
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --text-subtle: #475569;
+  
+  --color-primary: #2563eb;
+  --color-danger: #dc2626;
+  --color-success: #16a34a;
+
+  --header-height: 48px;
+  --dock-height: 56px;
+
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--bg-app);
+  color: var(--text-main);
+}
+
+.global-header {
+  height: var(--header-height);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 100;
+}
+
+.app-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.header-actions button {
+  padding: 5px 9px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  border-radius: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.header-actions button.btn-danger-subtle {
+  color: var(--color-danger);
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.module-stage {
+  flex: 1;
+  height: calc(100dvh - var(--header-height) - var(--dock-height));
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.scroll-container {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  background-color: var(--bg-app);
+}
+
+.quick-dock {
+  height: var(--dock-height);
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-color);
+  z-index: 100;
+}
+
+.quick-dock button {
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.quick-dock button.active {
+  color: var(--color-primary);
+  background: var(--bg-active);
+  border-top: 2px solid var(--color-primary);
+}
+
+.shell-error {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 1000;
+  padding: 8px 12px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
 </style>

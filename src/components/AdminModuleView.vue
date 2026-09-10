@@ -62,3 +62,34 @@ watch(()=>props.online,load);onMounted(load)
 </template>
 </section>
 </template>
+<style scoped>
+/* Admin Root Container */
+:host, div {
+  box-sizing: border-box;
+}
+
+:host, div:first-child {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  padding: 16px;
+  gap: 12px;
+  background-color: #f8fafc;
+}
+
+/* Card Wrappers */
+:deep(section), :deep(article), :deep(.card) {
+}
+
+/* Row Formatting (Separates Keys & Values) */
+:deep(p), :deep(li), :deep(.row) {
+}
+
+:deep(h1), :deep(h2), :deep(h3) {
+}
+
+:deep(button) {
+}
+</style>

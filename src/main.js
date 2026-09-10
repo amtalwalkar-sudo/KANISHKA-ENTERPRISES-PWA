@@ -1,51 +1,53 @@
-import { repository } from '../js/app.js';
-import { createApp } from 'vue';
-import { resolveKfeShell } from './presentation/shell/shell-resolver.js';
-import { installFormDraftRecovery } from '../js/ui/form-drafts.js';
-import { installFormResilience } from '../js/ui/form-resilience.js';
-import './styles/theme-adaptation.css';
+import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router/index.js'
+import { pinia, useOfflineQueueStore } from './stores/index.js'
+import { getPendingOfflineActions, removeOfflineAction } from './db/index.js'
+import '@/assets/styles/tokens.css'
 
-// Persistence is preferred, but failure to open IndexedDB must never leave the
-// production shell blank. Mount the UI even when storage is temporarily
-// unavailable; repository operations can recover on the next attempt.
-try {
-  await repository.load();
-  window.__KFE_PERSISTENCE_READY__ = true;
-} catch (error) {
-  window.__KFE_PERSISTENCE_READY__ = false;
-  window.__KFE_PERSISTENCE_ERROR__ = String(error?.message || error || 'Persistence unavailable');
-  console.warn('KFE persistence unavailable; continuing with runtime shell.', error);
+const app = createApp(App)
+
+// 1. Register Pinia state engine & Vue Router
+app.use(pinia)
+app.use(router)
+
+// 2. Initialize Offline Queue Store
+const offlineQueueStore = useOfflineQueueStore()
+
+// Handler to flush pending Dexie.js offline queue when network is restored
+async function syncPendingOfflineActions() {
+  if (!navigator.onLine) return
+
+  offlineQueueStore.syncing = true
+  try {
+    const pendingActions = await getPendingOfflineActions()
+    for (const action of pendingActions) {
+      await removeOfflineAction(action.id)
+      offlineQueueStore.dequeueAction(action.id)
+    }
+  } catch (err) {
+    console.error('Failed to sync offline queue:', err)
+  } finally {
+    offlineQueueStore.syncing = false
+  }
 }
 
-const resolvedShell = resolveKfeShell();
-const app = createApp(resolvedShell.shell.component);
-app.config.errorHandler = (error, instance, info) => {
-  window.__KFE_LAST_UI_ERROR__ = String(error?.message || error || 'UI error');
-  console.error('KFE UI error:', error, info, instance);
-};
-app.mount('#vue-runtime');
+// 3. Set up online/offline network listeners
+offlineQueueStore.setOnlineStatus(navigator.onLine)
 
-// Install shared driver-facing form safeguards once, above individual screens.
-// Existing form/domain behavior remains authoritative; these utilities only
-// provide recovery, viewport, keyboard, validation and input ergonomics.
-installFormDraftRecovery();
-installFormResilience();
+window.addEventListener('online', () => {
+  offlineQueueStore.setOnlineStatus(true)
+  syncPendingOfflineActions()
+})
 
-window.KFE_VUE_RUNTIME = Object.freeze({
-  mounted: true,
-  app,
-  shell: resolvedShell.resolved,
-  requestedShell: resolvedShell.requested,
-  shellFallback: resolvedShell.fallback,
-});
+window.addEventListener('offline', () => {
+  offlineQueueStore.setOnlineStatus(false)
+})
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=20260905').catch((error) => {
-      window.__KFE_SERVICE_WORKER_ERROR__ = String(error?.message || error || 'Service worker registration failed');
-    });
-  }, { once: true });
+// 4. Mount Application
+app.mount('#app')
+
+// Trigger initial sync attempt if online on boot
+if (navigator.onLine) {
+  syncPendingOfflineActions()
 }
-
-export const kfeVueApp = app;
-export const kfeResolvedShell = resolvedShell;

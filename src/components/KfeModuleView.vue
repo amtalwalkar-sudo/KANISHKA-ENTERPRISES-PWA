@@ -1,94 +1,170 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
-import KfeFormShell from './KfeFormShell.vue';
-import KfeFormField from './KfeFormField.vue';
+import { computed, ref } from 'vue'
+import { calculateTotalAmount, paiseToRupees, rupeesToPaise } from '../domain/math/index.js'
 
-const props = defineProps({ module: { type: String, required: true }, application: { type: Object, required: true } });
-const emit = defineEmits(['open', 'back', 'save-request', 'reset-request']);
-const activeAction = ref('');
-const records = ref([]);
-const loading = ref(false);
-const error = ref('');
-const savedMessage = ref('');
+const props = defineProps({
+  application: { type: Object, required: true },
+  title: { type: String, default: 'Module Summary' },
+  records: { type: Array, default: () => [] },
+  currencySymbol: { type: String, default: '₹' }
+})
 
-const definition = computed(() => props.module === 'Revenue'
-  ? { eyebrow: 'Business Operations', title: 'Revenue', subtitle: 'Record and review authoritative business revenue.' }
-  : { eyebrow: 'Business Operations', title: 'Expenses', subtitle: 'Record and review authoritative business expenses.' });
+const emit = defineEmits(['refresh', 'select'])
 
-const formSpec = computed(() => props.module === 'Revenue'
-  ? { title: 'Record revenue', subtitle: 'Business revenue is persisted through the application boundary.', fields: [
-      { id: 'amount', label: 'Revenue amount', type: 'number', required: true, placeholder: '0.00' },
-      { id: 'date', label: 'Business date', type: 'date', required: true },
-    ] }
-  : { title: 'Record expense', subtitle: 'Business expense is persisted through the application boundary.', fields: [
-      { id: 'category', label: 'Category', required: true, placeholder: 'Fuel, toll, parking, other…' },
-      { id: 'date', label: 'Business date', type: 'date', required: true },
-      { id: 'amount', label: 'Amount', type: 'number', required: true, placeholder: '0.00' },
-      { id: 'description', label: 'Description', optional: true, placeholder: 'Optional details' },
-      { id: 'reference', label: 'Receipt / reference', optional: true, placeholder: 'Optional reference' },
-    ] });
+const filterType = ref('ALL')
 
-const money = value => value == null ? '—' : `₹${Number(value).toFixed(2)}`;
-const recent = computed(() => records.value.slice(-12).reverse());
-const total = computed(() => records.value.reduce((sum, row) => sum + (Number(row.amount) || 0), 0));
+const filteredRecords = computed(() => {
+  if (filterType.value === 'ALL') return props.records
+  return props.records.filter(r => r.type === filterType.value || r.record_type === filterType.value)
+})
 
-async function load() {
-  loading.value = true; error.value = '';
-  try {
-    const model = await props.application.getTimeline('Long-term');
-    const wanted = props.module === 'Revenue' ? 'Revenue' : 'Expense';
-    records.value = (model?.events || []).filter(event => event.entityType === wanted || event.type === wanted);
-  } catch (e) { error.value = String(e?.message || e); records.value = []; }
-  finally { loading.value = false; }
+const totalAmountPaise = computed(() => {
+  return calculateTotalAmount(filteredRecords.value, 'amount_paise')
+})
+
+const totalAmountRupees = computed(() => {
+  return paiseToRupees(totalAmountPaise.value)
+})
+
+function formatAmount(paise) {
+  return `${props.currencySymbol}${paiseToRupees(paise).toFixed(2)}`
 }
-function openRecordForm() { activeAction.value = props.module; savedMessage.value = ''; error.value = ''; }
-function closeAction() { activeAction.value = ''; }
-async function save(value) {
-  error.value = ''; savedMessage.value = '';
-  try {
-    if (props.module === 'Revenue') {
-      await props.application.recordRevenue({ amount_paise: Math.round(Number(value.amount) * 100), business_date: value.date, recorded_at: new Date().toISOString(), scope: 'BUSINESS' });
-    } else {
-      await props.application.recordExpense(value);
-    }
-    activeAction.value = '';
-    savedMessage.value = `${props.module} record saved.`;
-    await load();
-  } catch (e) { error.value = String(e?.message || e); }
+
+function toPaiseInput(rupees) {
+  return rupeesToPaise(rupees)
 }
-watch(() => props.module, () => { activeAction.value = ''; savedMessage.value = ''; void load(); });
-onMounted(load);
 </script>
 
 <template>
-  <section v-if="module==='Settings'" class="kfe-module-view" data-module="Settings" aria-labelledby="settings-title">
-    <div class="kfe-module-heading">
-      <button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('back')">‹ Admin</button>
-      <p class="kfe-eyebrow">SYSTEM</p>
-      <h1 id="settings-title">Settings</h1>
-      <p class="kfe-destination-subtitle">KFE 2.0 operational settings and local data controls.</p>
-    </div>
-    <section class="kfe-module-section" aria-label="Theme settings"><h2>THEME</h2><article class="kfe-detail-card"><strong>Theme</strong><p>Day · Night · Dusk</p></article></section>
-    <section class="kfe-module-section" aria-label="Backup and restore"><h2>DATA</h2><article class="kfe-detail-card"><strong>Backup</strong><p>Local backup and restore</p><strong>Restore</strong><p>Restore a local KFE snapshot</p><strong>Reset ERP Data</strong><p>Reset ERP data from the existing application boundary</p></article></section>
-    <section class="kfe-module-section" aria-label="About KFE"><h2>ABOUT</h2><article class="kfe-detail-card"><strong>KFE 2.0</strong><p>Version 2.0.0</p></article></section>
-  </section>
+  <section class="kfe-module-view">
+    <header class="kfe-module-header">
+      <h2>{{ title }}</h2>
+      <div class="kfe-module-stats">
+        <span class="stat-label">Total Filtered:</span>
+        <strong class="stat-value">{{ formatAmount(totalAmountPaise) }}</strong>
+      </div>
+    </header>
 
-  <section v-else class="kfe-module-view" :data-module="module" :aria-labelledby="`${module}-title`">
-    <template v-if="activeAction">
-      <div class="kfe-module-heading"><button class="kfe-secondary-action kfe-back-action" type="button" @click="closeAction">‹ {{ definition.title }}</button><p class="kfe-eyebrow">{{ definition.eyebrow }}</p><h1>{{ formSpec.title }}</h1><p class="kfe-destination-subtitle">{{ formSpec.subtitle }}</p></div>
-      <KfeFormShell :draft-key="`erp:${module}`" :title="formSpec.title" :subtitle="formSpec.subtitle" @save="save"><template #default="{ value }"><KfeFormField v-for="field in formSpec.fields" :key="field.id" v-bind="field" v-model="value[field.id]" /><p class="kfe-form-boundary-note">Business scope is fixed. Financial calculations remain in the domain/application layer.</p></template></KfeFormShell>
-      <p v-if="error" class="kfe-error-note" role="alert">{{ error }}</p>
-    </template>
-    <template v-else>
-      <div class="kfe-module-heading"><button class="kfe-secondary-action kfe-back-action" type="button" @click="emit('back')">‹ Admin</button><p class="kfe-eyebrow">{{ definition.eyebrow }}</p><h1 :id="`${module}-title`">{{ definition.title }}</h1><p class="kfe-destination-subtitle">{{ definition.subtitle }}</p></div>
-      <section class="kfe-summary-grid" aria-label="Module summary"><article><span>Records</span><strong>{{ records.length }}</strong></article><article><span>Total</span><strong>{{ money(total) }}</strong></article></section>
-      <button class="kfe-primary-action" type="button" @click="openRecordForm">{{ module === 'Revenue' ? 'Record Revenue' : 'Record Expense' }}</button>
-      <p v-if="savedMessage" class="kfe-boundary-note" role="status">{{ savedMessage }}</p><p v-if="error" class="kfe-error-note" role="alert">{{ error }}</p>
-      <section class="kfe-module-section"><div class="kfe-section-heading"><h2>RECENT RECORDS</h2><span v-if="loading">Loading…</span></div><div v-if="recent.length" class="kfe-record-list"><article v-for="row in recent" :key="row.id || `${row.occurredAt}-${row.amount}`" class="kfe-record-card"><div><strong>{{ row.description || (module === 'Revenue' ? 'Business revenue' : 'Business expense') }}</strong><span>{{ row.occurredAt ? new Date(row.occurredAt).toLocaleDateString() : '—' }}</span></div><strong>{{ money(row.amount) }}</strong></article></div><p v-else-if="!loading" class="kfe-boundary-note">No {{ module.toLowerCase() }} records have been entered yet.</p></section>
-    </template>
+    <div class="kfe-module-controls">
+      <label>
+        Filter Type:
+        <select v-model="filterType">
+          <option value="ALL">All Records</option>
+          <option value="REVENUE">Revenue</option>
+          <option value="EXPENSE">Expense</option>
+          <option value="MAINTENANCE">Maintenance</option>
+          <option value="FUEL">Fuel</option>
+        </select>
+      </label>
+      <button type="button" class="kfe-refresh-btn" @click="emit('refresh')">Refresh</button>
+    </div>
+
+    <ul v-if="filteredRecords.length" class="kfe-record-list">
+      <li 
+        v-for="item in filteredRecords" 
+        :key="item.id || item.entityId" 
+        class="kfe-record-item"
+        @click="emit('select', item)"
+      >
+        <div class="item-main">
+          <span class="item-type">{{ item.type || item.record_type || 'RECORD' }}</span>
+          <span class="item-date">{{ item.date || item.recordedAt?.slice(0, 10) || '—' }}</span>
+        </div>
+        <div class="item-amount">
+          <strong>{{ formatAmount(item.amount_paise ?? rupeesToPaise(item.amount || 0)) }}</strong>
+        </div>
+      </li>
+    </ul>
+    <p v-else class="kfe-empty-msg">No records found matching the criteria.</p>
   </section>
 </template>
 
 <style scoped>
-.kfe-module-view{padding:16px 0 32px;display:grid;gap:16px}.kfe-module-heading{display:grid;gap:6px}.kfe-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.kfe-summary-grid article,.kfe-detail-card{padding:16px;border:1px solid var(--kfe-ui-border);border-radius:15px;background:var(--kfe-ui-surface);display:grid;gap:6px}.kfe-summary-grid span,.kfe-record-card span,.kfe-detail-card p{font-size:.74rem;color:var(--kfe-muted-text)}.kfe-summary-grid strong{font-size:1.15rem}.kfe-section-heading{display:flex;justify-content:space-between;align-items:center}.kfe-section-heading h2{margin:0}.kfe-section-heading span{font-size:.72rem;color:var(--kfe-muted-text)}.kfe-record-list{display:grid;gap:8px}.kfe-record-card{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:13px 14px;border:1px solid var(--kfe-ui-border);border-radius:14px;background:var(--kfe-ui-surface)}.kfe-record-card div{display:grid;gap:4px;min-width:0}.kfe-record-card div strong{overflow:hidden;text-overflow:ellipsis}.kfe-record-card>strong{white-space:nowrap}@media(min-width:650px){.kfe-summary-grid{grid-template-columns:repeat(2,minmax(180px,260px))}}
+.kfe-module-view {
+  padding: 0.8rem;
+  background: var(--bg-surface, #ffffff);
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+.kfe-module-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+.kfe-module-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.kfe-module-stats {
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+}
+.stat-value {
+  color: var(--text-main, #0f172a);
+  font-size: 0.85rem;
+  margin-left: 0.2rem;
+}
+.kfe-module-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.7rem;
+}
+.kfe-module-controls select {
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  font-size: 0.75rem;
+}
+.kfe-refresh-btn {
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #cbd5e1);
+  background: var(--bg-surface, #fff);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+.kfe-record-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.kfe-record-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border-color, #f1f5f9);
+  border-radius: 8px;
+  background: var(--bg-subtle, #f8fafc);
+  cursor: pointer;
+}
+.item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.item-type {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--color-primary, #2563eb);
+}
+.item-date {
+  font-size: 0.6rem;
+  color: var(--text-muted, #64748b);
+}
+.item-amount {
+  font-size: 0.8rem;
+}
+.kfe-empty-msg {
+  font-size: 0.7rem;
+  color: var(--text-muted, #64748b);
+  text-align: center;
+  margin: 1rem 0;
+}
 </style>

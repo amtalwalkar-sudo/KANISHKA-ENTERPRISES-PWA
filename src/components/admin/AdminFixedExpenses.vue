@@ -1,2 +1,91 @@
-<template><section class="kfe-admin-section"><h2>FIXED EXPENSES</h2><p class="kfe-boundary-note">Lifecycle-managed recurring business obligations. Changes are persisted through the application boundary.</p><button class="kfe-primary-action" type="button" :disabled="busy" @click="add">Add fixed expense</button><div class="kfe-admin-list"><article v-for="row in rows" :key="row.id" class="kfe-admin-card"><div><strong>{{row.name}}</strong><p>{{row.category}} · {{money(row.monthly_amount_paise??row.amount_paise)}} / month</p><p>{{row.effective_from}} · {{row.status}}</p></div><div class="kfe-admin-actions"><button class="kfe-secondary-action" type="button" :disabled="busy" @click="edit(row)">Edit</button><button class="kfe-secondary-action" type="button" :disabled="busy" @click="toggle(row)">{{row.status==='ACTIVE'?'Deactivate':'Activate'}}</button></div></article><p v-if="!rows.length" class="kfe-boundary-note">No fixed expenses configured.</p></div></section><form v-if="open" class="kfe-admin-card" @submit.prevent="save"><h2>{{editing?'EDIT FIXED EXPENSE':'ADD FIXED EXPENSE'}}</h2><label class="kfe-form-label" for="fixed-expense-name">Name</label><input id="fixed-expense-name" v-model="form.name" required type="text"><label class="kfe-form-label" for="fixed-expense-category">Category</label><input id="fixed-expense-category" v-model="form.category" required type="text"><label class="kfe-form-label" for="fixed-expense-amount">Monthly amount</label><input id="fixed-expense-amount" v-model="form.amount" required min="0" step="0.01" type="number"><label class="kfe-form-label" for="fixed-expense-date">Effective from</label><input id="fixed-expense-date" v-model="form.effective_from" required type="date"><label class="kfe-form-label" for="fixed-expense-status">Status</label><select id="fixed-expense-status" v-model="form.status"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select><p v-if="error" class="kfe-error-note" role="alert">{{error}}</p><div class="kfe-admin-actions"><button class="kfe-primary-action" type="submit" :disabled="busy">{{busy?'Saving…':'Save'}}</button><button class="kfe-secondary-action" type="button" :disabled="busy" @click="cancel">Cancel</button></div></form></template>
-<script setup>import {ref} from 'vue';const props=defineProps({rows:{type:Array,default:()=>[]},application:{type:Object,required:true},money:{type:Function,required:true},reload:{type:Function,required:true}});const open=ref(false),editing=ref(null),busy=ref(false),error=ref(''),form=ref({name:'',category:'',amount:'',effective_from:new Date().toISOString().slice(0,10),status:'ACTIVE'});function reset(){form.value={name:'',category:'',amount:'',effective_from:new Date().toISOString().slice(0,10),status:'ACTIVE'};editing.value=null;error.value=''}function add(){reset();open.value=true}function edit(row){editing.value=row;error.value='';form.value={name:row.name||'',category:row.category||'',amount:((Number(row.amount_paise??row.monthly_amount_paise??0))/100).toFixed(2),effective_from:String(row.effective_from||'').slice(0,10),status:row.status||'ACTIVE'};open.value=true}function cancel(){open.value=false;reset()}async function save(){busy.value=true;error.value='';try{const value={name:form.value.name,category:form.value.category,amount_paise:Math.round(Number(form.value.amount)*100),effective_from:form.value.effective_from,status:form.value.status};if(editing.value)await props.application.fixedExpenses.update(editing.value.id,value);else await props.application.fixedExpenses.create(value);await props.reload();cancel()}catch(e){error.value=String(e?.message||e)}finally{busy.value=false}}async function toggle(row){try{if(row.status==='ACTIVE')await props.application.fixedExpenses.deactivate(row.id);else await props.application.fixedExpenses.activate(row.id);await props.reload()}catch(e){error.value=String(e?.message||e)}}</script>
+<script setup>
+import { ref } from 'vue'
+import { rupeesToPaise, paiseToRupees } from '../../domain/math/index.js'
+
+const props = defineProps({
+  rows: { type: Array, default: () => [] },
+  application: { type: Object, required: true },
+  money: { type: Function, required: true },
+  reload: { type: Function, required: true }
+})
+
+const open = ref(false)
+const editing = ref(null)
+const busy = ref(false)
+const error = ref('')
+const form = ref({
+  name: '',
+  category: '',
+  amount: '',
+  effective_from: new Date().toISOString().slice(0, 10),
+  status: 'ACTIVE'
+})
+
+function reset() {
+  form.value = {
+    name: '',
+    category: '',
+    amount: '',
+    effective_from: new Date().toISOString().slice(0, 10),
+    status: 'ACTIVE'
+  }
+  editing.value = null
+  error.value = ''
+}
+
+function add() { reset(); open.value = true }
+
+function edit(row) {
+  editing.value = row
+  error.value = ''
+  const paise = Number(row.amount_paise ?? row.monthly_amount_paise ?? 0)
+  form.value = {
+    name: row.name || '',
+    category: row.category || '',
+    amount: paiseToRupees(paise).toFixed(2),
+    effective_from: String(row.effective_from || '').slice(0, 10),
+    status: row.status || 'ACTIVE'
+  }
+  open.value = true
+}
+
+function cancel() { open.value = false; reset() }
+
+async function save() {
+  busy.value = true
+  error.value = ''
+  try {
+    const value = {
+      name: form.value.name,
+      category: form.value.category,
+      amount_paise: rupeesToPaise(form.value.amount),
+      effective_from: form.value.effective_from,
+      status: form.value.status
+    }
+    if (editing.value) {
+      await props.application.fixedExpenses.update(editing.value.id, value)
+    } else {
+      await props.application.fixedExpenses.create(value)
+    }
+    await props.reload()
+    cancel()
+  } catch (e) {
+    error.value = String(e?.message || e)
+  } finally {
+    busy.value = false
+  }
+}
+
+async function toggle(row) {
+  try {
+    if (row.status === 'ACTIVE') {
+      await props.application.fixedExpenses.deactivate(row.id)
+    } else {
+      await props.application.fixedExpenses.activate(row.id)
+    }
+    await props.reload()
+  } catch (e) {
+    error.value = String(e?.message || e)
+  }
+}
+</script>
