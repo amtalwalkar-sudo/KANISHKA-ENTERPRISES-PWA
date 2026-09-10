@@ -78,6 +78,27 @@ async function swipeStartDay(){
       console.log(`[TRACK RECT DIAGNOSTIC] ${label}`,rect);
       return rect;
     };
+    await page.evaluate(()=>{
+      const thumb=document.querySelector('.swipe-bar__thumb');
+      const track=document.querySelector('[data-testid="kfe-swipe-bar"]');
+      if(!thumb||!track)throw new Error('SwipeBar math diagnostic target unavailable');
+      if(thumb.dataset.kfeMathDiagnosticAttached==='true')return;
+      ['pointerdown','pointermove','pointerup'].forEach(eventType=>{
+        thumb.addEventListener(eventType,e=>{
+          const trackRect=track?.getBoundingClientRect();
+          const thumbRect=thumb?.getBoundingClientRect();
+          console.log(`[MATH DIAGNOSTIC] ${eventType}:`,{
+            clientX:e.clientX,
+            startX:window.__KFE_SWIPE_START_X__ ?? null,
+            trackWidth:trackRect?.width,
+            thumbWidth:thumbRect?.width,
+            currentTargetClass:e.currentTarget?.className,
+            targetClass:e.target?.className
+          });
+        },true);
+      });
+      thumb.dataset.kfeMathDiagnosticAttached='true';
+    });
     await logTrackRect('before-pointerdown');
     await page.mouse.move(target.startX,target.startY);
     await page.mouse.down();
