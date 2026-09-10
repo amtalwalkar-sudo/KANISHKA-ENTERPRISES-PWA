@@ -92,7 +92,7 @@ try {
   await swipeStartDay();
   await page.getByRole('spinbutton', {name: 'Start odometer'}).waitFor({state: 'visible', timeout: 10000});
   await page.getByRole('spinbutton', {name: 'Start odometer'}).fill('100');
-  await page.getByRole('button', {name: 'Start Day'}).click();
+  await page.locator('[role="dialog"]').getByRole('button', {name: 'Start Day', exact: true}).click();
   await workState('.shift-waiting-card');
   await workState('.work-operations');
   assert.equal(await page.getByRole('spinbutton', {name: 'Current reading'}).count(), 0);
