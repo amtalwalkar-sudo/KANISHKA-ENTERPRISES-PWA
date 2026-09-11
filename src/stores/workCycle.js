@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getLastOdometer, saveCompletedShift } from '../utils/indexedDB'
+import { ShiftRepository } from '../repositories/shiftRepository'
 
 export const useWorkCycleStore = defineStore('workCycle', () => {
   const isOnline = ref(localStorage.getItem('kfe_is_online') === 'true')
@@ -13,7 +13,7 @@ export const useWorkCycleStore = defineStore('workCycle', () => {
 
   const loadLastOdometer = async () => {
     try {
-      const odo = await getLastOdometer()
+      const odo = await ShiftRepository.getLatestOdometer()
       lastOdometer.value = odo
       return odo
     } catch (err) {
@@ -79,7 +79,7 @@ export const useWorkCycleStore = defineStore('workCycle', () => {
     }
 
     try {
-      await saveCompletedShift(shiftPayload)
+      await ShiftRepository.create(shiftPayload)
 
       lastOdometer.value = parsedEnd
       isOnline.value = false
