@@ -11,7 +11,7 @@ const notification = read('src/services/tripNotificationService.js')
 
 assert.match(db, /CANONICAL_DB_VERSION = 3/)
 for (const name of ['days','trips','gps_snapshots']) assert.match(db, new RegExp(`createObjectStore\\('${name}'`))
-assert.match(repo, /entityType,'DAY'/); assert.match(repo, /entityType,'SHIFT'/); assert.match(repo, /entityType,'TRIP'/)
+assert.match(repo, /saveMutation.*record.id,'DAY','CREATE'/); assert.match(repo, /saveMutation.*record.id,'SHIFT','CREATE'/); assert.match(repo, /saveMutation.*record.id,'TRIP','CREATE'/)
 assert.match(store, /isDayOnline/); assert.match(store, /isShiftActive/); assert.match(store, /isTripActive/)
 assert.match(store, /recordMissedTrip/); assert.match(store, /LocationService\.startActiveTripSnapshots/)
 assert.match(app, /SHIFT: \{\{ store\.headerShiftStatus \}\}/); assert.match(app, /TRIP: \{\{ store\.headerTripStatus \}\}/)
