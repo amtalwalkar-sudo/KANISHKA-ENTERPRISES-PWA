@@ -4,6 +4,7 @@ import { DayShiftTripRepository } from '../repositories/dayShiftTripRepository.j
 import { GpsSnapshotRepository } from '../repositories/gpsSnapshotRepository.js'
 import { LocationService } from '../services/locationService.js'
 import { ShiftValidator } from '../services/shiftValidator.js'
+import { MovementAccountingService } from '../services/movementAccountingService.js'
 
 const locationWithin = async (ms=1200) => Promise.race([LocationService.captureLocation(),new Promise(resolve=>setTimeout(()=>resolve(null),ms))])
 export const useDayShiftTripStore=defineStore('dayShiftTrip',()=>{
@@ -19,6 +20,7 @@ export const useDayShiftTripStore=defineStore('dayShiftTrip',()=>{
  const startTrip=async()=>{if(!isShiftActive.value){alert('Start a Shift before starting a Trip.');return false}if(isTripActive.value){alert('A Trip is already active.');return false}const location=await locationWithin();const r=await DayShiftTripRepository.createTrip({dayId:day.value.id,shiftId:shift.value.id,tripStartLocation:location});trip.value=r;if(location)void GpsSnapshotRepository.create({entityType:'TRIP',entityId:r.id,event:'TRIP_START',location});LocationService.startActiveTripSnapshots(async l=>{if(trip.value)await GpsSnapshotRepository.create({entityType:'TRIP',entityId:r.id,event:'PERIODIC',location:l,periodic:true})});return true}
  const endTrip=async()=>{if(!isTripActive.value)return false;const id=trip.value.id;const location=await locationWithin();LocationService.stopActiveTripSnapshots();await DayShiftTripRepository.endTrip({id,tripEndLocation:location});if(location)void GpsSnapshotRepository.create({entityType:'TRIP',entityId:id,event:'TRIP_END',location});await refresh();return true}
  const recordMissedTrip=async(startAt,endAt)=>{if(!isShiftActive.value){alert('Start a Shift before recording a missed Trip.');return false}if(isTripActive.value){alert('End the active Trip first.');return false}const start=new Date(startAt),end=new Date(endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime())||end<=start){alert('Enter valid Trip start and end times.');return false}const location=await locationWithin();const r=await DayShiftTripRepository.createTrip({dayId:day.value.id,shiftId:shift.value.id,tripStartAt:start.toISOString(),tripStartLocation:location});await DayShiftTripRepository.endTrip({id:r.id,tripEndAt:end.toISOString(),tripEndLocation:null});await refresh();return true}
+ const calculateDeadMiles=async(garageLocation,router)=>{const trips=await DayShiftTripRepository.getCompletedTrips(day.value?.id);return MovementAccountingService.calculateDeadMiles({garageLocation,trips,router})}
  const initialize=async()=>{if(!initialized.value)await refresh()}
- return {day,shift,trip,initialized,isDayOnline,isShiftActive,isTripActive,headerShiftStatus,headerTripStatus,initialize,refresh,startDay,endDay,startShift,endShift,startTrip,endTrip,recordMissedTrip}
+ return {day,shift,trip,initialized,isDayOnline,isShiftActive,isTripActive,headerShiftStatus,headerTripStatus,initialize,refresh,startDay,endDay,startShift,endShift,startTrip,endTrip,recordMissedTrip,calculateDeadMiles}
 })
