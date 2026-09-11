@@ -26,5 +26,8 @@ jobs:
       - name: Run Unit & Integration Tests
         run: npm test
 
+      - name: Run Phase 7 Day Shift Trip Contract
+        run: npm run validate:phase7-day-shift-trip
+
       - name: Build Production PWA Assets
         run: npm run build
