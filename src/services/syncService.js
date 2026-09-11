@@ -1,4 +1,4 @@
-import { MutationRepository } from '../repositories/mutationRepository'
+import { MutationRepository } from '../repositories/mutationRepository.js'
 
 export const SyncService = {
   isSyncing: false,
