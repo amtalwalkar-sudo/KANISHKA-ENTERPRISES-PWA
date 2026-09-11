@@ -1,20 +1,16 @@
-import { initializeCanonicalStorage } from '../utils/indexedDB'
-import { generateUUID } from '../utils/uuid'
+import { initializeCanonicalStorage } from '../utils/indexedDB.js'
+import { generateUUID } from '../utils/uuid.js'
+import { buildMutationRecord } from './mutationRepository.js'
 
 export const OdoGapRepository = {
-  /**
-   * Logs an odometer gap detected between shifts or fuel entries.
-   * Resolves only after the IndexedDB transaction completes.
-   */
   async create(gapData) {
     const db = await initializeCanonicalStorage()
-
     return new Promise((resolve, reject) => {
-      const tx = db.transaction('odoGaps', 'readwrite')
-      const store = tx.objectStore('odoGaps')
+      const tx = db.transaction(['odoGaps', 'pending_mutations'], 'readwrite')
+      const gapStore = tx.objectStore('odoGaps')
+      const mutationStore = tx.objectStore('pending_mutations')
       const now = new Date().toISOString()
-
-      const record = {
+      const gapRecord = {
         id: gapData.id || generateUUID(),
         previousOdometer: Number(gapData.previousOdometer) || 0,
         newOdometer: Number(gapData.newOdometer) || 0,
@@ -22,31 +18,25 @@ export const OdoGapRepository = {
         reason: gapData.reason || 'UNEXPLAINED_DISCREPANCY',
         createdAt: gapData.createdAt || now
       }
-
+      const mutationRecord = buildMutationRecord({ entityId: gapRecord.id, entityType: 'ODO_GAP', action: 'CREATE', payload: gapRecord, createdAt: now })
       try {
-        store.put(record)
+        gapStore.put(gapRecord)
+        mutationStore.put(mutationRecord)
       } catch (error) {
         reject(error)
         return
       }
-
-      tx.oncomplete = () => resolve(record)
-      tx.onerror = () => reject(tx.error || new Error('Odometer gap persistence failed.'))
-      tx.onabort = () => reject(tx.error || new Error('Odometer gap transaction aborted.'))
+      tx.oncomplete = () => resolve(gapRecord)
+      tx.onerror = () => reject(tx.error || new Error('Atomic odo gap persistence failed.'))
+      tx.onabort = () => reject(tx.error || new Error('Odo gap transaction aborted.'))
     })
   },
 
-  /**
-   * Retrieves all logged odometer gaps.
-   */
   async getAll() {
     const db = await initializeCanonicalStorage()
-
     return new Promise((resolve, reject) => {
       const tx = db.transaction('odoGaps', 'readonly')
-      const store = tx.objectStore('odoGaps')
-      const req = store.getAll()
-
+      const req = tx.objectStore('odoGaps').getAll()
       req.onsuccess = () => resolve(req.result || [])
       req.onerror = () => reject(req.error || new Error('Failed to read odometer gaps.'))
     })

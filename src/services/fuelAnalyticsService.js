@@ -1,5 +1,5 @@
-import { ShiftRepository } from '../repositories/shiftRepository'
-import { FuelRepository } from '../repositories/fuelRepository'
+import { ShiftRepository } from '../repositories/shiftRepository.js'
+import { FuelRepository } from '../repositories/fuelRepository.js'
 
 const toFiniteNonNegativeNumber = (value) => {
   const parsed = Number(value)

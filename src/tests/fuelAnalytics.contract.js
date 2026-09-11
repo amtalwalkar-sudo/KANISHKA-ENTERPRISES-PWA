@@ -1,8 +1,7 @@
-import { FuelAnalyticsService } from '../services/fuelAnalyticsService'
-import { ShiftRepository } from '../repositories/shiftRepository'
-import { FuelRepository } from '../repositories/fuelRepository'
+import { FuelAnalyticsService } from '../services/fuelAnalyticsService.js'
+import { ShiftRepository } from '../repositories/shiftRepository.js'
+import { FuelRepository } from '../repositories/fuelRepository.js'
 
-// In-memory stubs for contract testing. No IndexedDB or browser runtime is required.
 let mockShifts = []
 let mockFuelLogs = []
 
@@ -33,28 +32,24 @@ const assertFiniteMetrics = (metrics, label) => {
 async function runContractTests() {
   console.log('--- Running Phase 4 FuelAnalyticsService Contract Tests ---')
 
-  // Case 1: Empty datasets.
   mockShifts = []
   mockFuelLogs = []
   let m = await FuelAnalyticsService.getPerformanceMetrics()
   assert(m.totalDistance === 0 && m.efficiencyKmPerUnit === 0 && m.fuelCostPerKm === 0, 'Case 1 Failed: Empty dataset')
   assertFiniteMetrics(m, 'Case 1')
 
-  // Case 2: Shifts present + no fuel.
   mockShifts = [{ startOdometer: 1000, endOdometer: 1200, revenue: 1500 }]
   mockFuelLogs = []
   m = await FuelAnalyticsService.getPerformanceMetrics()
   assert(m.totalDistance === 200 && m.efficiencyKmPerUnit === 0 && m.netProfitPerKm === 7.5, 'Case 2 Failed: Shifts without fuel')
   assertFiniteMetrics(m, 'Case 2')
 
-  // Case 3: Fuel present + no shifts.
   mockShifts = []
   mockFuelLogs = [{ quantity: 10, totalCost: 800 }]
   m = await FuelAnalyticsService.getPerformanceMetrics()
   assert(m.totalFuelQty === 10 && m.efficiencyKmPerUnit === 0 && m.netProfitPerKm === 0, 'Case 3 Failed: Fuel without shifts')
   assertFiniteMetrics(m, 'Case 3')
 
-  // Case 4: Normal complete dataset using odometer-derived vehicle distance.
   mockShifts = [{ startOdometer: 1000, endOdometer: 1300, revenue: 3000 }]
   mockFuelLogs = [{ quantity: 15, totalCost: 1200 }]
   m = await FuelAnalyticsService.getPerformanceMetrics()
@@ -64,14 +59,12 @@ async function runContractTests() {
   assert(m.netProfitPerKm === 6, `Case 4 Profit/KM Failed: Got ${m.netProfitPerKm}`)
   assertFiniteMetrics(m, 'Case 4')
 
-  // Case 5: Explicit numeric-string sanitation.
   mockShifts = [{ startOdometer: '1000', endOdometer: '1100', revenue: '1000' }]
   mockFuelLogs = [{ quantity: '5', totalCost: '400' }]
   m = await FuelAnalyticsService.getPerformanceMetrics()
   assert(m.totalDistance === 100 && m.efficiencyKmPerUnit === 20 && m.fuelCostPerKm === 4 && m.netProfitPerKm === 6, 'Case 5 Failed: String numbers')
   assertFiniteMetrics(m, 'Case 5')
 
-  // Case 6: Negative/invalid values must never leak NaN or Infinity.
   mockShifts = [{ startOdometer: 'invalid', endOdometer: null, totalDistance: -50, revenue: -100 }]
   mockFuelLogs = [{ quantity: -10, totalCost: -500 }]
   m = await FuelAnalyticsService.getPerformanceMetrics()
