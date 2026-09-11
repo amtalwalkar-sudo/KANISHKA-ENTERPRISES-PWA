@@ -1,35 +1,41 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { kfePresentationApi } from '../../../application/presentation-api.js'
-import WorkModuleView from '../../../../components/WorkModuleView.vue'
-import PerformanceModuleRole from '../../../../components/PerformanceModuleRole.vue'
-import AdminModuleView from '../../../../components/AdminModuleView.vue'
+import { computed, markRaw, onErrorCaptured, onMounted, ref } from 'vue'
+import { kfePresentationApi } from '@/presentation/application/presentation-api.js'
+import WorkModuleView from '@/components/WorkModuleView.vue'
+import PerformanceModuleRole from '@/components/PerformanceModuleRole.vue'
+import AdminModuleView from '@/components/AdminModuleView.vue'
 
-const NAV = Object.freeze([
-  { id: 'Work', label: 'Work' },
-  { id: 'Performance', label: 'Performance' },
-  { id: 'Admin', label: 'Admin' },
-])
+const NAV = [
+  { id: 'Work', label: 'Work', component: markRaw(WorkModuleView) },
+  { id: 'Performance', label: 'Performance', component: markRaw(PerformanceModuleRole) },
+  { id: 'Admin', label: 'Admin', component: markRaw(AdminModuleView) },
+]
 
-const route = ref(location.hash.slice(1) || 'Work')
+// Manage navigation state locally to avoid hash routing conflicts
+const currentTab = ref('Work')
 const busy = ref(false)
 const error = ref('')
+const renderError = ref('')
 const performanceModel = ref(null)
 const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine)
 const fileInput = ref(null)
 
-const activeNav = computed(() => NAV.some((item) => item.id === route.value) ? route.value : 'Work')
+const activeItem = computed(() => NAV.find((item) => item.id === currentTab.value) || NAV[0])
 
-function syncRoute() { route.value = location.hash.slice(1) || 'Work' }
-function navigate(path) {
-  const next = String(path || 'Work')
-  if (location.hash.slice(1) === next) { syncRoute(); return }
-  location.hash = next
+onErrorCaptured((err) => {
+  renderError.value = `Component Error: ${err.message}`
+  return false
+})
+
+function navigate(id) {
+  currentTab.value = id
 }
 
 async function loadPerformance() {
   try {
-    performanceModel.value = await kfePresentationApi.read.getPerformance()
+    if (kfePresentationApi?.read?.getPerformance) {
+      performanceModel.value = await kfePresentationApi.read.getPerformance()
+    }
   } catch (e) {
     performanceModel.value = { error: String(e?.message || e) }
   }
@@ -73,15 +79,12 @@ async function resetData() {
 }
 
 onMounted(() => {
-  window.addEventListener('hashchange', syncRoute)
   void loadPerformance()
 })
-onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
 </script>
 
 <template>
   <div class="shell-container">
-    <!-- Global Shell Header -->
     <header class="global-header">
       <span class="app-title">KFE ERP</span>
       <div class="header-actions">
@@ -93,18 +96,14 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
     </header>
 
     <main class="module-stage">
-      <p v-if="error" class="shell-error" role="alert">{{ error }}</p>
+      <p v-if="error || renderError" class="shell-error" role="alert">
+        {{ error || renderError }}
+      </p>
 
-      <WorkModuleView
-        v-if="activeNav === 'Work'"
-      />
-
-      <div v-else-if="activeNav === 'Performance'" class="scroll-container">
-        <PerformanceModuleRole :performance="performanceModel" />
-      </div>
-
-      <div v-else-if="activeNav === 'Admin'" class="scroll-container">
-        <AdminModuleView
+      <div class="scroll-container">
+        <component
+          :is="activeItem.component"
+          :performance="performanceModel"
           :application="kfePresentationApi"
           :online="online"
         />
@@ -116,7 +115,7 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
         v-for="item in NAV"
         :key="item.id"
         type="button"
-        :class="{ active: activeNav === item.id }"
+        :class="{ active: activeItem.id === item.id }"
         @click="navigate(item.id)"
       >
         {{ item.label }}
@@ -134,16 +133,10 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
   --bg-surface: #ffffff;
   --bg-active: #eff6ff;
   --border-color: #e2e8f0;
-  --border-subtle: #f1f5f9;
-  
   --text-main: #0f172a;
   --text-muted: #64748b;
-  --text-subtle: #475569;
-  
   --color-primary: #2563eb;
   --color-danger: #dc2626;
-  --color-success: #16a34a;
-
   --header-height: 48px;
   --dock-height: 56px;
 
@@ -168,17 +161,8 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
   z-index: 100;
 }
 
-.app-title {
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--text-main);
-}
-
-.header-actions {
-  display: flex;
-  gap: 6px;
-}
-
+.app-title { font-weight: 700; font-size: 0.9rem; }
+.header-actions { display: flex; gap: 6px; }
 .header-actions button {
   padding: 5px 9px;
   border: 1px solid var(--border-color);
@@ -189,7 +173,6 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
   font-weight: 600;
   cursor: pointer;
 }
-
 .header-actions button.btn-danger-subtle {
   color: var(--color-danger);
   border-color: #fca5a5;
@@ -239,15 +222,7 @@ onUnmounted(() => window.removeEventListener('hashchange', syncRoute))
 }
 
 .shell-error {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  right: 8px;
-  z-index: 1000;
-  padding: 8px 12px;
-  background: #fee2e2;
-  color: #991b1b;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  position: absolute; top: 8px; left: 8px; right: 8px; z-index: 1000;
+  padding: 8px 12px; background: #fee2e2; color: #991b1b; border-radius: 6px; font-size: 0.8rem;
 }
 </style>

@@ -1,12 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import AuthoritativeRecordFormRole from '@/components/AuthoritativeRecordFormRole.vue'
+import WorkModuleView from '../views/WorkModuleView.vue'
 
 const routes = [
-  {
-    path: '/',
-    name: 'Home',
-    component: AuthoritativeRecordFormRole
-  }
+  { path: '/', name: 'work', component: WorkModuleView },
+  { path: '/performance', name: 'performance', component: () => import('../views/PerformanceView.vue') },
+  { path: '/admin', name: 'admin', component: () => import('../views/AdminView.vue') }
 ]
 
 const router = createRouter({
