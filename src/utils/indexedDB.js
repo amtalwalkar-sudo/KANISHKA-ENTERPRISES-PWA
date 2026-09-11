@@ -1,4 +1,4 @@
-import { generateUUID } from './uuid'
+import { generateUUID } from './uuid.js'
 
 const OLD_DB_NAME = 'kanishka_pwa_db'
 const CANONICAL_DB_NAME = 'kanishka_kfe_canonical_db'
