@@ -9,6 +9,7 @@
     "dev:https": "vite --host 0.0.0.0 --https",
     "build": "vite build",
     "preview": "vite preview",
+    "validate:phase3-domain-validation-audit": "node js/testing/phase-3-domain-validation-audit.mjs",
     "validate:shell-resolver": "node js/testing/shell-resolver-contract.mjs",
     "validate:replaceable-shell": "node js/testing/replaceable-shell-contract.mjs",
     "validate:settings": "node js/testing/settings-contract.mjs",
