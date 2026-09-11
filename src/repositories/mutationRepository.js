@@ -1,5 +1,5 @@
-import { initializeCanonicalStorage, openCanonicalDB } from '../utils/indexedDB'
-import { generateUUID } from '../utils/uuid'
+import { initializeCanonicalStorage, openCanonicalDB } from '../utils/indexedDB.js'
+import { generateUUID } from '../utils/uuid.js'
 
 export const buildMutationRecord = ({ entityId, entityType, action, payload, createdAt }) => ({
   id: generateUUID(),
