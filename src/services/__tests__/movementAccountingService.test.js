@@ -35,10 +35,10 @@ describe("MovementAccountingService", () => {
       garageLocation: garage,
       trips,
       startOdometer: 100,
-      endOdometer: 101
+      endOdometer: 120
     })
-    expect(result.totalShiftVehicleKm).toBe(1)
-    expect(result.authoritativeOdometerKm).toBe(1)
+    expect(result.totalShiftVehicleKm).toBe(20)
+    expect(result.authoritativeOdometerKm).toBe(20)
     expect(result.personalKmInShift).toBe(0)
     expect(result.reconciliationStatus).toBe("RECONCILED")
     expect(result.unclassifiedKm).toBeGreaterThanOrEqual(0)
