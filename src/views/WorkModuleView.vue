@@ -7,13 +7,16 @@ const store = useDayShiftTripStore()
 const startOdoInput=ref(''); const endOdoInput=ref(''); const shiftRevenueInput=ref('')
 const missedStart=ref(''); const missedEnd=ref('')
 const showFuelForm=ref(false); const fuelOdometer=ref(''); const pricePerKg=ref(''); const amountPaid=ref('')
+const personalGapInput=ref(''); const deadGapInput=ref(''); const unclassifiedGapInput=ref('')
 const MAX_CNG_KG=15
 const calculatedKg=computed(()=>{const p=Number(pricePerKg.value),a=Number(amountPaid.value);return p>0&&a>0?(a/p).toFixed(2):'0.00'})
+const gapAllocatedTotal=computed(()=>Number(personalGapInput.value||0)+Number(deadGapInput.value||0)+Number(unclassifiedGapInput.value||0))
 const load=async()=>{await store.initialize();if(store.shift?.startOdometer)startOdoInput.value=store.shift.startOdometer}
 onMounted(load);onUnmounted(()=>{})
 const handleStartDay=async()=>{if(await store.startDay())alert('Day started.')}
 const handleEndDay=async()=>{if(await store.endDay())alert('Day ended.')}
 const handleStartShift=async()=>{if(await store.startShift(startOdoInput.value))startOdoInput.value=''}
+const handleAllocateGap=async()=>{if(!store.interShiftGap)return;const ok=await store.allocateInterShiftGap({personalKm:personalGapInput.value,deadKm:deadGapInput.value,unclassifiedKm:unclassifiedGapInput.value});if(ok){personalGapInput.value='';deadGapInput.value='';unclassifiedGapInput.value='';alert('Inter-shift KM allocation saved.')}}
 const handleEndShift=async()=>{if(!endOdoInput.value||shiftRevenueInput.value===''){alert('Enter End Odometer and Shift Revenue.');return}if(await store.endShift(endOdoInput.value,shiftRevenueInput.value)){endOdoInput.value='';shiftRevenueInput.value='';alert('Shift ended and saved.')}}
 const handleStartTrip=async()=>{if(await store.startTrip())alert('Trip started.')}
 const handleEndTrip=async()=>{if(await store.endTrip())alert('Trip completed.')}
@@ -43,6 +46,17 @@ const handleSaveFuel=async()=>{const odo=Number(fuelOdometer.value),amount=Numbe
       <label style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px">Shift Revenue (₹)</label><input v-model="shiftRevenueInput" type="number" style="width:100%;padding:10px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:10px" :disabled="store.isTripActive" />
       <button @click="handleEndShift" :disabled="store.isTripActive" style="width:100%;padding:12px;background:#dc2626;color:white;border:0;border-radius:7px;font-weight:bold">🏁 End Shift & Save</button>
     </div>
+  </section>
+
+  <section v-if="store.interShiftGap" style="background:#fff7ed;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:16px">
+    <div style="font-weight:800;color:#92400e;margin-bottom:6px">Inter-Shift KM Allocation</div>
+    <div style="font-size:.8rem;color:#475569;margin-bottom:12px">Previous Shift End Odometer <strong>{{ store.interShiftGap.previousShiftEndOdometer }} km</strong> → Current Shift Start Odometer <strong>{{ store.interShiftGap.currentShiftStartOdometer }} km</strong></div>
+    <div style="background:white;padding:9px;border-radius:7px;margin-bottom:12px;font-size:.85rem">Inter-shift movement: <strong>{{ store.interShiftGap.gapKm }} km</strong></div>
+    <label style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px">Personal KM</label><input v-model="personalGapInput" type="number" min="0" step=".1" placeholder="0" style="width:100%;padding:10px;box-sizing:border-box;margin-bottom:8px"/>
+    <label style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px">Dead KM</label><input v-model="deadGapInput" type="number" min="0" step=".1" placeholder="0" style="width:100%;padding:10px;box-sizing:border-box;margin-bottom:8px"/>
+    <label style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px">Unclassified KM</label><input v-model="unclassifiedGapInput" type="number" min="0" step=".1" placeholder="0" style="width:100%;padding:10px;box-sizing:border-box;margin-bottom:8px"/>
+    <div style="font-size:.8rem;margin-bottom:10px">Allocated: <strong>{{ gapAllocatedTotal }} km</strong> / {{ store.interShiftGap.gapKm }} km</div>
+    <button @click="handleAllocateGap" style="width:100%;padding:11px;background:#d97706;color:white;border:0;border-radius:7px;font-weight:bold">Confirm Allocation</button>
   </section>
 
   <section v-if="store.isShiftActive" style="background:white;border:1px solid #cbd5e1;border-radius:12px;padding:16px;margin-bottom:16px">
