@@ -1,15 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { ShiftRepository } from '../repositories/shiftRepository'
+import { ShiftValidator } from '../services/shiftValidator'
+import { OdometerAuditService } from '../services/odometerAuditService'
 
 export const useWorkCycleStore = defineStore('workCycle', () => {
   const isOnline = ref(localStorage.getItem('kfe_is_online') === 'true')
   const onlineStartOdometer = ref(Number(localStorage.getItem('kfe_start_odo')) || 0)
   const shiftStartTimestamp = ref(localStorage.getItem('kfe_shift_start_time') || null)
   const lastOdometer = ref(0)
-
-  const MAX_SHIFT_KM = 1000
-  const MAX_REVENUE_PER_ENTRY = 5000
 
   const loadLastOdometer = async () => {
     try {
@@ -48,31 +47,26 @@ export const useWorkCycleStore = defineStore('workCycle', () => {
   }
 
   const endShift = async (endOdo, revenue) => {
-    const parsedEnd = Number(endOdo)
-    const parsedRev = Number(revenue)
+    const validation = ShiftValidator.validateSubmission({
+      startOdometer: onlineStartOdometer.value,
+      endOdometer: endOdo,
+      revenue
+    })
 
-    if (isNaN(parsedEnd) || parsedEnd <= onlineStartOdometer.value) {
-      alert('End Odometer must be strictly greater than Start Odometer.')
+    if (!validation.valid) {
+      alert(validation.errors[0])
       return false
     }
 
-    const dist = parsedEnd - onlineStartOdometer.value
-    if (dist > MAX_SHIFT_KM) {
-      alert(`Shift distance (${dist} km) exceeds maximum limit of ${MAX_SHIFT_KM} km per shift. Please check input.`)
-      return false
-    }
-
-    if (isNaN(parsedRev) || parsedRev < 0 || parsedRev > MAX_REVENUE_PER_ENTRY) {
-      alert('Please enter a valid revenue between ₹0 and ₹5,000.')
-      return false
-    }
+    const { startOdometer, endOdometer, totalDistance, revenue: validatedRevenue } = validation.values
+    const previousOdometer = lastOdometer.value
 
     const now = new Date().toISOString()
     const shiftPayload = {
-      startOdometer: onlineStartOdometer.value,
-      endOdometer: parsedEnd,
-      totalDistance: dist,
-      revenue: parsedRev,
+      startOdometer,
+      endOdometer,
+      totalDistance,
+      revenue: validatedRevenue,
       shiftStartAt: shiftStartTimestamp.value || now,
       shiftEndAt: now,
       createdAt: now
@@ -81,7 +75,11 @@ export const useWorkCycleStore = defineStore('workCycle', () => {
     try {
       await ShiftRepository.create(shiftPayload)
 
-      lastOdometer.value = parsedEnd
+      // Audit is deliberately non-blocking: a logging failure must never
+      // invalidate an otherwise successful shift persistence operation.
+      void OdometerAuditService.auditShiftBoundary(previousOdometer, startOdometer)
+
+      lastOdometer.value = endOdometer
       isOnline.value = false
       onlineStartOdometer.value = 0
       shiftStartTimestamp.value = null
