@@ -12,6 +12,7 @@
     "validate:phase3-domain-validation-audit": "node js/testing/phase-3-domain-validation-audit.mjs",
     "validate:phase4-fuel-analytics": "node src/tests/fuelAnalytics.contract.js",
     "validate:phase5-offline-sync": "node src/tests/offlineSync.contract.js",
+    "validate:phase7-day-shift-trip": "node js/testing/phase-7-day-shift-trip-workflow.mjs",
     "validate:shell-resolver": "node js/testing/shell-resolver-contract.mjs",
     "validate:replaceable-shell": "node js/testing/replaceable-shell-contract.mjs",
     "validate:settings": "node js/testing/settings-contract.mjs",
@@ -78,9 +79,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.1",
-    "@capacitor/core": "^8.5.1",
     "@playwright/test": "^1.55.0",
-    "@vitejs/plugin-vue": "^6.0.1",
     "vite": "^7.1.3",
     "vite-plugin-pwa": "^1.3.0"
   }
