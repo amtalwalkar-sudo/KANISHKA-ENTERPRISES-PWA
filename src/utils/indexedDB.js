@@ -2,7 +2,7 @@ import { generateUUID } from './uuid'
 
 const OLD_DB_NAME = 'kanishka_pwa_db'
 const CANONICAL_DB_NAME = 'kanishka_kfe_canonical_db'
-const CANONICAL_DB_VERSION = 1
+const CANONICAL_DB_VERSION = 2
 const LEGACY_SOURCE = OLD_DB_NAME
 
 let dbInstance = null
@@ -32,6 +32,12 @@ export const openCanonicalDB = () => {
 
       if (!db.objectStoreNames.contains('odoGaps')) {
         db.createObjectStore('odoGaps', { keyPath: 'id' })
+      }
+
+      if (!db.objectStoreNames.contains('pending_mutations')) {
+        const mutationStore = db.createObjectStore('pending_mutations', { keyPath: 'id' })
+        mutationStore.createIndex('createdAt', 'createdAt', { unique: false })
+        mutationStore.createIndex('status', 'status', { unique: false })
       }
     }
 
@@ -215,7 +221,7 @@ const migrateLegacyDataStrict = async (canonicalDb) => {
 }
 
 export const saveCompletedShift = async (data) => {
-  const db = await openCanonicalDB()
+  const db = await initializeCanonicalStorage()
   return new Promise((resolve, reject) => {
     const tx = db.transaction('shifts', 'readwrite')
     const store = tx.objectStore('shifts')
@@ -246,7 +252,7 @@ export const saveCompletedShift = async (data) => {
 }
 
 export const getAllCompletedShifts = async () => {
-  const db = await openCanonicalDB()
+  const db = await initializeCanonicalStorage()
   return new Promise((resolve, reject) => {
     const tx = db.transaction('shifts', 'readonly')
     const req = tx.objectStore('shifts').getAll()
@@ -269,7 +275,7 @@ export const getLastOdometer = async () => {
 }
 
 export const saveFuelLog = async (data) => {
-  const db = await openCanonicalDB()
+  const db = await initializeCanonicalStorage()
   return new Promise((resolve, reject) => {
     const tx = db.transaction('fuel_logs', 'readwrite')
     const store = tx.objectStore('fuel_logs')
@@ -298,7 +304,7 @@ export const saveFuelLog = async (data) => {
 }
 
 export const getAllFuelLogs = async () => {
-  const db = await openCanonicalDB()
+  const db = await initializeCanonicalStorage()
   return new Promise((resolve, reject) => {
     const tx = db.transaction('fuel_logs', 'readonly')
     const req = tx.objectStore('fuel_logs').getAll()
