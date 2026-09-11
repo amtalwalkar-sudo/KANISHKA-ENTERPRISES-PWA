@@ -1,5 +1,5 @@
 const EARTH_RADIUS_KM = 6371.0088
-
+const EPSILON_KM = 1e-6
 const finite = (value) => Number.isFinite(Number(value))
 
 const normalizeLocation = (location) => {
@@ -39,13 +39,28 @@ const distance = async (from, to, router) => {
   return { distanceKm: straight, method: 'HAVERSINE', confidence: 'ESTIMATED_STRAIGHT_LINE' }
 }
 
-const makeSegment = async ({ from, to, classification, label, router }) => ({
+const makeSegment = async ({ from, to, classification, label, router, tripId = null }) => ({
+  id: `${label}:${tripId || 'SHIFT'}`,
+  tripId,
   label,
   classification,
+  authority: 'GPS_ESTIMATE',
   from: normalizeLocation(from),
   to: normalizeLocation(to),
   ...(await distance(from, to, router))
 })
+
+const sum = (segments, classification) => segments
+  .filter((segment) => segment.classification === classification && finite(segment.distanceKm))
+  .reduce((total, segment) => total + Number(segment.distanceKm), 0)
+
+const normalizeManualKm = (trip, manualBusinessKmByTripId = {}) => {
+  const value = manualBusinessKmByTripId[trip.id]
+  if (value === undefined || value === null || value === '') return null
+  const km = Number(value)
+  if (!Number.isFinite(km) || km < 0) throw new Error(`Invalid Uber Business KM for trip ${trip.id}.`)
+  return km
+}
 
 export const MovementAccountingService = {
   async calculateSegments({ garageLocation, trips = [], router } = {}) {
@@ -73,7 +88,8 @@ export const MovementAccountingService = {
         to: trip.tripEndLocation,
         classification: 'BUSINESS',
         label: `TRIP_${i + 1}_BUSINESS`,
-        router
+        router,
+        tripId: trip.id
       }))
 
       const next = completed[i + 1]
@@ -81,22 +97,91 @@ export const MovementAccountingService = {
         from: trip.tripEndLocation,
         to: next ? next.tripStartLocation : garage,
         classification: 'DEAD',
-        label: next ? `TRIP_${i + 1}_END_TO_TRIP_${i + 2}_START` : `LAST_TRIP_TO_GARAGE`,
+        label: next ? `TRIP_${i + 1}_END_TO_TRIP_${i + 2}_START` : 'LAST_TRIP_TO_GARAGE',
         router
       }))
     }
 
-    const deadMilesKm = segments
-      .filter((segment) => segment.classification === 'DEAD' && finite(segment.distanceKm))
-      .reduce((sum, segment) => sum + Number(segment.distanceKm), 0)
-    const businessMilesKm = segments
-      .filter((segment) => segment.classification === 'BUSINESS' && finite(segment.distanceKm))
-      .reduce((sum, segment) => sum + Number(segment.distanceKm), 0)
-    const unclassifiedKm = segments
-      .filter((segment) => segment.classification === 'UNCLASSIFIED' && finite(segment.distanceKm))
-      .reduce((sum, segment) => sum + Number(segment.distanceKm), 0)
+    return {
+      segments,
+      deadMilesKm: sum(segments, 'DEAD'),
+      businessMilesKm: sum(segments, 'BUSINESS'),
+      unclassifiedKm: sum(segments, 'UNCLASSIFIED')
+    }
+  },
 
-    return { segments, deadMilesKm, businessMilesKm, unclassifiedKm }
+  async reconcileShiftMovement({ garageLocation, trips = [], startOdometer, endOdometer, router, manualBusinessKmByTripId = {} } = {}) {
+    const start = Number(startOdometer)
+    const end = Number(endOdometer)
+    if (!finite(start) || !finite(end) || start < 0 || end < start) {
+      throw new Error('Valid Shift Start and End Odometer readings are required for movement reconciliation.')
+    }
+
+    const base = await this.calculateSegments({ garageLocation, trips, router })
+    const totalShiftVehicleKm = end - start
+    const manualByTrip = new Map()
+    const reconciledSegments = base.segments.map((segment) => ({ ...segment }))
+
+    for (const trip of trips.filter((item) => item?.status === 'COMPLETED')) {
+      const manualKm = normalizeManualKm(trip, manualBusinessKmByTripId)
+      if (manualKm === null) continue
+      const segment = reconciledSegments.find((item) => item.tripId === trip.id && item.classification === 'BUSINESS')
+      if (!segment) throw new Error(`Business segment not found for trip ${trip.id}.`)
+      segment.distanceKm = manualKm
+      segment.method = 'UBER_MANUAL'
+      segment.confidence = 'AUTHORITATIVE'
+      segment.authority = 'MANUAL_UBER'
+      manualByTrip.set(trip.id, manualKm)
+    }
+
+    const classifiedKm = reconciledSegments
+      .filter((segment) => (segment.classification === 'DEAD' || segment.classification === 'BUSINESS') && finite(segment.distanceKm))
+      .reduce((total, segment) => total + Number(segment.distanceKm), 0)
+    const unclassifiedKm = Math.max(0, totalShiftVehicleKm - classifiedKm)
+    const reconciliationDifferenceKm = totalShiftVehicleKm - classifiedKm - unclassifiedKm
+
+    if (classifiedKm - totalShiftVehicleKm > EPSILON_KM) {
+      return {
+        ...base,
+        segments: reconciledSegments,
+        totalShiftVehicleKm,
+        manualBusinessKmByTripId: Object.fromEntries(manualByTrip),
+        deadMilesKm: sum(reconciledSegments, 'DEAD'),
+        businessMilesKm: sum(reconciledSegments, 'BUSINESS'),
+        unclassifiedKm: 0,
+        reconciliationDifferenceKm: totalShiftVehicleKm - classifiedKm,
+        reconciliationStatus: 'OVER_ESTIMATE',
+        personalKmInShift: 0,
+        authoritativeOdometerKm: totalShiftVehicleKm
+      }
+    }
+
+    if (unclassifiedKm > EPSILON_KM) {
+      reconciledSegments.push({
+        id: 'SHIFT_RECONCILIATION_UNCLASSIFIED',
+        tripId: null,
+        label: 'SHIFT_RECONCILIATION_REMAINDER',
+        classification: 'UNCLASSIFIED',
+        authority: 'ODOMETER_REMAINDER',
+        distanceKm: unclassifiedKm,
+        method: 'ODOMETER_RECONCILIATION',
+        confidence: 'AUTHORITATIVE_REMAINDER'
+      })
+    }
+
+    return {
+      ...base,
+      segments: reconciledSegments,
+      totalShiftVehicleKm,
+      manualBusinessKmByTripId: Object.fromEntries(manualByTrip),
+      deadMilesKm: sum(reconciledSegments, 'DEAD'),
+      businessMilesKm: sum(reconciledSegments, 'BUSINESS'),
+      unclassifiedKm,
+      reconciliationDifferenceKm,
+      reconciliationStatus: 'RECONCILED',
+      personalKmInShift: 0,
+      authoritativeOdometerKm: totalShiftVehicleKm
+    }
   },
 
   calculateDeadMiles(options = {}) {
