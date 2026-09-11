@@ -1,6 +1,6 @@
-import { initializeCanonicalStorage } from '../utils/indexedDB'
-import { generateUUID } from '../utils/uuid'
-import { buildMutationRecord } from './mutationRepository'
+import { initializeCanonicalStorage } from '../utils/indexedDB.js'
+import { generateUUID } from '../utils/uuid.js'
+import { buildMutationRecord } from './mutationRepository.js'
 
 export const OdoGapRepository = {
   async create(gapData) {
