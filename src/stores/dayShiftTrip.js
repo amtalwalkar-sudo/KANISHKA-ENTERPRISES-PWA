@@ -9,6 +9,7 @@ import { MovementAccountingService } from '../services/movementAccountingService
 import { RevenueReconciliationService } from '../services/revenueReconciliationService.js'
 import { ValhallaRoutingAdapter } from '../services/valhallaRoutingAdapter.js'
 import { InterShiftOdometerGapService } from '../services/interShiftOdometerGapService.js'
+import { TripNotificationService } from '../services/tripNotificationService.js'
 
 const locationWithin = async (ms = 1200) => Promise.race([LocationService.captureLocation(), new Promise(resolve => setTimeout(() => resolve(null), ms))])
 const persistShiftSnapshot = (shiftId, event = 'PERIODIC', periodic = true) => async location => { if (location && shiftId) await GpsSnapshotRepository.create({ entityType: 'SHIFT', entityId: shiftId, event, location, periodic }) }
@@ -34,7 +35,7 @@ export const useDayShiftTripStore = defineStore('dayShiftTrip', () => {
     const r = await DayShiftTripRepository.createShift({ dayId: day.value.id, startOdometer: n }); shift.value = r
     if (gap) interShiftGap.value = await DayShiftTripRepository.createInterShiftGap({ ...gap, currentShiftId: r.id })
     const location = await locationWithin(); if (location) void GpsSnapshotRepository.create({ entityType: 'SHIFT', entityId: r.id, event: 'SHIFT_START', location, periodic: false })
-    LocationService.setState('WAITING'); startShiftGps(r.id); return true
+    LocationService.setState('WAITING'); startShiftGps(r.id); void TripNotificationService.showReady(); return true
   }
   const captureShiftEndLocation = async () => locationWithin(5000)
   const allocateInterShiftGap = async allocation => { if (!interShiftGap.value) return false; const v = InterShiftOdometerGapService.validateAllocation({ gapKm: interShiftGap.value.gapKm, ...allocation }); if (!v.valid) { alert(v.error); return false } await DayShiftTripRepository.allocateInterShiftGap({ id: interShiftGap.value.id, ...v.values }); interShiftGap.value = null; return true }
@@ -55,6 +56,7 @@ export const useDayShiftTripStore = defineStore('dayShiftTrip', () => {
     try { await MovementArtifactRepository.create({ shiftId: id, generatedAt: new Date().toISOString(), segments: reconciliation.segments, gpsTracePoints: reconciliation.gpsTracePoints, routing: { provenance: reconciliation.routingProvenance, geometry: reconciliation.roadMatchedGeometry } }) } catch (error) { alert(`Movement artifact could not be persisted: ${error.message}`); return false }
     stopShiftGps()
     await DayShiftTripRepository.endShift({ id, endOdometer: v.values.endOdometer, revenue: v.values.revenue, businessKm: reconciliation.businessMilesKm, deadKm: reconciliation.deadMilesKm, unclassifiedKm: reconciliation.unclassifiedKm, movementReconciliation: reconciliation, movementReconciliationStatus: reconciliation.reconciliationStatus, revenueReconciliation: revenueResult })
+    await TripNotificationService.clear()
     movementReconciliation.value = reconciliation; revenueReconciliation.value = revenueResult; await refresh(); return true
   }
   const startTrip = async () => {
@@ -63,13 +65,14 @@ export const useDayShiftTripStore = defineStore('dayShiftTrip', () => {
     const location = await locationWithin(); const r = await DayShiftTripRepository.createTrip({ dayId: day.value.id, shiftId: shift.value.id, tripStartLocation: location }); trip.value = r
     LocationService.setState('TRIP_ACTIVE')
     if (location) void GpsSnapshotRepository.create({ entityType: 'TRIP', entityId: r.id, event: 'TRIP_START', location, periodic: false })
+    void TripNotificationService.showTripActive(r.tripStartAt)
     return true
   }
   const endTrip = async () => {
     if (!isTripActive.value) return false
     const id = trip.value.id; const location = await locationWithin(); await DayShiftTripRepository.endTrip({ id, tripEndLocation: location });
     if (location) void GpsSnapshotRepository.create({ entityType: 'TRIP', entityId: id, event: 'TRIP_END', location, periodic: false })
-    LocationService.setState('BETWEEN_TRIPS_STATIONARY'); await refresh(); return true
+    LocationService.setState('BETWEEN_TRIPS_STATIONARY'); void TripNotificationService.showReady(); await refresh(); return true
   }
   const recordMissedTrip = async (startAt, endAt) => { if (!isShiftActive.value) { alert('Start a Shift before recording a missed Trip.'); return false } if (isTripActive.value) { alert('End the active Trip first.'); return false } const start = new Date(startAt), end = new Date(endAt); if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) { alert('Enter valid Trip start and end times.'); return false } const location = await locationWithin(); const r = await DayShiftTripRepository.createTrip({ dayId: day.value.id, shiftId: shift.value.id, tripStartAt: start.toISOString(), tripStartLocation: location }); await DayShiftTripRepository.endTrip({ id: r.id, tripEndAt: end.toISOString(), tripEndLocation: null }); await refresh(); return true }
   const openUberReconciliation = async () => { if (!shift.value) return false; reconciliationTrips.value = await DayShiftTripRepository.getCompletedTripsForShift(shift.value.id); return true }
