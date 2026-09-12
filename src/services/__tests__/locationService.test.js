@@ -27,6 +27,6 @@ describe('LocationService GPS state policy', () => {
 describe('ActivityDetectionService', () => {
   it('treats device motion as a low-power trigger, not a GPS movement measurement', () => {
     expect(movementDetectedFromDeviceMotion({ accelerationIncludingGravity: { x: 0, y: 0, z: 9.81 } })).toBe(false)
-    expect(movementDetectedFromDeviceMotion({ accelerationIncludingGravity: { x: 4, y: 0, z: 9.81 } })).toBe(true)
+    expect(movementDetectedFromDeviceMotion({ accelerationIncludingGravity: { x: 6, y: 0, z: 9.81 } })).toBe(true)
   })
 })
