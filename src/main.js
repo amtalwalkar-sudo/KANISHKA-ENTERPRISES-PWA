@@ -15,8 +15,8 @@ void MutationRepository.recoverStaleSyncing().catch((error) => console.error('Of
 const lifecycleStore=useDayShiftTripStore(pinia)
 void lifecycleStore.initialize().then(async()=>{
   await TripNotificationService.initialize(async(action)=>{
-    if(action==='START_TRIP' && lifecycleStore.isShiftActive && !lifecycleStore.isTripActive){await lifecycleStore.startTrip();if(lifecycleStore.trip)await TripNotificationService.showTripActive(lifecycleStore.trip.tripStartAt)}
-    if(action==='END_TRIP' && lifecycleStore.isTripActive){await lifecycleStore.endTrip();await TripNotificationService.showReady()}
+    if(action==='START_TRIP' && lifecycleStore.isShiftActive && !lifecycleStore.isTripActive) await lifecycleStore.startTrip()
+    if(action==='END_TRIP' && lifecycleStore.isTripActive) await lifecycleStore.endTrip()
   })
   if(lifecycleStore.isTripActive && lifecycleStore.trip) await TripNotificationService.showTripActive(lifecycleStore.trip.tripStartAt)
   else if(lifecycleStore.isShiftActive) await TripNotificationService.showReady()
