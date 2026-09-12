@@ -1,0 +1,15 @@
+const toShape = (points) => points.map((point) => ({ lat: Number(point.latitude), lon: Number(point.longitude), time: point.timestamp ? Math.floor(new Date(point.timestamp).getTime() / 1000) : undefined })).filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lon))
+
+export class ValhallaRoutingAdapter {
+  constructor({ endpoint = '', fetchImpl = globalThis.fetch } = {}) { this.endpoint = endpoint.replace(/\/$/, ''); this.fetchImpl = fetchImpl }
+  async routeTrace(points) {
+    if (!this.endpoint || typeof this.fetchImpl !== 'function') return null
+    const shape = toShape(points)
+    if (shape.length < 2) return null
+    const response = await this.fetchImpl(`${this.endpoint}/trace_attributes`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ shape, shape_match: 'map_snap', costing: 'auto', units: 'kilometers', format: 'osrm' }) })
+    if (!response.ok) throw new Error(`Valhalla trace request failed: ${response.status}`)
+    const payload = await response.json()
+    const distance = Number(payload.trip?.summary?.length)
+    return { provider: 'valhalla', method: 'MEILI_TRACE_ATTRIBUTES', distanceKm: Number.isFinite(distance) ? distance : null, geometry: payload.trip?.legs || [], raw: payload }
+  }
+}
