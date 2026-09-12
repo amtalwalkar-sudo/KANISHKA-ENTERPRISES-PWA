@@ -20,7 +20,7 @@ const startAndroidForegroundService = async () => {
     const module = await import('@capawesome-team/capacitor-android-foreground-service')
     foregroundService = module.ForegroundService
     await foregroundService.requestPermissions()
-    await foregroundService.startForegroundService({ id: 7102, title: 'KFE — Shift Active', body: 'Location snapshots are active for shift movement calculation.' })
+    await foregroundService.startForegroundService({ id: 7102, title: 'KFE — Shift Active', body: 'Location snapshots are active for shift movement calculation.', foregroundServiceType: 'location' })
   } catch (error) { console.warn('Android foreground location service unavailable; Shift continues without blocking.', error) }
 }
 const stopAndroidForegroundService = async () => { try { if (foregroundService) await foregroundService.stopForegroundService() } catch (error) { console.warn('Unable to stop Android foreground location service.', error) } finally { foregroundService=null } }
