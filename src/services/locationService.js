@@ -20,16 +20,19 @@ const startAndroidForegroundService = async () => {
     const module = await import('@capawesome-team/capacitor-android-foreground-service')
     foregroundService = module.ForegroundService
     await foregroundService.requestPermissions()
-    await foregroundService.startForegroundService({ id: 7102, title: 'KFE — Trip Active', body: 'Location snapshots are active for distance calculation.' })
-  } catch (error) { console.warn('Android foreground location service unavailable; Trip continues without blocking.', error) }
+    await foregroundService.startForegroundService({ id: 7102, title: 'KFE — Shift Active', body: 'Location snapshots are active for shift movement calculation.' })
+  } catch (error) { console.warn('Android foreground location service unavailable; Shift continues without blocking.', error) }
 }
 const stopAndroidForegroundService = async () => { try { if (foregroundService) await foregroundService.stopForegroundService() } catch (error) { console.warn('Unable to stop Android foreground location service.', error) } finally { foregroundService=null } }
 
 export const LocationService = {
   captureLocation: readPosition,
   async capturePeriodicSnapshot(handler) { const now=Date.now();if(now-lastSnapshotAt<MIN_INTERVAL_MS)return null;const location=await readPosition();if(location){lastSnapshotAt=now;await handler(location)}return location },
-  startActiveTripSnapshots(handler) { this.stopActiveTripSnapshots(); activeHandler=handler;void startAndroidForegroundService();void this.capturePeriodicSnapshot(handler);timer=window.setInterval(()=>void this.capturePeriodicSnapshot(activeHandler),MIN_INTERVAL_MS) },
-  stopActiveTripSnapshots() { if(timer!==null)window.clearInterval(timer);timer=null;activeHandler=null;void stopAndroidForegroundService() },
-  reset(){lastSnapshotAt=0;this.stopActiveTripSnapshots()}
+  startActiveShiftSnapshots(handler) { this.stopActiveShiftSnapshots(); activeHandler=handler;void startAndroidForegroundService();void this.capturePeriodicSnapshot(handler);timer=window.setInterval(()=>void this.capturePeriodicSnapshot(activeHandler),MIN_INTERVAL_MS) },
+  stopActiveShiftSnapshots() { if(timer!==null)window.clearInterval(timer);timer=null;activeHandler=null;void stopAndroidForegroundService() },
+  // Backward-compatible aliases for existing callers.
+  startActiveTripSnapshots(handler) { this.startActiveShiftSnapshots(handler) },
+  stopActiveTripSnapshots() { this.stopActiveShiftSnapshots() },
+  reset(){lastSnapshotAt=0;this.stopActiveShiftSnapshots()}
 }
 export const LOCATION_SNAPSHOT_INTERVAL_MS=MIN_INTERVAL_MS
