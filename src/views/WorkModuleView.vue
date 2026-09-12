@@ -1,265 +1,73 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useWorkCycleStore } from '../stores/workCycle'
-import { saveFuelLog } from '../utils/indexedDB'
-
-const store = useWorkCycleStore()
-
-const startOdoInput = ref('')
-const endOdoInput = ref('')
-const shiftRevenueInput = ref('')
-
-const showFuelForm = ref(false)
-const fuelOdometer = ref('')
-const pricePerKg = ref('')
-const amountPaid = ref('')
-
-const MAX_CNG_KG = 15.0
-
-onMounted(async () => {
-  const lastOdo = await store.loadLastOdometer()
-  if (lastOdo > 0 && !store.isOnline) {
-    startOdoInput.value = lastOdo
-  }
-})
-
-const calculatedKg = computed(() => {
-  const price = parseFloat(pricePerKg.value)
-  const amount = parseFloat(amountPaid.value)
-  if (price > 0 && amount > 0) {
-    return (amount / price).toFixed(2)
-  }
-  return '0.00'
-})
-
-const handleStartShift = () => {
-  if (store.startShift(startOdoInput.value)) {
-    startOdoInput.value = ''
-  }
-}
-
-const handleEndShift = async () => {
-  const endVal = endOdoInput.value
-  const revVal = shiftRevenueInput.value
-
-  if (!endVal) {
-    alert('Please enter an End Odometer reading.')
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useDayShiftTripStore } from '../stores/dayShiftTrip.js'
+import { DayShiftTripRepository } from '../repositories/dayShiftTripRepository.js'
+import { TripNotificationService } from '../services/tripNotificationService.js'
+import { saveFuelLog } from '../utils/indexedDB.js'
+const store = useDayShiftTripStore()
+const startOdoInput=ref(''); const endOdoInput=ref(''); const shiftRevenueInput=ref('')
+const missedStart=ref(''); const missedEnd=ref('')
+const showFuelForm=ref(false); const fuelOdometer=ref(''); const pricePerKg=ref(''); const amountPaid=ref('')
+const personalGapInput=ref(''); const deadGapInput=ref(''); const unclassifiedGapInput=ref('')
+const showUberReconciliation=ref(false); const uberEntries=ref([])
+const showMovementSummary=ref(false); const pendingEndOdo=ref(''); const pendingShiftRevenue=ref(''); const pendingGarageLocation=ref(null); const endingShift=ref(false)
+const showDurationInput=ref(false); const tripDurationInput=ref(''); const MAX_CNG_KG=15
+const calculatedKg=computed(()=>{const p=Number(pricePerKg.value),a=Number(amountPaid.value);return p>0&&a>0?(a/p).toFixed(2):'0.00'})
+const gapAllocatedTotal=computed(()=>Number(personalGapInput.value||0)+Number(deadGapInput.value||0)+Number(unclassifiedGapInput.value||0))
+const locationLabel = location => { if (!location) return null; if (typeof location === 'string') return location; return location.name || location.label || location.address || location.formattedAddress || location.displayName || null }
+const locationOrCoordinates = location => { const name=locationLabel(location); if(name)return name; if(location&&Number.isFinite(Number(location.latitude))&&Number.isFinite(Number(location.longitude)))return `${Number(location.latitude).toFixed(5)}, ${Number(location.longitude).toFixed(5)}`; return 'Location unavailable' }
+const tripRouteLabel = entry => `${locationOrCoordinates(entry.tripStartLocation)} → ${locationOrCoordinates(entry.tripEndLocation)}`
+const load=async()=>{
+  await store.initialize()
+  if(store.shift?.startOdometer!=null){
+    startOdoInput.value=store.shift.startOdometer
     return
   }
-
-  if (revVal === '' || revVal === null || revVal === undefined) {
-    alert('Please enter the Shift Revenue amount.')
-    return
-  }
-
-  const success = await store.endShift(endVal, revVal)
-  if (success) {
-    endOdoInput.value = ''
-    shiftRevenueInput.value = ''
-    const nextOdo = await store.loadLastOdometer()
-    if (nextOdo > 0) {
-      startOdoInput.value = nextOdo
-    }
-    alert(`Shift ended! Revenue logged: ₹${revVal}`)
-  }
+  const lastShift=await DayShiftTripRepository.getLastCompletedShift()
+  if(lastShift?.endOdometer!=null) startOdoInput.value=lastShift.endOdometer
 }
-
-const handleOpenFuelForm = () => {
-  showFuelForm.value = true
-}
-
-const handleCloseFuelForm = () => {
-  showFuelForm.value = false
-  fuelOdometer.value = ''
-  pricePerKg.value = ''
-  amountPaid.value = ''
-}
-
-const handleSaveFuel = async () => {
-  const odoNum = Number(fuelOdometer.value)
-  const amountNum = Number(amountPaid.value)
-  const kgNum = Number(calculatedKg.value)
-
-  if (!odoNum || !amountNum) {
-    alert('Please enter both Odometer reading and Amount Paid.')
-    return
-  }
-
-  if (kgNum > MAX_CNG_KG) {
-    alert(`⚠️ CNG REFUEL GUARDRAIL EXCEEDED:\nCalculated quantity (${kgNum} kg) exceeds maximum limit of ${MAX_CNG_KG} kg per refuel.`)
-    return
-  }
-
-  try {
-    await saveFuelLog({
-      odometer: odoNum,
-      pricePerKg: pricePerKg.value ? Number(pricePerKg.value) : 0,
-      amount: amountNum,
-      kg: kgNum
-    })
-    alert('CNG Fuel Log saved successfully!')
-    handleCloseFuelForm()
-  } catch (err) {
-    console.error('Failed to save fuel log:', err)
-    alert('Error saving CNG fuel log.')
-  }
-}
+const handleStartDay=async()=>{if(await store.startDay())alert('Day started.')}
+const handleEndDay=async()=>{if(await store.endDay())alert('Day ended.')}
+const handleDurationRequest=()=>{tripDurationInput.value='';showDurationInput.value=true}
+const confirmDuration=async()=>{if(await TripNotificationService.setDuration(tripDurationInput.value)){showDurationInput.value=false}else alert('Enter Trip duration as HH:MM.')}
+const handleStartShift=async()=>{if(await store.startShift(startOdoInput.value))startOdoInput.value=''}
+const handleAllocateGap=async()=>{if(!store.interShiftGap)return;const ok=await store.allocateInterShiftGap({personalKm:personalGapInput.value,deadKm:deadGapInput.value,unclassifiedKm:unclassifiedGapInput.value});if(ok){personalGapInput.value='';deadGapInput.value='';unclassifiedGapInput.value='';alert('Inter-shift KM allocation saved.')}}
+const handleEndShift=async()=>{if(!endOdoInput.value||shiftRevenueInput.value===''){alert('Enter End Odometer and Shift Revenue.');return}const location=await store.captureShiftEndLocation();pendingEndOdo.value=endOdoInput.value;pendingShiftRevenue.value=shiftRevenueInput.value;pendingGarageLocation.value=location;await store.openUberReconciliation();uberEntries.value=store.reconciliationTrips.map(t=>({id:t.id,tripStartAt:t.tripStartAt,tripEndAt:t.tripEndAt,tripStartLocation:t.tripStartLocation,tripEndLocation:t.tripEndLocation,uberBusinessKm:t.uberBusinessKm??'',uberRevenue:t.uberRevenue??''}));showUberReconciliation.value=true}
+const finishShift=async()=>{endingShift.value=true;try{if(uberEntries.value.length&&await store.saveUberReconciliation(uberEntries.value)===false)return;const ok=await store.endShift(pendingEndOdo.value,pendingShiftRevenue.value,pendingGarageLocation.value);if(ok){showUberReconciliation.value=false;pendingEndOdo.value='';pendingShiftRevenue.value='';pendingGarageLocation.value=null;showMovementSummary.value=true;alert('Shift ended and movement reconciliation saved.')}}finally{endingShift.value=false}}
+const cancelShiftEnd=()=>{showUberReconciliation.value=false;pendingEndOdo.value='';pendingShiftRevenue.value='';pendingGarageLocation.value=null}
+const handleStartTrip=async()=>{if(await store.startTrip())alert('Trip started.')}; const handleEndTrip=async()=>{if(await store.endTrip())alert('Trip completed.')}
+const handleMissed=async()=>{if(await store.recordMissedTrip(missedStart.value,missedEnd.value)){missedStart.value='';missedEnd.value='';alert('Missed Trip recorded.')}}
+const handleSaveFuel=async()=>{const odo=Number(fuelOdometer.value),amount=Number(amountPaid.value),kg=Number(calculatedKg.value);if(!odo||!amount){alert('Enter odometer and amount.');return}if(kg>MAX_CNG_KG){alert(`Calculated quantity exceeds ${MAX_CNG_KG} kg.`);return}try{await saveFuelLog({odometer:odo,pricePerKg:Number(pricePerKg.value)||0,amount,kg});showFuelForm.value=false;fuelOdometer.value='';pricePerKg.value='';amountPaid.value='';alert('CNG Fuel Log saved.')}catch(e){console.error(e);alert('Error saving CNG fuel log.')}}
+onMounted(()=>{load();window.addEventListener('kfe:trip-duration-input',handleDurationRequest)}); onUnmounted(()=>window.removeEventListener('kfe:trip-duration-input',handleDurationRequest))
 </script>
-
 <template>
-  <div style="padding: 12px; max-width: 600px; margin: 0 auto; box-sizing: border-box;">
-    <header style="margin-bottom: 16px;">
-      <h1 style="font-size: 1.25rem; font-weight: bold; color: #0f172a; margin: 0;">Work Module</h1>
-      <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Shift & CNG Operational Controls</p>
-    </header>
-
-    <div style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-      <h2 style="font-size: 1rem; font-weight: bold; color: #1e293b; margin: 0 0 12px 0;">
-        Shift Status: 
-        <span :style="{ color: store.isOnline ? '#16a34a' : '#dc2626' }">
-          {{ store.isOnline ? 'ONLINE' : 'OFFLINE' }}
-        </span>
-      </h2>
-
-      <!-- OFFLINE STATE -->
-      <div v-if="!store.isOnline" style="display: flex; flex-direction: column; gap: 10px;">
-        <div>
-          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #334155; margin-bottom: 4px;">Start Odometer (km)</label>
-          <input 
-            v-model="startOdoInput" 
-            type="number" 
-            placeholder="e.g. 5" 
-            style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;"
-          />
-          <span v-if="store.lastOdometer > 0" style="font-size: 0.75rem; color: #16a34a; font-weight: 500;">
-            Auto-filled from last shift end: {{ store.lastOdometer }} km
-          </span>
-        </div>
-        <button 
-          @click="handleStartShift" 
-          style="width: 100%; padding: 12px; background: #16a34a; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.95rem; cursor: pointer;"
-        >
-          🚀 Start Shift
-        </button>
-      </div>
-
-      <!-- ONLINE STATE -->
-      <div v-else style="display: flex; flex-direction: column; gap: 10px;">
-        <div style="font-size: 0.85rem; color: #475569; background: #f1f5f9; padding: 8px 12px; border-radius: 6px;">
-          Active Start Meter: <strong>{{ store.onlineStartOdometer }} km</strong>
-        </div>
-
-        <div>
-          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #334155; margin-bottom: 4px;">End Odometer (km) *</label>
-          <input 
-            v-model="endOdoInput" 
-            type="number" 
-            placeholder="e.g. 10" 
-            style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;"
-          />
-        </div>
-
-        <div>
-          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #334155; margin-bottom: 4px;">Shift Revenue (₹) * [Max ₹5,000]</label>
-          <input 
-            v-model="shiftRevenueInput" 
-            type="number" 
-            placeholder="e.g. 500" 
-            style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;"
-          />
-        </div>
-
-        <button 
-          @click="handleEndShift" 
-          style="width: 100%; padding: 12px; background: #dc2626; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.95rem; cursor: pointer;"
-        >
-          🏁 End Shift & Save
-        </button>
-      </div>
-    </div>
-
-    <!-- CNG LOG BUTTON -->
-    <div style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-      <button 
-        @click="handleOpenFuelForm"
-        style="width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;"
-      >
-        ⛽ Log CNG Refueling (Max 15 kg)
-      </button>
-    </div>
-
-    <!-- CNG OVERLAY -->
-    <div 
-      v-if="showFuelForm" 
-      style="position: fixed; top: 0; left: 0; right: 0; bottom: 65px; background: #f8fafc; z-index: 100; display: flex; flex-direction: column; box-sizing: border-box;"
-    >
-      <div style="padding: 12px 16px; background: white; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
-        <div>
-          <h2 style="margin: 0; font-size: 0.95rem; font-weight: bold; color: #0f172a;">CNG Refueling Entry</h2>
-          <span style="font-size: 0.7rem; color: #16a34a; font-weight: 600;">● Dynamic Limit Enforced (15 kg)</span>
-        </div>
-        <button 
-          @click="handleCloseFuelForm"
-          style="padding: 6px 12px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer;"
-        >
-          ← Back to Work
-        </button>
-      </div>
-
-      <div style="flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; -webkit-overflow-scrolling: touch;">
-        <div>
-          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #334155; margin-bottom: 4px;">Odometer (km) *</label>
-          <input 
-            v-model="fuelOdometer" 
-            type="number" 
-            placeholder="Enter current odometer" 
-            style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; box-sizing: border-box;"
-          />
-        </div>
-
-        <div>
-          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #334155; margin-bottom: 4px;">Price per kg (₹)</label>
-          <input 
-            v-model="pricePerKg" 
-            type="number" 
-            step="0.01" 
-            placeholder="e.g. 85.50" 
-            style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; box-sizing: border-box;"
-          />
-        </div>
-
-        <div>
-          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #334155; margin-bottom: 4px;">Amount Paid (₹) *</label>
-          <input 
-            v-model="amountPaid" 
-            type="number" 
-            placeholder="e.g. 500" 
-            style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; box-sizing: border-box;"
-          />
-        </div>
-
-        <div 
-          :style="{
-            background: Number(calculatedKg) > 15 ? '#fff1f2' : '#f0fdf4',
-            borderColor: Number(calculatedKg) > 15 ? '#fecdd3' : '#bbf7d0'
-          }"
-          style="border: 1px solid; border-radius: 8px; padding: 10px; display: flex; justify-content: space-between; align-items: center;"
-        >
-          <span style="font-size: 0.8rem; font-weight: 600;" :style="{ color: Number(calculatedKg) > 15 ? '#9f1239' : '#166534' }">
-            Calculated Quantity:
-          </span>
-          <strong style="font-size: 1rem;" :style="{ color: Number(calculatedKg) > 15 ? '#dc2626' : '#15803d' }">
-            {{ calculatedKg }} kg {{ Number(calculatedKg) > 15 ? '(EXCEEDS MAX 15 KG)' : '' }}
-          </strong>
-        </div>
-
-        <button 
-          @click="handleSaveFuel"
-          style="width: 100%; padding: 12px; background: #16a34a; color: white; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer; margin-top: 8px;"
-        >
-          Save to Confirm
-        </button>
-      </div>
-    </div>
-  </div>
+<div style="padding:12px 12px 100px;max-width:600px;margin:0 auto;box-sizing:border-box">
+<header style="margin-bottom:16px"><h1 style="font-size:1.25rem;font-weight:bold;color:#0f172a;margin:0">Work Module</h1><p style="font-size:.8rem;color:#64748b;margin:0">Shift & Trip controls</p></header>
+<section style="background:white;border:1px solid #cbd5e1;border-radius:12px;padding:16px;margin-bottom:16px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<strong>Day</strong>
+<span :style="{color:store.isDayOnline?'#16a34a':'#64748b',fontWeight:'700'}">{{ store.isDayOnline ? 'ONLINE' : 'OFFLINE' }}</span>
+</div>
+<div v-if="!store.isDayOnline">
+<button @click="handleStartDay" style="width:100%;padding:12px;background:#16a34a;color:white;border:0;border-radius:7px;font-weight:bold">▶ Start Day</button>
+</div>
+<div v-else>
+<div style="font-size:.8rem;color:#475569;margin-bottom:10px">
+Day started {{ store.day?.dayStartAt ? new Date(store.day.dayStartAt).toLocaleString() : '' }}
+</div>
+<button @click="handleEndDay" :disabled="store.isShiftActive||store.isTripActive" style="width:100%;padding:11px;background:#dc2626;color:white;border:0;border-radius:7px;font-weight:bold">■ End Day</button>
+<div v-if="store.isShiftActive||store.isTripActive" style="font-size:.72rem;color:#64748b;margin-top:6px">
+End the active Shift/Trip before ending the Day.
+</div>
+</div>
+</section>
+<section style="background:white;border:1px solid #cbd5e1;border-radius:12px;padding:16px;margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><strong>Shift</strong><span :style="{color:store.isShiftActive?'#16a34a':'#64748b',fontWeight:'700'}">{{ store.isShiftActive ? 'ACTIVE' : 'OFF' }}</span></div><div v-if="!store.isShiftActive"><label style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px">Start Odometer (km)</label><input v-model="startOdoInput" type="number" style="width:100%;padding:10px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:10px" :disabled="!store.isDayOnline"/><button @click="handleStartShift" :disabled="!store.isDayOnline" style="width:100%;padding:12px;background:#16a34a;color:white;border:0;border-radius:7px;font-weight:bold">🚀 Start Shift</button></div><div v-else><div style="background:#f1f5f9;padding:8px;border-radius:6px;font-size:.8rem;margin-bottom:10px">Start Odometer: <strong>{{ store.shift.startOdometer }} km</strong></div><label style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px">End Odometer (km)</label><input v-model="endOdoInput" type="number" style="width:100%;padding:10px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:10px" :disabled="store.isTripActive"/><label style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px">Shift Revenue (₹)</label><input v-model="shiftRevenueInput" type="number" style="width:100%;padding:10px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:10px" :disabled="store.isTripActive"/><button @click="handleEndShift" :disabled="store.isTripActive" style="width:100%;padding:12px;background:#dc2626;color:white;border:0;border-radius:7px;font-weight:bold">🏁 End Shift & Reconcile</button></div></section>
+<section v-if="store.interShiftGap" style="background:#fff7ed;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:16px"><div style="font-weight:800;color:#92400e;margin-bottom:6px">Inter-Shift KM Allocation</div><div style="font-size:.8rem;color:#475569;margin-bottom:12px">Previous Shift End Odometer <strong>{{ store.interShiftGap.previousShiftEndOdometer }} km</strong> → Current Shift Start Odometer <strong>{{ store.interShiftGap.currentShiftStartOdometer }} km</strong></div><div style="background:white;padding:9px;border-radius:7px;margin-bottom:12px;font-size:.85rem">Inter-shift movement: <strong>{{ store.interShiftGap.gapKm }} km</strong></div><label style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px">Personal KM</label><input v-model="personalGapInput" type="number" min="0" step=".1" placeholder="0" style="width:100%;padding:10px;box-sizing:border-box;margin-bottom:8px"/><label style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px">Dead KM</label><input v-model="deadGapInput" type="number" min="0" step=".1" placeholder="0" style="width:100%;padding:10px;box-sizing:border-box;margin-bottom:8px"/><label style="display:block;font-size:.8rem;font-weight:600;margin-bottom:4px">Unclassified KM</label><input v-model="unclassifiedGapInput" type="number" min="0" step=".1" placeholder="0" style="width:100%;padding:10px;box-sizing:border-box;margin-bottom:8px"/><div style="font-size:.8rem;margin-bottom:10px">Allocated: <strong>{{ gapAllocatedTotal }} km</strong> / {{ store.interShiftGap.gapKm }} km</div><button @click="handleAllocateGap" style="width:100%;padding:11px;background:#d97706;color:white;border:0;border-radius:7px;font-weight:bold">Confirm Allocation</button></section>
+<section v-if="store.isShiftActive" style="background:white;border:1px solid #cbd5e1;border-radius:12px;padding:16px;margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><strong>Trip</strong><span :style="{color:store.isTripActive?'#16a34a':'#64748b',fontWeight:'700'}">{{ store.isTripActive ? 'ACTIVE' : 'READY' }}</span></div><div v-if="!store.isTripActive"><button @click="handleStartTrip" style="width:100%;padding:13px;background:#2563eb;color:white;border:0;border-radius:7px;font-weight:bold">▶ START TRIP</button></div><div v-else><div style="background:#eff6ff;padding:10px;border-radius:7px;font-size:.8rem;margin-bottom:10px">Trip started {{ new Date(store.trip.tripStartAt).toLocaleTimeString() }}</div><button @click="handleEndTrip" style="width:100%;padding:13px;background:#dc2626;color:white;border:0;border-radius:7px;font-weight:bold">■ END TRIP</button></div><div style="font-size:.72rem;color:#64748b;margin-top:10px">Trip KM and revenue reconciliation is available during Shift ending.</div><details style="margin-top:14px"><summary style="font-size:.8rem;font-weight:700;cursor:pointer">Record Missed Trip</summary><div style="padding-top:10px"><label style="font-size:.75rem">Actual start</label><input v-model="missedStart" type="datetime-local" style="width:100%;padding:8px;box-sizing:border-box;margin:4px 0 8px"/><label style="font-size:.75rem">Actual end</label><input v-model="missedEnd" type="datetime-local" style="width:100%;padding:8px;box-sizing:border-box;margin:4px 0 8px"/><button @click="handleMissed" style="width:100%;padding:9px;background:#7c3aed;color:white;border:0;border-radius:6px;font-weight:bold">Save Missed Trip</button></div></details></section>
+<section style="background:white;border:1px solid #cbd5e1;border-radius:12px;padding:16px"><button @click="showFuelForm=true" style="width:100%;padding:13px;background:#2563eb;color:white;border:0;border-radius:8px;font-weight:bold">⛽ Log CNG Refueling</button></section>
+<div v-if="showUberReconciliation" style="position:fixed;inset:0;background:#f8fafc;z-index:10000;padding:16px;overflow:auto"><div style="max-width:600px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div><strong>End Shift — Reconciliation</strong><div style="font-size:.75rem;color:#64748b">End Odometer: {{ pendingEndOdo }} km · Revenue: ₹{{ pendingShiftRevenue }}</div></div><button @click="cancelShiftEnd" :disabled="endingShift">Cancel</button></div><div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px;margin-bottom:12px;font-size:.8rem">Final GPS location is optional. If unavailable, odometer remains authoritative and movement reconciliation uses the available trace.</div><div v-if="!uberEntries.length" style="padding:14px;background:white;border-radius:8px;color:#64748b;margin-bottom:12px">No completed trips in this Shift. Odometer reconciliation will still complete.</div><div v-for="entry in uberEntries" :key="entry.id" style="background:white;border:1px solid #cbd5e1;border-radius:10px;padding:12px;margin-bottom:10px"><div style="font-size:.82rem;font-weight:700;margin-bottom:8px">{{ tripRouteLabel(entry) }} <span style="font-weight:400;color:#64748b">· {{ new Date(entry.tripStartAt).toLocaleString() }}</span></div><label style="display:block;font-size:.75rem">Actual Trip KM (optional)</label><input v-model="entry.uberBusinessKm" type="number" min="0" step=".1" placeholder="Leave blank to keep GPS estimate" style="width:100%;padding:9px;box-sizing:border-box;margin:4px 0 8px"/><label style="display:block;font-size:.75rem">Revenue ₹ (optional)</label><input v-model="entry.uberRevenue" type="number" min="0" step=".01" placeholder="Leave blank to keep existing estimate" style="width:100%;padding:9px;box-sizing:border-box;margin:4px 0"/></div><button @click="finishShift" :disabled="endingShift" style="width:100%;padding:13px;background:#dc2626;color:white;border:0;border-radius:8px;font-weight:bold">{{ endingShift ? 'Reconciling…' : 'Save Reconciliation & End Shift' }}</button></div></div>
+<div v-if="showMovementSummary" style="position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:11000;padding:16px;overflow:auto"><div style="max-width:600px;margin:40px auto;background:white;border-radius:14px;padding:18px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><strong>Shift Reconciliation Complete</strong><button @click="showMovementSummary=false">Close</button></div><div v-if="store.movementReconciliation" style="display:grid;gap:8px;font-size:.9rem"><div style="background:#f1f5f9;padding:10px;border-radius:8px">Total Shift Vehicle KM: <strong>{{ Number(store.movementReconciliation.totalShiftVehicleKm).toFixed(1) }} km</strong></div><div style="background:#f1f5f9;padding:10px;border-radius:8px">Business KM: <strong>{{ Number(store.movementReconciliation.businessMilesKm).toFixed(1) }} km</strong></div><div style="background:#f1f5f9;padding:10px;border-radius:8px">Dead KM: <strong>{{ Number(store.movementReconciliation.deadMilesKm).toFixed(1) }} km</strong></div><div style="background:#f1f5f9;padding:10px;border-radius:8px">Unclassified KM: <strong>{{ Number(store.movementReconciliation.unclassifiedKm).toFixed(1) }} km</strong></div><div style="font-size:.78rem;color:#64748b">Reconciliation status: {{ store.movementReconciliation.reconciliationStatus }} · GPS trace points: {{ store.movementReconciliation.gpsTracePoints ?? 0 }}</div></div></div></div>
+<div v-if="showDurationInput" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:12000;padding:16px;display:flex;align-items:center;justify-content:center"><div style="max-width:360px;width:100%;background:white;border-radius:14px;padding:18px"><strong>Trip Duration</strong><p style="font-size:.8rem;color:#64748b">Enter duration as HH:MM. This sets expected end only; it never ends the Trip automatically.</p><input v-model="tripDurationInput" inputmode="numeric" placeholder="HH:MM" style="width:100%;padding:11px;box-sizing:border-box;margin-bottom:12px"/><div style="display:flex;gap:8px"><button @click="showDurationInput=false" style="flex:1;padding:10px">Cancel</button><button @click="confirmDuration" style="flex:1;padding:10px;background:#2563eb;color:white;border:0;border-radius:7px">DONE</button></div></div></div>
+<div v-if="showFuelForm" style="position:fixed;inset:0 0 60px;background:#f8fafc;z-index:10000;padding:16px;overflow:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><strong>CNG Refueling</strong><button @click="showFuelForm=false">Back</button></div><input v-model="fuelOdometer" type="number" placeholder="Odometer" style="width:100%;padding:10px;box-sizing:border-box;margin-bottom:10px"/><input v-model="pricePerKg" type="number" step=".01" placeholder="Price per kg" style="width:100%;padding:10px;box-sizing:border-box;margin-bottom:10px"/><input v-model="amountPaid" type="number" placeholder="Amount paid" style="width:100%;padding:10px;box-sizing:border-box;margin-bottom:10px"/><div style="padding:10px;background:#f0fdf4;margin-bottom:10px">Calculated: <strong>{{ calculatedKg }} kg</strong></div><button @click="handleSaveFuel" style="width:100%;padding:12px;background:#16a34a;color:white;border:0;border-radius:7px;font-weight:bold">Save</button></div>
+</div>
 </template>
