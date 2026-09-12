@@ -29,5 +29,8 @@ jobs:
       - name: Run Phase 7 Day Shift Trip Contract
         run: npm run validate:phase7-day-shift-trip
 
+      - name: Run Phase 8 Work UI Contract
+        run: npm run validate:phase8-work-ui
+
       - name: Build Production PWA Assets
         run: npm run build
