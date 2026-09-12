@@ -18,7 +18,7 @@ expect('START DAY')
 expect('END DAY')
 expect('LOG CNG REFUELING')
 expect('GPS')
-expect('DAY ACTIVE')
+expect("{{ store.isDayOnline ? 'ACTIVE' : 'OFF' }}")
 assert.ok(nav.includes('Work') && nav.includes('Performance') && nav.includes('Admin'), 'Bottom navigation must remain Work / Performance / Admin')
 assert.ok(!nav.includes('Diagnostic'), 'Diagnostic overlay must not become bottom navigation')
 
