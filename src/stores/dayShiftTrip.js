@@ -2,34 +2,79 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { DayShiftTripRepository } from '../repositories/dayShiftTripRepository.js'
 import { GpsSnapshotRepository } from '../repositories/gpsSnapshotRepository.js'
+import { MovementArtifactRepository } from '../repositories/movementArtifactRepository.js'
 import { LocationService } from '../services/locationService.js'
 import { ShiftValidator } from '../services/shiftValidator.js'
 import { MovementAccountingService } from '../services/movementAccountingService.js'
+import { RevenueReconciliationService } from '../services/revenueReconciliationService.js'
+import { ValhallaRoutingAdapter } from '../services/valhallaRoutingAdapter.js'
 import { InterShiftOdometerGapService } from '../services/interShiftOdometerGapService.js'
 
-const locationWithin = async (ms=1200) => Promise.race([LocationService.captureLocation(),new Promise(resolve=>setTimeout(()=>resolve(null),ms))])
-const persistShiftSnapshot = (shiftId, event='PERIODIC', periodic=true) => async location => { if(location&&shiftId)await GpsSnapshotRepository.create({entityType:'SHIFT',entityId:shiftId,event,location,periodic}) }
+const locationWithin = async (ms = 1200) => Promise.race([LocationService.captureLocation(), new Promise(resolve => setTimeout(() => resolve(null), ms))])
+const persistShiftSnapshot = (shiftId, event = 'PERIODIC', periodic = true) => async location => { if (location && shiftId) await GpsSnapshotRepository.create({ entityType: 'SHIFT', entityId: shiftId, event, location, periodic }) }
+const routingEndpoint = globalThis.__KFE_VALHALLA_ENDPOINT__ || import.meta.env?.VITE_VALHALLA_ENDPOINT || ''
+const routingEngine = new ValhallaRoutingAdapter({ endpoint: routingEndpoint })
 
-export const useDayShiftTripStore=defineStore('dayShiftTrip',()=>{
- const day=ref(null),shift=ref(null),trip=ref(null),interShiftGap=ref(null),initialized=ref(false),reconciliationTrips=ref([]),movementReconciliation=ref(null)
- const isDayOnline=computed(()=>day.value?.status==='ACTIVE'),isShiftActive=computed(()=>shift.value?.status==='ACTIVE'),isTripActive=computed(()=>trip.value?.status==='ACTIVE')
- const headerShiftStatus=computed(()=>isShiftActive.value?'ON':'OFF'),headerTripStatus=computed(()=>isTripActive.value?'ON':'OFF')
- const startShiftGps=shiftId=>{LocationService.startActiveShiftSnapshots(persistShiftSnapshot(shiftId));return true}
- const stopShiftGps=()=>LocationService.stopActiveShiftSnapshots()
- const refresh=async()=>{const a=await DayShiftTripRepository.getActive();day.value=a.day;shift.value=a.shift;trip.value=a.trip;interShiftGap.value=shift.value?await DayShiftTripRepository.getOpenInterShiftGap(shift.value.id):null;if(shift.value)reconciliationTrips.value=await DayShiftTripRepository.getCompletedTripsForShift(shift.value.id);else reconciliationTrips.value=[];initialized.value=true;if(shift.value)startShiftGps(shift.value.id);else stopShiftGps()}
- const tag=async(type,id,event)=>{const location=await locationWithin();if(location)void GpsSnapshotRepository.create({entityType:type,entityId:id,event,location,periodic:false});return location}
- const startDay=async()=>{if(isDayOnline.value)return false;const r=await DayShiftTripRepository.createDay({});day.value=r;void tag('DAY',r.id,'DAY_START');return true}
- const endDay=async()=>{if(!isDayOnline.value)return false;if(isTripActive.value||isShiftActive.value){alert('End the active Trip and Shift before ending the Day.');return false}void tag('DAY',day.value.id,'DAY_END');await DayShiftTripRepository.endDay(day.value.id);await refresh();return true}
- const startShift=async odo=>{if(!isDayOnline.value){alert('Start the Day before starting a Shift.');return false}if(isShiftActive.value){alert('A Shift is already active.');return false}const n=Number(odo);if(!Number.isFinite(n)||n<=0){alert('Please enter a valid positive Start Odometer reading.');return false}const previous=await DayShiftTripRepository.getLastCompletedShift();let gap=null;if(previous){try{const gapKm=InterShiftOdometerGapService.calculate(previous.endOdometer,n);if(gapKm>0)gap={previousShiftId:previous.id,previousShiftEndOdometer:Number(previous.endOdometer),currentShiftStartOdometer:n,gapKm}}catch(error){alert(error.message);return false}}const r=await DayShiftTripRepository.createShift({dayId:day.value.id,startOdometer:n});shift.value=r;if(gap)interShiftGap.value=await DayShiftTripRepository.createInterShiftGap({...gap,currentShiftId:r.id});const location=await locationWithin();if(location)void GpsSnapshotRepository.create({entityType:'SHIFT',entityId:r.id,event:'SHIFT_START',location,periodic:false});startShiftGps(r.id);return true}
- const captureShiftEndLocation=async()=>locationWithin(5000)
- const allocateInterShiftGap=async allocation=>{if(!interShiftGap.value)return false;const v=InterShiftOdometerGapService.validateAllocation({gapKm:interShiftGap.value.gapKm,...allocation});if(!v.valid){alert(v.error);return false}await DayShiftTripRepository.allocateInterShiftGap({id:interShiftGap.value.id,...v.values});interShiftGap.value=null;return true}
- const endShift=async(odo,revenue,garageLocation)=>{if(!isShiftActive.value)return false;if(isTripActive.value){alert('End the active Trip before ending the Shift.');return false}const v=ShiftValidator.validateSubmission({startOdometer:shift.value.startOdometer,endOdometer:odo,revenue});if(!v.valid){alert(v.errors[0]);return false}if(!garageLocation){alert('A current Garage location is required for end-of-shift movement reconciliation.');return false}const id=shift.value.id;await GpsSnapshotRepository.create({entityType:'SHIFT',entityId:id,event:'SHIFT_END',location:garageLocation,periodic:false});const trips=await DayShiftTripRepository.getCompletedTripsForShift(id);const gpsSnapshots=await GpsSnapshotRepository.getForEntity(id);const manualBusinessKmByTripId=Object.fromEntries(trips.filter(t=>t.uberBusinessKmAuthority==='MANUAL_UBER'&&t.uberBusinessKm!==null).map(t=>[t.id,t.uberBusinessKm]));let reconciliation;try{reconciliation=await MovementAccountingService.reconcileShiftMovement({garageLocation,trips,startOdometer:shift.value.startOdometer,endOdometer:v.values.endOdometer,manualBusinessKmByTripId,gpsSnapshots})}catch(error){alert(`Movement reconciliation could not be completed: ${error.message}`);return false}stopShiftGps();await DayShiftTripRepository.endShift({id,endOdometer:v.values.endOdometer,revenue:v.values.revenue,businessKm:reconciliation.businessMilesKm,deadKm:reconciliation.deadMilesKm,unclassifiedKm:reconciliation.unclassifiedKm,movementReconciliation:reconciliation,movementReconciliationStatus:reconciliation.reconciliationStatus});movementReconciliation.value=reconciliation;await refresh();return true}
- const startTrip=async()=>{if(!isShiftActive.value){alert('Start a Shift before starting a Trip.');return false}if(isTripActive.value){alert('A Trip is already active.');return false}const location=await locationWithin();const r=await DayShiftTripRepository.createTrip({dayId:day.value.id,shiftId:shift.value.id,tripStartLocation:location});trip.value=r;if(location)void GpsSnapshotRepository.create({entityType:'TRIP',entityId:r.id,event:'TRIP_START',location});return true}
- const endTrip=async()=>{if(!isTripActive.value)return false;const id=trip.value.id;const location=await locationWithin();await DayShiftTripRepository.endTrip({id,tripEndLocation:location});if(location)void GpsSnapshotRepository.create({entityType:'TRIP',entityId:id,event:'TRIP_END',location});await refresh();return true}
- const recordMissedTrip=async(startAt,endAt)=>{if(!isShiftActive.value){alert('Start a Shift before recording a missed Trip.');return false}if(isTripActive.value){alert('End the active Trip first.');return false}const start=new Date(startAt),end=new Date(endAt);if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime())||end<=start){alert('Enter valid Trip start and end times.');return false}const location=await locationWithin();const r=await DayShiftTripRepository.createTrip({dayId:day.value.id,shiftId:shift.value.id,tripStartAt:start.toISOString(),tripStartLocation:location});await DayShiftTripRepository.endTrip({id:r.id,tripEndAt:end.toISOString(),tripEndLocation:null});await refresh();return true}
- const openUberReconciliation=async()=>{if(!shift.value)return false;reconciliationTrips.value=await DayShiftTripRepository.getCompletedTripsForShift(shift.value.id);return true}
- const saveUberReconciliation=async(entries)=>{if(!shift.value)return false;for(const entry of entries){const payload={id:entry.id};if(entry.uberBusinessKm!==''&&entry.uberBusinessKm!==null&&entry.uberBusinessKm!==undefined)payload.uberBusinessKm=entry.uberBusinessKm;if(entry.uberRevenue!==''&&entry.uberRevenue!==null&&entry.uberRevenue!==undefined)payload.uberRevenue=entry.uberRevenue;if(payload.uberBusinessKm!==undefined||payload.uberRevenue!==undefined)await DayShiftTripRepository.updateTripReconciliation(payload)}reconciliationTrips.value=await DayShiftTripRepository.getCompletedTripsForShift(shift.value.id);return true}
- const calculateDeadMiles=async(garageLocation,router)=>{const trips=await DayShiftTripRepository.getCompletedTrips(day.value?.id);return MovementAccountingService.calculateDeadMiles({garageLocation,trips,router})}
- const initialize=async()=>{if(!initialized.value)await refresh()}
- return {day,shift,trip,interShiftGap,reconciliationTrips,movementReconciliation,initialized,isDayOnline,isShiftActive,isTripActive,headerShiftStatus,headerTripStatus,initialize,refresh,startDay,endDay,startShift,captureShiftEndLocation,allocateInterShiftGap,endShift,startTrip,endTrip,recordMissedTrip,openUberReconciliation,saveUberReconciliation,calculateDeadMiles}
+export const useDayShiftTripStore = defineStore('dayShiftTrip', () => {
+  const day = ref(null), shift = ref(null), trip = ref(null), interShiftGap = ref(null), initialized = ref(false), reconciliationTrips = ref([]), movementReconciliation = ref(null), revenueReconciliation = ref(null)
+  const isDayOnline = computed(() => day.value?.status === 'ACTIVE'), isShiftActive = computed(() => shift.value?.status === 'ACTIVE'), isTripActive = computed(() => trip.value?.status === 'ACTIVE')
+  const headerShiftStatus = computed(() => isShiftActive.value ? 'ON' : 'OFF'), headerTripStatus = computed(() => isTripActive.value ? 'ON' : 'OFF')
+  const startShiftGps = shiftId => { LocationService.startActiveShiftSnapshots(persistShiftSnapshot(shiftId)); return true }
+  const stopShiftGps = () => LocationService.stopActiveShiftSnapshots()
+  const refresh = async () => { const a = await DayShiftTripRepository.getActive(); day.value = a.day; shift.value = a.shift; trip.value = a.trip; interShiftGap.value = shift.value ? await DayShiftTripRepository.getOpenInterShiftGap(shift.value.id) : null; if (shift.value) reconciliationTrips.value = await DayShiftTripRepository.getCompletedTripsForShift(shift.value.id); else reconciliationTrips.value = []; initialized.value = true; if (shift.value) startShiftGps(shift.value.id); else stopShiftGps() }
+  const tag = async (type, id, event) => { const location = await locationWithin(); if (location) void GpsSnapshotRepository.create({ entityType: type, entityId: id, event, location, periodic: false }); return location }
+  const startDay = async () => { if (isDayOnline.value) return false; const r = await DayShiftTripRepository.createDay({}); day.value = r; void tag('DAY', r.id, 'DAY_START'); return true }
+  const endDay = async () => { if (!isDayOnline.value) return false; if (isTripActive.value || isShiftActive.value) { alert('End the active Trip and Shift before ending the Day.'); return false } void tag('DAY', day.value.id, 'DAY_END'); await DayShiftTripRepository.endDay(day.value.id); await refresh(); return true }
+  const startShift = async odo => {
+    if (!isDayOnline.value) { alert('Start the Day before starting a Shift.'); return false }
+    if (isShiftActive.value) { alert('A Shift is already active.'); return false }
+    const n = Number(odo); if (!Number.isFinite(n) || n <= 0) { alert('Please enter a valid positive Start Odometer reading.'); return false }
+    const previous = await DayShiftTripRepository.getLastCompletedShift(); let gap = null
+    if (previous) { try { const gapKm = InterShiftOdometerGapService.calculate(previous.endOdometer, n); if (gapKm > 0) gap = { previousShiftId: previous.id, previousShiftEndOdometer: Number(previous.endOdometer), currentShiftStartOdometer: n, gapKm } } catch (error) { alert(error.message); return false } }
+    const r = await DayShiftTripRepository.createShift({ dayId: day.value.id, startOdometer: n }); shift.value = r
+    if (gap) interShiftGap.value = await DayShiftTripRepository.createInterShiftGap({ ...gap, currentShiftId: r.id })
+    const location = await locationWithin(); if (location) void GpsSnapshotRepository.create({ entityType: 'SHIFT', entityId: r.id, event: 'SHIFT_START', location, periodic: false })
+    LocationService.setState('WAITING'); startShiftGps(r.id); return true
+  }
+  const captureShiftEndLocation = async () => locationWithin(5000)
+  const allocateInterShiftGap = async allocation => { if (!interShiftGap.value) return false; const v = InterShiftOdometerGapService.validateAllocation({ gapKm: interShiftGap.value.gapKm, ...allocation }); if (!v.valid) { alert(v.error); return false } await DayShiftTripRepository.allocateInterShiftGap({ id: interShiftGap.value.id, ...v.values }); interShiftGap.value = null; return true }
+  const endShift = async (odo, revenue, garageLocation) => {
+    if (!isShiftActive.value) return false
+    if (isTripActive.value) { alert('End the active Trip before ending the Shift.'); return false }
+    const v = ShiftValidator.validateSubmission({ startOdometer: shift.value.startOdometer, endOdometer: odo, revenue }); if (!v.valid) { alert(v.errors[0]); return false }
+    if (!garageLocation) { alert('A current Garage location is required for end-of-shift movement reconciliation.'); return false }
+    const id = shift.value.id
+    await GpsSnapshotRepository.create({ entityType: 'SHIFT', entityId: id, event: 'SHIFT_END', location: garageLocation, periodic: false })
+    const trips = await DayShiftTripRepository.getCompletedTripsForShift(id)
+    const gpsSnapshots = await GpsSnapshotRepository.getForEntity(id)
+    const manualBusinessKmByTripId = Object.fromEntries(trips.filter(t => t.uberBusinessKmAuthority === 'MANUAL_UBER' && t.uberBusinessKm !== null).map(t => [t.id, t.uberBusinessKm]))
+    let reconciliation
+    try { reconciliation = await MovementAccountingService.reconcileShiftMovement({ garageLocation, trips, startOdometer: shift.value.startOdometer, endOdometer: v.values.endOdometer, manualBusinessKmByTripId, gpsSnapshots, router: routingEngine }) } catch (error) { alert(`Movement reconciliation could not be completed: ${error.message}`); return false }
+    let revenueResult
+    try { revenueResult = RevenueReconciliationService.reconcileShiftRevenue({ shiftRevenue: v.values.revenue, trips }) } catch (error) { alert(`Revenue reconciliation could not be completed: ${error.message}`); return false }
+    try { await MovementArtifactRepository.create({ shiftId: id, generatedAt: new Date().toISOString(), segments: reconciliation.segments, gpsTracePoints: reconciliation.gpsTracePoints, routing: { provenance: reconciliation.routingProvenance, geometry: reconciliation.roadMatchedGeometry } }) } catch (error) { alert(`Movement artifact could not be persisted: ${error.message}`); return false }
+    stopShiftGps()
+    await DayShiftTripRepository.endShift({ id, endOdometer: v.values.endOdometer, revenue: v.values.revenue, businessKm: reconciliation.businessMilesKm, deadKm: reconciliation.deadMilesKm, unclassifiedKm: reconciliation.unclassifiedKm, movementReconciliation: reconciliation, movementReconciliationStatus: reconciliation.reconciliationStatus, revenueReconciliation: revenueResult })
+    movementReconciliation.value = reconciliation; revenueReconciliation.value = revenueResult; await refresh(); return true
+  }
+  const startTrip = async () => {
+    if (!isShiftActive.value) { alert('Start a Shift before starting a Trip.'); return false }
+    if (isTripActive.value) { alert('A Trip is already active.'); return false }
+    const location = await locationWithin(); const r = await DayShiftTripRepository.createTrip({ dayId: day.value.id, shiftId: shift.value.id, tripStartLocation: location }); trip.value = r
+    LocationService.setState('TRIP_ACTIVE')
+    if (location) void GpsSnapshotRepository.create({ entityType: 'TRIP', entityId: r.id, event: 'TRIP_START', location, periodic: false })
+    return true
+  }
+  const endTrip = async () => {
+    if (!isTripActive.value) return false
+    const id = trip.value.id; const location = await locationWithin(); await DayShiftTripRepository.endTrip({ id, tripEndLocation: location });
+    if (location) void GpsSnapshotRepository.create({ entityType: 'TRIP', entityId: id, event: 'TRIP_END', location, periodic: false })
+    LocationService.setState('BETWEEN_TRIPS_STATIONARY'); await refresh(); return true
+  }
+  const recordMissedTrip = async (startAt, endAt) => { if (!isShiftActive.value) { alert('Start a Shift before recording a missed Trip.'); return false } if (isTripActive.value) { alert('End the active Trip first.'); return false } const start = new Date(startAt), end = new Date(endAt); if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) { alert('Enter valid Trip start and end times.'); return false } const location = await locationWithin(); const r = await DayShiftTripRepository.createTrip({ dayId: day.value.id, shiftId: shift.value.id, tripStartAt: start.toISOString(), tripStartLocation: location }); await DayShiftTripRepository.endTrip({ id: r.id, tripEndAt: end.toISOString(), tripEndLocation: null }); await refresh(); return true }
+  const openUberReconciliation = async () => { if (!shift.value) return false; reconciliationTrips.value = await DayShiftTripRepository.getCompletedTripsForShift(shift.value.id); return true }
+  const saveUberReconciliation = async entries => { if (!shift.value) return false; for (const entry of entries) { const payload = { id: entry.id }; if (entry.uberBusinessKm !== '' && entry.uberBusinessKm !== null && entry.uberBusinessKm !== undefined) payload.uberBusinessKm = entry.uberBusinessKm; if (entry.uberRevenue !== '' && entry.uberRevenue !== null && entry.uberRevenue !== undefined) payload.uberRevenue = entry.uberRevenue; if (payload.uberBusinessKm !== undefined || payload.uberRevenue !== undefined) await DayShiftTripRepository.updateTripReconciliation(payload) } reconciliationTrips.value = await DayShiftTripRepository.getCompletedTripsForShift(shift.value.id); return true }
+  const calculateDeadMiles = async (garageLocation, router = routingEngine) => { const trips = await DayShiftTripRepository.getCompletedTrips(day.value?.id); return MovementAccountingService.calculateDeadMiles({ garageLocation, trips, router }) }
+  const initialize = async () => { if (!initialized.value) await refresh() }
+  return { day, shift, trip, interShiftGap, reconciliationTrips, movementReconciliation, revenueReconciliation, initialized, isDayOnline, isShiftActive, isTripActive, headerShiftStatus, headerTripStatus, initialize, refresh, startDay, endDay, startShift, captureShiftEndLocation, allocateInterShiftGap, endShift, startTrip, endTrip, recordMissedTrip, openUberReconciliation, saveUberReconciliation, calculateDeadMiles }
 })
