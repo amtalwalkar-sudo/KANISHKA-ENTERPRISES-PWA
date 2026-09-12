@@ -48,16 +48,12 @@ describe("MovementAccountingService", () => {
     expect(trace).toHaveLength(0)
   })
   it("reconstructs the last reliable waiting anchor before movement begins", () => {
-    const anchor = MovementAccountingService.waitingAnchorForTrace([
-      { latitude: 19, longitude: 72, accuracy: 5, speed: 0, capturedAt: "2026-09-12T08:00:00Z" },
-      { latitude: 19.0001, longitude: 72.0001, accuracy: 5, speed: 0, capturedAt: "2026-09-12T08:01:00Z" },
-      { latitude: 19.001, longitude: 72.001, accuracy: 5, speed: 8, capturedAt: "2026-09-12T08:02:00Z" }
-    ])
+    const anchor = MovementAccountingService.waitingAnchorForTrace([{ latitude: 19, longitude: 72, accuracy: 5, speed: 0, capturedAt: "2026-09-12T08:00:00Z" }, { latitude: 19.0001, longitude: 72.0001, accuracy: 5, speed: 0, capturedAt: "2026-09-12T08:01:00Z" }, { latitude: 19.001, longitude: 72.001, accuracy: 5, speed: 8, capturedAt: "2026-09-12T08:02:00Z" }])
     expect(anchor.capturedAt).toBe("2026-09-12T08:01:00Z")
   })
   it("uses the replaceable routing engine and preserves provenance plus matched geometry", async () => {
     let calls = 0
-    const router = { routeTrace: async points => { calls += 1; return { provider: "test-router", method: "TEST_MAP_MATCH", confidence: "ESTIMATED_ROAD_TRACE", distanceKm: 4.2, geometry: [{ shape: "matched" }], provenance: { provider: "test-router", operation: "trace" } } } }
+    const router = { routeTrace: async () => { calls += 1; return { provider: "test-router", method: "TEST_MAP_MATCH", confidence: "ESTIMATED_ROAD_TRACE", distanceKm: 4.2, geometry: [{ shape: "matched" }], provenance: { provider: "test-router", operation: "trace" } } } }
     const result = await MovementAccountingService.calculateSegments({ garageLocation: garage, trips: [trips[0]], router, gpsSnapshots: [{ latitude: 19.005, longitude: 72, accuracy: 5, speed: 8, capturedAt: "2026-09-12T08:10:00Z" }, { latitude: 19.015, longitude: 72, accuracy: 5, speed: 8, capturedAt: "2026-09-12T08:20:00Z" }] })
     expect(calls).toBeGreaterThan(0); expect(result.segments[0].routingProvenance.provider).toBe("test-router"); expect(result.segments[0].roadMatchedGeometry).toEqual([{ shape: "matched" }])
   })
