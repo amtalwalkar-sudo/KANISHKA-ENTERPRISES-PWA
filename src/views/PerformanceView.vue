@@ -161,22 +161,8 @@ const totalVehicleDistance = computed(() => Number(mileage.value.totalVehicleDis
         </div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
-          <button
-            type="button"
-            @click="classifyGap(gap.id, ODO_GAP_CATEGORIES.DEAD_MILES)"
-            :disabled="classifyingGapId === gap.id"
-            style="padding:8px; border:1px solid #93c5fd; background:#eff6ff; color:#1d4ed8; border-radius:7px; font-size:0.75rem; font-weight:700;"
-          >
-            Dead Miles
-          </button>
-          <button
-            type="button"
-            @click="classifyGap(gap.id, ODO_GAP_CATEGORIES.PERSONAL_TRIPS)"
-            :disabled="classifyingGapId === gap.id"
-            style="padding:8px; border:1px solid #c4b5fd; background:#f5f3ff; color:#6d28d9; border-radius:7px; font-size:0.75rem; font-weight:700;"
-          >
-            Personal Trip
-          </button>
+          <button type="button" @click="classifyGap(gap.id, ODO_GAP_CATEGORIES.DEAD_MILES)" :disabled="classifyingGapId === gap.id" style="padding:8px; border:1px solid #93c5fd; background:#eff6ff; color:#1d4ed8; border-radius:7px; font-size:0.75rem; font-weight:700;">Dead Miles</button>
+          <button type="button" @click="classifyGap(gap.id, ODO_GAP_CATEGORIES.PERSONAL_TRIPS)" :disabled="classifyingGapId === gap.id" style="padding:8px; border:1px solid #c4b5fd; background:#f5f3ff; color:#6d28d9; border-radius:7px; font-size:0.75rem; font-weight:700;">Personal Trip</button>
         </div>
       </div>
     </div>
@@ -184,27 +170,17 @@ const totalVehicleDistance = computed(() => Number(mileage.value.totalVehicleDis
     <div style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
         <h2 style="font-size: 0.95rem; font-weight: bold; color: #0f172a; margin: 0;">Completed Shift Logs</h2>
-        <button
-          type="button"
-          @click="loadPerformance"
-          style="padding: 4px 10px; background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;"
-        >
-          🔄 Refresh
-        </button>
+        <button type="button" @click="loadPerformance" style="padding: 4px 10px; background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;">🔄 Refresh</button>
       </div>
 
       <div v-if="loading" style="text-align: center; color: #64748b; font-size: 0.85rem; padding: 16px 0;">Loading logs...</div>
       <div v-else-if="shifts.length === 0" style="text-align: center; color: #64748b; font-size: 0.85rem; padding: 16px 0;">No completed shifts found in IndexedDB.</div>
 
       <div v-else style="display: flex; flex-direction: column; gap: 8px;">
-        <div
-          v-for="(shift, index) in shifts"
-          :key="shift.id || index"
-          style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;"
-        >
+        <div v-for="(shift, index) in shifts" :key="shift.id || index" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <strong style="font-size: 0.85rem; color: #1e293b; display: block;">Shift #{{ shift.id || (shifts.length - index) }}</strong>
-            <span style="font-size: 0.75rem; color: #64748b;">Distance: {{ shift.startOdometer }} km → {{ shift.endOdometer }} km ({{ shift.totalDistance }} km total)</span>
+            <strong style="font-size: 0.85rem; color: #1e293b; display: block;">Shift</strong>
+            <span style="font-size: 0.75rem; color: #64748b;">{{ shift.startOdometer }} km → {{ shift.endOdometer }} km ({{ shift.totalDistance }} km total)</span>
           </div>
           <div style="text-align: right;">
             <strong style="font-size: 0.95rem; color: #16a34a;">₹{{ shift.revenue }}</strong>
