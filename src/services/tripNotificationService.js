@@ -31,5 +31,31 @@ export const TripNotificationService = {
   async setDuration(value) { const plugin = await loadPlugin(); if (!plugin || !activeTripStartedAt) return false; const minutes = parseDuration(value); if (!minutes) return false; durationMinutes = minutes; await scheduleDurationNotification(plugin, activeTripStartedAt, minutes); return true },
   async showReady() { const plugin = await loadPlugin(); if (!plugin) return; activeTripStartedAt = null; durationMinutes = null; try { await cancelDurationNotification(plugin); await plugin.schedule({ notifications: [{ id: SHIFT_NOTIFICATION_ID, title: 'KFE — Shift Active', body: 'Ready for next trip', actionTypeId: 'KFE_TRIP_CONTROL', ongoing: true, autoCancel: false }] }) } catch (error) { console.warn('Unable to show Shift notification.', error) } },
   async showTripActive(startedAt) { const plugin = await loadPlugin(); if (!plugin) return; activeTripStartedAt = startedAt; durationMinutes = null; try { await cancelDurationNotification(plugin); await plugin.schedule({ notifications: [{ id: SHIFT_NOTIFICATION_ID, title: 'KFE — Trip Active', body: `Started ${new Date(startedAt).toLocaleTimeString()}`, actionTypeId: 'KFE_TRIP_CONTROL', ongoing: true, autoCancel: false }] }); const startedMs = new Date(startedAt).getTime(); const dueMs = Number.isFinite(startedMs) ? startedMs + DURATION_DELAY_MS : Date.now() + DURATION_DELAY_MS; await scheduleDurationNotification(plugin, startedAt, null, new Date(Math.max(Date.now(), dueMs))) } catch (error) { console.warn('Unable to show Trip notification.', error) } },
-  async clear() { const plugin = await loadPlugin(); if (!plugin) return; activeTripStartedAt = null; durationMinutes = null; try { await plugin.cancel({ notifications: [{ id: SHIFT_NOTIFICATION_ID }, { id: DURATION_NOTIFICATION_ID }] }) } catch (error) { console.warn('Unable to clear Trip notification.', error) } }
+  async clear() {
+    activeTripStartedAt = null
+    durationMinutes = null
+
+    void (async () => {
+      try {
+        const plugin = await Promise.race([
+          loadPlugin(),
+          new Promise(resolve => setTimeout(() => resolve(null), 1000))
+        ])
+
+        if (!plugin) return
+
+        await Promise.race([
+          plugin.cancel({
+            notifications: [
+              { id: SHIFT_NOTIFICATION_ID },
+              { id: DURATION_NOTIFICATION_ID }
+            ]
+          }),
+          new Promise(resolve => setTimeout(resolve, 1000))
+        ])
+      } catch (error) {
+        console.warn('Unable to clear Trip notification.', error)
+      }
+    })()
+  }
 }

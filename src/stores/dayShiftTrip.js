@@ -28,7 +28,47 @@ export const useDayShiftTripStore = defineStore('dayShiftTrip', () => {
   const refresh = async () => { const a = await DayShiftTripRepository.getActive(); day.value = a.day; shift.value = a.shift; trip.value = a.trip; interShiftGap.value = shift.value ? await DayShiftTripRepository.getOpenInterShiftGap(shift.value.id) : null; reconciliationTrips.value = shift.value ? await DayShiftTripRepository.getCompletedTripsForShift(shift.value.id) : []; initialized.value = true; if (shift.value) startShiftGps(shift.value.id); else stopShiftGps() }
   const tag = async (type, id, event) => { const location = await locationWithin(); if (location) void GpsSnapshotRepository.create({ entityType: type, entityId: id, event, location, periodic: false }); return location }
   const startDay = async () => { if (isDayOnline.value) return false; const r = await DayShiftTripRepository.createDay({}); day.value = r; void tag('DAY', r.id, 'DAY_START'); return true }
-  const endDay = async () => { if (!isDayOnline.value) return false; if (isTripActive.value || isShiftActive.value) { alert('End the active Trip and Shift before ending the Day.'); return false } if (!day.value.hasCompletedBusinessTrip) { alert('A financial Day requires at least one completed Business Trip.'); return false } void tag('DAY', day.value.id, 'DAY_END'); await DayShiftTripRepository.endDay(day.value.id); await refresh(); return true }
+  const endDay = async () => {
+    DiagnosticService.start('END DAY')
+
+    if (!isDayOnline.value) {
+      DiagnosticService.error('Validate Day', new Error('Day is already OFFLINE.'))
+      return false
+    }
+
+    if (isTripActive.value) {
+      DiagnosticService.error('Validate Trip state', new Error('End the active Trip before ending the Day.'))
+      alert('End the active Trip before ending the Day.')
+      return false
+    }
+
+    if (isShiftActive.value) {
+      DiagnosticService.error('Validate Shift state', new Error('End the active Shift before ending the Day.'))
+      alert('End the active Shift before ending the Day.')
+      return false
+    }
+
+    DiagnosticService.checkpoint('Validate lifecycle state', 'Trip OFF · Shift OFF')
+
+    void tag('DAY', day.value.id, 'DAY_END')
+    DiagnosticService.checkpoint('Save DAY_END GPS', 'GPS tag requested')
+
+    try {
+      DiagnosticService.waiting('Persist completed Day')
+      await DayShiftTripRepository.endDay(day.value.id)
+      DiagnosticService.checkpoint('Persist completed Day')
+
+      DiagnosticService.waiting('Refresh active state')
+      await refresh()
+      DiagnosticService.checkpoint('Refresh active state')
+
+      DiagnosticService.complete('END DAY')
+      return true
+    } catch (error) {
+      DiagnosticService.error('Persist completed Day', error)
+      throw error
+    }
+  }
   const startShift = async odo => { if (!isDayOnline.value) await startDay(); if (isShiftActive.value) { alert('A Shift is already active.'); return false } const n = Number(odo); if (!Number.isFinite(n) || n <= 0) { alert('Please enter a valid positive Start Odometer reading.'); return false } const previous = await DayShiftTripRepository.getLastCompletedShift(); let gap = null; if (previous) { try { const gapKm = InterShiftOdometerGapService.calculate(previous.endOdometer, n); if (gapKm > 0) gap = { previousShiftId: previous.id, previousShiftEndOdometer: Number(previous.endOdometer), currentShiftStartOdometer: n, gapKm } } catch (error) { alert(error.message); return false } } const r = await DayShiftTripRepository.createShift({ dayId: day.value.id, startOdometer: n }); shift.value = r; if (gap) interShiftGap.value = await DayShiftTripRepository.createInterShiftGap({ ...gap, currentShiftId: r.id }); const location = await locationWithin(); if (location) void GpsSnapshotRepository.create({ entityType: 'SHIFT', entityId: r.id, event: 'SHIFT_START', location, periodic: false }); LocationService.setState('WAITING'); startShiftGps(r.id); void TripNotificationService.showReady(); return true }
   const captureShiftEndLocation = async () => locationWithin(5000)
   const allocateInterShiftGap = async allocation => { if (!interShiftGap.value) return false; const v = InterShiftOdometerGapService.validateAllocation({ gapKm: interShiftGap.value.gapKm, ...allocation }); if (!v.valid) { alert(v.error); return false } await DayShiftTripRepository.allocateInterShiftGap({ id: interShiftGap.value.id, ...v.values }); interShiftGap.value = null; return true }
