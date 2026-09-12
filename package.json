@@ -70,7 +70,6 @@
     "@capacitor/android": "^8.5.1",
     "@capacitor/local-notifications": "^8.3.1",
     "@capawesome-team/capacitor-android-foreground-service": "^8.1.0",
-    "@google/genai": "^2.21.0",
     "dexie": "^4.4.6",
     "pinia": "^4.0.3",
     "pinia-plugin-persistedstate": "^4.7.1",
