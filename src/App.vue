@@ -2,6 +2,7 @@
 import { ref, onErrorCaptured, onMounted } from 'vue'
 import { useDayShiftTripStore } from './stores/dayShiftTrip.js'
 import { initializeCanonicalStorage } from './utils/indexedDB.js'
+import DiagnosticBubble from './components/DiagnosticBubble.vue'
 
 const store = useDayShiftTripStore()
 const renderError = ref(null)
@@ -28,6 +29,7 @@ onMounted(async () => { try { await initializeCanonicalStorage(); await store.in
       <div v-else-if="!storageReady" class="loading-container"><p>Initializing secure local storage…</p></div>
       <router-view v-else v-slot="{ Component }"><keep-alive><component :is="Component" /></keep-alive></router-view>
     </main>
+    <DiagnosticBubble />
     <nav class="bottom-nav">
       <router-link to="/" class="nav-item"><span class="icon">🛺</span><span>Work</span></router-link>
       <router-link to="/performance" class="nav-item"><span class="icon">📈</span><span>Performance</span></router-link>
