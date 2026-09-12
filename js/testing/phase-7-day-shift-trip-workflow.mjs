@@ -46,9 +46,6 @@ expect(work, 'Shift Reconciliation Complete')
 expect(work, 'pendingGarageLocation')
 expect(app, 'SHIFT: {{ store.headerShiftStatus }}')
 expect(app, 'TRIP: {{ store.headerTripStatus }}')
-
-// Frozen GPS policy: waiting 5–7 min, active trip 7–10 min,
-// between trips moving 1–2 min, stationary 5–7 min.
 expect(gps, 'WAITING: 7 * 60 * 1000')
 expect(gps, 'TRIP_ACTIVE: 9 * 60 * 1000')
 expect(gps, 'BETWEEN_TRIPS_MOVING: 2 * 60 * 1000')
