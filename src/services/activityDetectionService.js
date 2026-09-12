@@ -1,8 +1,4 @@
-let listener = null
-let lastMotionAt = 0
-let active = false
-
-const movementFromEvent = (event) => {
+export const movementDetectedFromDeviceMotion = (event) => {
   const acceleration = event?.accelerationIncludingGravity || event?.acceleration
   if (!acceleration) return false
   const x = Number(acceleration.x || 0)
@@ -12,12 +8,16 @@ const movementFromEvent = (event) => {
   return Math.abs(magnitude - 9.81) > 1.2
 }
 
+let listener = null
+let lastMotionAt = 0
+let active = false
+
 export const ActivityDetectionService = {
   start(onMovement) {
     this.stop()
     if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return false
     listener = (event) => {
-      if (!movementFromEvent(event)) return
+      if (!movementDetectedFromDeviceMotion(event)) return
       const now = Date.now()
       if (now - lastMotionAt < 1500) return
       lastMotionAt = now
