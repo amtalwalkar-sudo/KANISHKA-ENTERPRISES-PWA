@@ -1,0 +1,278 @@
+# KFE Universal Form & Action Recovery Rules
+
+**Status: FROZEN**  
+**Scope: Entire KFE PWA**  
+**Authority: Architectural invariant**
+
+These rules govern every form, form-like interaction, gesture, committed action, and recovery workflow in KFE.
+
+Domain-specific KFE rules may further define how recovery works for a particular record type, but they must not weaken, bypass, or contradict these rules.
+
+Where a conflict exists, these Universal Rules are authoritative.
+
+---
+
+## 1. Cancel before commitment
+
+Any form or pending action must have a safe way to abandon it without changing authoritative state.
+
+```text
+START
+ ↓
+EDIT / ENTER
+ ↓
+CANCEL
+ ↓
+NO AUTHORITATIVE CHANGE
+```
+
+Cancel means the operation did not happen.
+
+Close, back, and navigation must not silently commit the form.
+
+If there are unsaved changes, KFE may ask for confirmation.
+
+Temporary drafts may exist, but a draft is not authoritative data.
+
+---
+
+## 2. Save/commit is the point of no longer being a draft
+
+A form becomes authoritative only through its intended commit operation.
+
+```text
+DRAFT
+ ↓
+VALIDATE
+ ↓
+COMMIT
+ ↓
+AUTHORITATIVE RECORD
+```
+
+UI controls must not bypass the authoritative application/business path.
+
+---
+
+## 3. Undo immediately after commitment
+
+After a successful commit, KFE should offer Undo when the complete operation can still be safely reversed.
+
+```text
+COMMITTED
+ ↓
+UNDO AVAILABLE
+ ↓
+UNDO
+ ↓
+PREVIOUS VALID STATE
+```
+
+Undo must:
+
+- reverse the whole logical action
+- use the application/domain layer
+- not merely hide/delete a UI record
+- not bypass business rules
+- not corrupt dependent records
+
+There must be no fake UI-only Undo.
+
+---
+
+## 4. Undo has a safety boundary
+
+Undo is allowed only while reversing the action cannot invalidate subsequent authoritative operations.
+
+If later authoritative activity makes reversal unsafe, KFE moves to Correction.
+
+---
+
+## 5. Correction after downstream consequences
+
+When an already-committed record has become part of subsequent authoritative history:
+
+> Correct it; do not silently erase history.
+
+```text
+ORIGINAL RECORD
+      ↓
+CORRECTION
+      ↓
+CORRECTED AUTHORITATIVE STATE
+```
+
+Correction must preserve the necessary historical/audit information.
+
+This applies especially to:
+
+- odometer
+- trips/rides
+- work sessions
+- fuel
+- revenue
+- maintenance
+- financial records
+- loan/EMI records
+- compliance records
+
+---
+
+## 6. Recovery must preserve business invariants
+
+Cancel, Undo, and Correction must never bypass KFE's existing business rules.
+
+Recovery itself is an authoritative operation.
+
+Recovery must pass through the same application/business boundaries as normal operations.
+
+No component should directly manipulate the database merely to implement Undo or Correction.
+
+---
+
+## 7. Navigation must never commit domain state
+
+Navigation actions are harmless.
+
+Navigation must not:
+
+- save a form
+- start/end a trip
+- change an odometer
+- create a financial record
+- discard committed data
+- terminate an operational action accidentally
+
+Navigation and domain commitment remain separate.
+
+---
+
+## 8. Partially completed forms must be recoverable safely
+
+If the user has entered information but has not committed it, KFE must not accidentally commit it.
+
+KFE may:
+
+- discard it
+- ask whether to discard it
+- preserve it as a temporary draft
+
+But:
+
+> A temporary draft can never become authoritative without an explicit commit.
+
+---
+
+## 9. Destructive actions require stronger protection
+
+Actions such as:
+
+- data reset
+- destructive deletion
+- irreversible cleanup
+- destructive restoration
+
+must not behave like ordinary Save/Undo.
+
+Minimum principle:
+
+```text
+REQUEST
+ ↓
+EXPLICIT CONFIRMATION
+ ↓
+COMMIT
+ ↓
+RECOVERY / RESTORE POLICY
+```
+
+The stronger the consequence, the stronger the confirmation/recovery requirement.
+
+Restore is not ordinary Undo.
+
+---
+
+## 10. Swipe actions follow the same contract
+
+A swipe is another form/action mechanism.
+
+Before completion:
+
+```text
+PARTIAL SWIPE
+ ↓
+NO DOMAIN ACTION
+```
+
+At completion:
+
+```text
+ACTION COMMITTED
+ ↓
+UNDO if safely reversible
+ ↓
+otherwise CORRECTION
+```
+
+A swipe must never receive weaker safety rules simply because it is a gesture.
+
+---
+
+## 11. Errors never create ambiguous state
+
+If a commit fails:
+
+```text
+SAVE
+ ↓
+ERROR
+ ↓
+NOT ASSUMED TO BE COMMITTED
+```
+
+The UI must not falsely display success.
+
+The application layer remains responsible for determining the authoritative outcome.
+
+---
+
+## 12. Universal recovery model
+
+```text
+DRIVER ACTION
+      │
+      ▼
+Has it committed?
+   /          \
+ NO            YES
+ │              │
+CANCEL      Can it still be
+            safely reversed?
+             /          \
+           YES           NO
+           │              │
+         UNDO         CORRECTION
+           │              │
+           └──────┬───────┘
+                  ▼
+        VALID AUTHORITATIVE
+               STATE
+```
+
+## Governing principle
+
+> **The easiest recovery should always be the safest recovery.**
+
+---
+
+## Authority rule
+
+These Universal Form & Action Recovery Rules govern every form, form-like interaction, gesture, committed action, and recovery workflow in KFE.
+
+Domain-specific rules may further define how recovery works for a particular record type, but they must not weaken, bypass, or contradict these rules.
+
+Where a conflict exists, these Universal Rules are authoritative.
+
+Any conflict with these rules is:
+
+**🔴 DESIGN DRIFT / CONFLICT WARNING**
