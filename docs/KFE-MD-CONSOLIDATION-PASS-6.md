@@ -20,18 +20,20 @@ Every important business fact must have one authoritative record and one authori
 ## Preserved decisions
 
 - Work remains active even though its historical UI is not authoritative.
-- Ride Capture remains provider-independent.
-- OCR output is untrusted candidate input until KFE validation accepts it.
+- Ride records are captured through the Work application flow and explicitly validated/confirmed before persistence.
 - Performance consumes authoritative business results; it does not create competing financial facts.
 - Admin manages records through application boundaries; it does not own persistence directly.
 - One authoritative local database exists per runtime environment.
 - Backup/restore and sync remain behind persistence/application boundaries.
-- Providers remain replaceable adapters.
+- External providers remain replaceable adapters where external capabilities are required.
 - KFE remains reconstructable from authoritative persisted state.
+- OCR is permanently excluded from KFE. No OCR engine, OCR provider, OCR extraction pipeline, or OCR-specific contract is part of the architecture.
 
 ## Explicit exclusions
 
 No Timeline architecture, module, screen, navigation, data model or future Timeline contract is introduced.
+
+No OCR architecture, provider, extraction engine or OCR fallback is introduced or retained.
 
 No production feature implementation was started.
 
