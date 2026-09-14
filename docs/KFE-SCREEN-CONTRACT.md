@@ -44,9 +44,10 @@ Admin Home is month-aware and contains:
 - Month View
 - Finance
 - Management
-- View Timeline
 
-Month View contains Month Overview, Profitability, Break-even, Insight, Weekly rows and Month Timeline. Month → Week → Day navigation is two taps from the month view. Finance is derived/read-only and exposes six tiles: Revenue, Business Cost, Profit, Profit/KM, Cost/KM and Break-even.
+Month View contains Month Overview, Profitability, Break-even, Insight, Weekly rows and month-level activity derived from authoritative records. Month → Week → Day navigation remains a presentation concept only; it must not recreate or depend on the retired Timeline presentation surface.
+
+Finance is derived/read-only and exposes six tiles: Revenue, Business Cost, Profit, Profit/KM, Cost/KM and Break-even.
 
 Management is grouped as:
 
