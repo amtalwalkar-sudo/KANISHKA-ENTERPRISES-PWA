@@ -19,14 +19,23 @@ Every production screen must prove the following before it is considered complet
 - [ ] Browser E2E succeeds
 - [ ] Resilience/offline behavior succeeds
 
-## Current production presentation set
+## Current product areas
 
-The current clean presentation surface intentionally exposes only these active primary screens:
+KFE currently has exactly three active product areas:
 
-1. **Performance** — current business position, running cost and driver-facing operating interpretation.
-2. **Admin** — back-office command center for Vehicle, Driver, Finance, Renewals, Maintenance, Loans and Settings.
+1. **Work** — operational work, sessions, trips, ride capture and related workflows.
+2. **Performance** — current business position, running cost and driver-facing operating interpretation.
+3. **Admin** — back-office command center for Vehicle, Driver, Finance, Renewals, Maintenance, Loans and Settings.
 
-**Work and Timeline presentation surfaces have been removed from the current shell.** Their underlying domain/application capabilities are not treated as active presentation contracts and may be rebuilt later from a clean boundary.
+There is no Timeline product area in KFE.
+
+## Current presentation state
+
+Performance and Admin are current production presentation surfaces.
+
+Work is an active product area and its domain/application capabilities remain authoritative. The previous Work UI is not a current presentation contract and must not be resurrected from historical implementation. A new Work presentation must be built from the current Work contracts and Master Blueprint when implementation begins.
+
+This distinction means **Work is active**, while its old UI is not authoritative.
 
 ## Presentation boundary
 
@@ -45,7 +54,7 @@ Admin Home is month-aware and contains:
 - Finance
 - Management
 
-Month View contains Month Overview, Profitability, Break-even, Insight, Weekly rows and month-level activity derived from authoritative records. Month → Week → Day navigation remains a presentation concept only; it must not recreate or depend on the retired Timeline presentation surface.
+Month View contains Month Overview, Profitability, Break-even, Insight, Weekly rows and month-level activity derived from authoritative records. Month → Week → Day navigation is a presentation concept only and is not a separate product area or module.
 
 Finance is derived/read-only and exposes six tiles: Revenue, Business Cost, Profit, Profit/KM, Cost/KM and Break-even.
 
