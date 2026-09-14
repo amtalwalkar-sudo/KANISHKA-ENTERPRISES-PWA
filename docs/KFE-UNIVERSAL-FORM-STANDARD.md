@@ -1,14 +1,14 @@
 # KFE 2.0 — Universal Form Standards
 
-**Status:** Living architectural contract
-**Scope:** All driver-facing PWA forms and interactive form controls
+**Status:** Living architectural contract  
+**Scope:** All driver-facing PWA forms and interactive form controls  
 **Authority:** This document is the editable source of truth for KFE form architecture, resilience, recovery, and UI standards.
 
 ## 1. Permanent hierarchy
 
 All business forms follow this hierarchy:
 
-**Universal Form Architecture → Universal Form Resilience → Universal Mistake/Recovery Contract → Business Form**
+**Universal Form Architecture → Universal Form Resilience → Universal Form Action & Recovery Rules → Business Form**
 
 Universal does **not** mean every form must look or behave identically. The hierarchy is mandatory; presentation and workflow may vary through explicit, justified exceptions.
 
@@ -36,7 +36,7 @@ These rules are non-negotiable unless the underlying architecture is intentional
 
 ### Mistake and recovery
 
-- The Universal Mistake & Recovery Contract remains authoritative for Cancel, Undo, correction, reversal, confirmation, and authoritative domain state.
+- The **Universal Form Action & Recovery Rules** contract remains authoritative for Cancel, Undo, correction, reversal, confirmation, and authoritative domain state.
 - UI layers must not invent competing deletion/reversal semantics.
 - Unsaved draft restoration must never silently create an authoritative domain mutation.
 
@@ -175,7 +175,7 @@ Before adding or changing a driver-facing form:
 3. Do not create a second keyboard/viewport system.
 4. Do not add screen-specific bottom-clearance hacks when a shared rule can solve the issue.
 5. Preserve existing business validation and domain commands.
-6. Preserve the Universal Mistake & Recovery Contract.
+6. Preserve the **Universal Form Action & Recovery Rules** contract.
 7. Mark legitimate exceptions explicitly.
 8. Verify the active form remains reachable at small viewports, with the keyboard open, with conditional fields present, and with shell chrome visible.
 
