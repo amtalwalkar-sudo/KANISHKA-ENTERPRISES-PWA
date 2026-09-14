@@ -34,7 +34,7 @@ PERSISTENCE
 ONE AUTHORITATIVE LOCAL DATABASE
 ```
 
-Infrastructure adapters sit at the outside boundary and provide replaceable capabilities such as native APIs, OCR/AI, notifications, backup storage, synchronization transport and network access.
+Infrastructure adapters sit at the outside boundary and provide replaceable capabilities only where explicitly required, such as notifications, backup storage, synchronization transport and native/platform services.
 
 A provider must never become the owner of KFE business meaning.
 
@@ -98,27 +98,9 @@ Presentation state, caches and projections may exist, but none replaces the auth
 
 Work owns operational collection and lifecycle semantics.
 
-Ride Capture follows the provider-independent boundary:
+Ride records are captured through the Work application flow. Values are entered or explicitly confirmed by the user, validated by KFE, and then persisted through the authoritative Work path.
 
-```text
-SCREENSHOT
-   ↓
-OCR / MULTIMODAL EXTRACTION ADAPTER
-   ↓
-KFE EXTRACTION CONTRACT
-   ↓
-KFE VALIDATION
-   ↓
-REVIEW / CONFIRMATION
-   ↓
-WORK APPLICATION USE CASE
-   ↓
-WORK DOMAIN RULES
-   ↓
-AUTHORITATIVE PERSISTENCE
-```
-
-The OCR/AI provider may be replaced without changing Work business meaning.
+Screenshots may be retained only as optional source evidence. They do not trigger machine extraction and are never an alternate source of business truth.
 
 ## 6. Calculations
 
@@ -176,9 +158,8 @@ Exact protocol, outbox/inbox mechanics and conflict policy remain open design qu
 
 ## 11. Provider independence
 
-The following remain replaceable adapters:
+External capabilities remain replaceable adapters only where KFE explicitly requires them, including:
 
-- OCR/AI provider
 - cloud backup provider
 - sync backend/provider
 - notification provider
@@ -191,7 +172,7 @@ Provider names must not enter domain rules, business calculations or product mea
 
 KFE must be recoverable by reconstruction from authoritative persisted state.
 
-No hidden UI state, provider state, cache, notification payload or temporary extraction object may become necessary for authoritative recovery.
+No hidden UI state, provider state, cache or notification payload may become necessary for authoritative recovery.
 
 ## 13. Explicitly rejected architecture
 
@@ -208,6 +189,7 @@ Do not create:
 - Timeline module
 - parallel Work implementation
 - hidden fallback architecture
+- OCR/extraction architecture
 
 ## 14. Open questions before architecture freeze
 
@@ -216,10 +198,9 @@ Do not create:
 3. Local database technology.
 4. Backup representation and safe restore transaction.
 5. Sync protocol, change log/outbox and conflict semantics.
-6. OCR extraction contract and adapter interface.
-7. Notification/native adapter contract.
-8. Exact Work screen/workflow set.
-9. Exact cross-domain calculation ownership for each financial/operational metric.
+6. Notification/native adapter contract.
+7. Exact Work screen/workflow set.
+8. Exact cross-domain calculation ownership for each financial/operational metric.
 
 These are controlled design questions. They do not authorize parallel implementations.
 
