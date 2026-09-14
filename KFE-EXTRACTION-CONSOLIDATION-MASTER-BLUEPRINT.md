@@ -1,6 +1,6 @@
 # KFE — Extraction, Consolidation & Master Blueprint
 
-**Status:** WORKING BLUEPRINT — FREEZE READY — AWAITING USER APPROVAL
+**Status:** FROZEN — USER APPROVED
 
 ## 1. Purpose
 
@@ -229,21 +229,17 @@ Before creating any component, answer:
 
 If unclear, do not implement yet.
 
-## 18. Current implementation readiness
+## 18. Implementation readiness
 
-Passes 9–11 established the authoritative data model, field-level contract principles and physical persistence boundary.
+Passes 9–11 established the authoritative data model, field-level contract principles and physical persistence boundary. Pass 12 completed the final implementation-readiness audit.
 
-Pass 12 confirms the architecture is **FREEZE READY — AWAITING USER APPROVAL**.
+The architecture is now **FROZEN — USER APPROVED**.
 
-The exact database technology, physical schema, indexes, migration tooling, backup format/provider, sync conflict mechanics, native adapters and remaining exact field types are implementation selections behind these boundaries; they are not competing architectures.
+The exact database technology, physical schema, indexes, migration tooling, backup format/provider, sync conflict mechanics, native adapters and remaining exact field types remain implementation selections behind the frozen boundaries. They must not introduce duplicate authority or alter the frozen architecture without explicit design review.
 
 ## 19. Freeze rule
 
-```text
-WORKING → REVIEWED → COMPLETE ENOUGH → FREEZE READY → USER APPROVAL → FROZEN
-```
-
-Nothing becomes frozen automatically. Explicit user approval is required.
+The architecture became frozen only after explicit user approval. Future changes that affect frozen ownership, authority, boundaries, exclusions or governing principles require explicit design review and approval.
 
 ## 20. Rebuild principle
 
