@@ -16,7 +16,7 @@ There is no Timeline product area.
 
 > ONE BUSINESS FACT → ONE AUTHORITATIVE RECORD → ONE PERSISTENCE PATH → MULTIPLE READ REPRESENTATIONS ONLY WHEN NEEDED.
 
-UI state, OCR output, notification payloads, caches, projections, backup payloads and sync payloads are representations. They are never competing business authorities.
+UI state, notification payloads, caches, projections, backup payloads and sync payloads are representations. They are never competing business authorities.
 
 ## 3. Contract matrix
 
@@ -26,7 +26,7 @@ UI state, OCR output, notification payloads, caches, projections, backup payload
 | Business/personal scope | Work Domain | Work Application | Work/Performance | Read models |
 | Break handling | Work Domain | Work Application | Work/Performance | Read models |
 | Trip/ride record | Work Domain | Work Application | Work/Performance | Read models |
-| Ride screenshot extraction | KFE Ride Capture contract + Work validation | Application after validation | Work | OCR/provider output only as untrusted input |
+| Ride record capture | Work Domain + Work validation | Work Application | Work | User-entered/confirmed values; optional source evidence |
 | Odometer facts | Work Domain | Work Application | Work/Performance/calculations | Read models |
 | Revenue | Owning financial/domain calculation | Application use case | Performance/Admin | Calculated read models |
 | Fuel | Fuel domain/calculation | Application use case | Performance/Admin | Calculated read models |
@@ -36,7 +36,6 @@ UI state, OCR output, notification payloads, caches, projections, backup payload
 | Configuration history | Owning domain | Admin Application | Domain/Application | Effective-dated read models |
 | Backup | Persistence authority | Backup Application boundary | Restore process | Complete versioned backup representation |
 | Sync | Persistence authority | Sync boundary | Local application | Transport envelopes only |
-| OCR/AI provider | Infrastructure adapter | Adapter only | Ride Capture contract | Extracted candidate data |
 | Notifications | Notification boundary | Application/infrastructure | User | Notification payload |
 
 ## 4. Write path
@@ -57,7 +56,7 @@ Persistence transaction
 ONE authoritative local database
 ```
 
-External providers never write business records directly.
+External services never write business records directly.
 
 ## 5. Read path
 
@@ -75,25 +74,9 @@ Read models may be optimized or shaped for screens but must remain reconstructab
 
 ## 6. Ride Capture boundary
 
-```text
-Screenshot
-   ↓
-Replaceable multimodal extraction provider
-   ↓
-KFE extraction contract
-   ↓
-KFE validation / normalization
-   ↓
-Work application use case
-   ↓
-Work domain rules
-   ↓
-Repository
-   ↓
-Authoritative local record
-```
+Ride records are captured through the authoritative Work application flow. Values are entered or explicitly confirmed by the user and then validated by KFE before persistence.
 
-The provider is replaceable. Provider output is not authoritative until accepted through KFE validation.
+Screenshots, if retained, are optional source evidence only. They do not trigger machine extraction and do not become an alternate source of business truth.
 
 ## 7. Calculation boundary
 
@@ -131,7 +114,6 @@ The following can represent business facts but can never own them:
 
 - UI state
 - form state
-- OCR provider output
 - notification content
 - cached values
 - read models/projections
@@ -140,6 +122,7 @@ The following can represent business facts but can never own them:
 - cloud provider records
 - test/synthetic data
 - historical documents or branches
+- optional source screenshots/evidence
 
 ## 12. Duplicate-creation guardrail
 
@@ -159,8 +142,7 @@ before adding a second database, repository, calculation engine, form framework,
 4. Transaction implementation.
 5. Backup format/versioning details.
 6. Sync conflict/outbox/inbox mechanics.
-7. OCR extraction schema and adapter interface.
-8. Notification/native adapter interface.
-9. Exact Work screen/workflow set.
+7. Notification/native adapter interface.
+8. Exact Work screen/workflow set.
 
 These are design decisions still to be reviewed; they do not authorize parallel implementations.
