@@ -192,7 +192,27 @@ The shell, navigation, layout, theme, forms, and screen composition may evolve o
 
 KFE maintains one unified presentation system, not parallel presentation implementations.
 
-This rule protects **independent evolution**. Change Isolation separately protects against **accidental propagation**.
+### Navigation Extensibility Rule
+
+The current bottom navigation is a **current information-architecture choice, not a permanent fixed set of product areas**.
+
+Current primary destinations are:
+
+`Work | Performance | Admin`
+
+The navigation architecture must allow future product areas or destinations to be introduced, removed, reordered, renamed, grouped, or relocated without restructuring the shell or creating duplicate business/data authority.
+
+For example, a future destination such as **Timeline**, **Passbook**, or another genuinely new ERP concept may be added to the bottom navigation when deliberately introduced.
+
+Adding a navigation destination does not by itself create a new business domain, database, repository, calculation engine, store, or persistence path. A new destination must connect to the existing domain/application/repository/persistence/read-model boundaries appropriate to its business meaning.
+
+If a genuinely new concept is introduced, its business meaning, ownership, authoritative records, application operations, calculations, history, and persistence requirements must first be established. Only then is its presentation/navigation placement decided.
+
+Therefore:
+
+> **Navigation is extensible; business authority is not duplicated.**
+
+This protects seamless future presentation growth while preserving KFE's one-responsibility/one-owner architecture.
 
 ## 10. Standard Entry Rule
 
@@ -243,6 +263,8 @@ User-directed presentation is authoritative for **presentation organization**, b
 > **Labels may change. Business semantics may not silently change.**
 
 > **Historical state must remain reconstructable.**
+
+> **Navigation is extensible; business authority is not duplicated.**
 
 > **No consequential change proceeds without identifying its owner and impact.**
 
