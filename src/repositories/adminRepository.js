@@ -8,10 +8,8 @@ const CORE_STORES = { SHIFT: 'shifts', TRIP: 'trips', FUEL: 'fuel_logs' }
 const readAll = async storeName => {
   const db = await initializeCanonicalStorage()
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readonly')
-    const req = tx.objectStore(storeName).getAll()
-    req.onsuccess = () => resolve(req.result || [])
-    req.onerror = () => reject(req.error || new Error('Admin read failed.'))
+    const tx = db.transaction(storeName, 'readonly'); const req = tx.objectStore(storeName).getAll()
+    req.onsuccess = () => resolve(req.result || []); req.onerror = () => reject(req.error || new Error('Admin read failed.'))
   })
 }
 
@@ -49,7 +47,16 @@ const normalize = (kind, input) => {
     record.quantityKg = record.pricePerKg > 0 ? record.amount / record.pricePerKg : 0
     record.capturedAt = input.fuelRecordedAt || input.capturedAt || record.createdAt
   }
-  if (FINANCIAL_KINDS.has(kind)) record.kind = kind
+  if (kind === 'LOAN') {
+    record.kind = 'LOAN'; record.principal = Number(input.loanPrincipal); record.annualInterestRate = Number(input.loanInterestRate)
+    record.tenureMonths = Number(input.loanTenure); record.startDate = input.loanStartDate || input.effectiveFrom; record.status = input.loanStatus || 'ACTIVE'
+    if (record.principal > 0 && record.tenureMonths > 0) {
+      const monthly = record.annualInterestRate / 1200
+      record.emi = monthly ? record.principal * monthly * Math.pow(1 + monthly, record.tenureMonths) / (Math.pow(1 + monthly, record.tenureMonths) - 1) : record.principal / record.tenureMonths
+    }
+    record.effectiveFrom = input.loanStartDate || input.effectiveFrom || now
+  }
+  if (kind === 'TARGET') { record.kind = 'TARGET'; record.amount = Number(input.targetValue); record.target = record.amount; record.effectiveFrom = input.effectiveFrom || now; record.status = 'ACTIVE' }
   return record
 }
 
@@ -60,29 +67,21 @@ export const AdminRepository = {
     return (await readAll('admin_records')).filter(r => r.entityType === kind)
   },
   async save(kind, input) {
-    const db = await initializeCanonicalStorage()
-    const storeName = CORE_STORES[kind] || (FINANCIAL_KINDS.has(kind) ? 'financial_inputs' : 'admin_records')
-    const record = normalize(kind, input)
-    if (storeName === 'admin_records') record.entityType = kind
+    const db = await initializeCanonicalStorage(); const storeName = CORE_STORES[kind] || (FINANCIAL_KINDS.has(kind) ? 'financial_inputs' : 'admin_records')
+    const record = normalize(kind, input); if (storeName === 'admin_records') record.entityType = kind
     return new Promise((resolve, reject) => {
       const tx = db.transaction([storeName, 'pending_mutations'], 'readwrite')
       tx.objectStore(storeName).put(record)
       tx.objectStore('pending_mutations').put(buildMutationRecord({ entityId: record.id, entityType: kind, action: input.id ? 'UPDATE' : 'CREATE', payload: record, createdAt: record.updatedAt }))
-      tx.oncomplete = () => resolve(record)
-      tx.onerror = () => reject(tx.error || new Error('Admin save failed.'))
-      tx.onabort = () => reject(tx.error || new Error('Admin save aborted.'))
+      tx.oncomplete = () => resolve(record); tx.onerror = () => reject(tx.error || new Error('Admin save failed.')); tx.onabort = () => reject(tx.error || new Error('Admin save aborted.'))
     })
   },
   async remove(kind, id) {
-    const db = await initializeCanonicalStorage()
-    const storeName = CORE_STORES[kind] || (FINANCIAL_KINDS.has(kind) ? 'financial_inputs' : 'admin_records')
+    const db = await initializeCanonicalStorage(); const storeName = CORE_STORES[kind] || (FINANCIAL_KINDS.has(kind) ? 'financial_inputs' : 'admin_records')
     return new Promise((resolve, reject) => {
       const tx = db.transaction([storeName, 'pending_mutations'], 'readwrite')
-      tx.objectStore(storeName).delete(id)
-      tx.objectStore('pending_mutations').put(buildMutationRecord({ entityId: id, entityType: kind, action: 'DELETE', payload: { id }, createdAt: new Date().toISOString() }))
-      tx.oncomplete = () => resolve(true)
-      tx.onerror = () => reject(tx.error || new Error('Admin delete failed.'))
-      tx.onabort = () => reject(tx.error || new Error('Admin delete aborted.'))
+      tx.objectStore(storeName).delete(id); tx.objectStore('pending_mutations').put(buildMutationRecord({ entityId: id, entityType: kind, action: 'DELETE', payload: { id }, createdAt: new Date().toISOString() }))
+      tx.oncomplete = () => resolve(true); tx.onerror = () => reject(tx.error || new Error('Admin delete failed.')); tx.onabort = () => reject(tx.error || new Error('Admin delete aborted.'))
     })
   }
 }
