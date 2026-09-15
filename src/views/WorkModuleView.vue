@@ -1,8 +1,8 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useDayShiftTripStore } from '../stores/dayShiftTrip.js'
+import { useShiftTripStore } from '../stores/shiftTrip.js'
 
-const store = useDayShiftTripStore()
+const store = useShiftTripStore()
 const startOdo = ref('')
 const gapPersonal = ref('')
 const gapDead = ref('')
@@ -16,6 +16,9 @@ const reviewTrips = ref(false)
 const message = ref('')
 const error = ref('')
 const clock = ref(Date.now())
+const swipeStartX = ref(null)
+const swipeTracking = ref(false)
+const swipeOffset = ref(0)
 let interval
 
 const gap = computed(() => store.calculateGap(startOdo.value))
@@ -60,8 +63,41 @@ const primaryAction = async () => {
   if (store.isTripActive) return endTrip()
   return goOffline()
 }
-const actionLabel = computed(() => !store.isOnline ? 'SWIPE TO GO ONLINE' : store.isTripActive ? 'SWIPE TO END TRIP' : 'SWIPE TO GO OFFLINE')
+const actionLabel = computed(() => !store.isOnline ? 'SWIPE → GO ONLINE' : store.isTripActive ? 'SWIPE → END TRIP' : 'SWIPE → GO OFFLINE')
 const actionClass = computed(() => store.isTripActive ? 'trip-action' : store.isOnline ? 'offline-action' : 'online-action')
+const actionHint = computed(() => store.isTripActive ? 'Swipe from left to right to end this trip' : store.isOnline ? 'Swipe from left to right to go Offline' : 'Swipe from left to right to go Online')
+const swipeStyle = computed(() => ({ transform: `translateX(${swipeOffset.value}px)` }))
+
+const onSwipeStart = event => {
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  swipeStartX.value = event.clientX
+  swipeTracking.value = true
+  swipeOffset.value = 0
+  event.currentTarget.setPointerCapture?.(event.pointerId)
+}
+const onSwipeMove = event => {
+  if (!swipeTracking.value || swipeStartX.value == null) return
+  swipeOffset.value = Math.max(0, Math.min(event.clientX - swipeStartX.value, 120))
+}
+const onSwipeEnd = async event => {
+  if (!swipeTracking.value || swipeStartX.value == null) return
+  const distance = event.clientX - swipeStartX.value
+  swipeTracking.value = false
+  swipeStartX.value = null
+  swipeOffset.value = 0
+  if (distance >= 80) await primaryAction()
+}
+const onSwipeCancel = () => {
+  swipeTracking.value = false
+  swipeStartX.value = null
+  swipeOffset.value = 0
+}
+const onSwipeKey = async event => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    await primaryAction()
+  }
+}
 
 onMounted(async () => {
   await store.initialize()
@@ -89,7 +125,6 @@ onUnmounted(() => window.clearInterval(interval))
     <section v-else-if="!store.isTripActive" class="card gate">
       <h2>Start Trip</h2><div class="current-operator"><span>Operator for this trip</span><strong>{{ selectedOperator || store.defaultOperator }}</strong></div><p class="muted">Check this before every ride. The selected operator carries forward until changed.</p>
       <div class="operators"><button v-for="operator in store.operators" :key="operator" :class="{selected:(selectedOperator || store.defaultOperator)===operator}" @click="selectedOperator=operator">{{ operator }}</button></div>
-      <button class="secondary" @click="startTrip">Start Trip now</button>
     </section>
 
     <section v-if="store.isTripActive" class="card trip">
@@ -101,16 +136,21 @@ onUnmounted(() => window.clearInterval(interval))
       <label>Closing odometer (km)<input v-model="closingOdo" type="number" min="0" inputmode="decimal"></label>
       <label>Shift revenue (₹)<input v-model="shiftRevenue" type="number" min="0" inputmode="decimal" placeholder="0"></label>
       <div class="two"><label>Toll (optional)<input v-model="toll" type="number" min="0" step="0.01" placeholder="0"></label><label>Parking (optional)<input v-model="parking" type="number" min="0" step="0.01" placeholder="0"></label></div>
-      <label v-if="Number(toll||0)>0 || Number(parking||0)>0">Toll/Parking treatment<select v-model="tollTreatment"><option value="NONE">None</option><option value="INCLUDED">Included in revenue</option><option value="EXCLUDED">Excluded from revenue</option></select></label>
+      <label v-if="Number(toll||0)>0 || Number(parking||0)>0">Toll/Parking treatment<select v-model="tollTreatment"><option value="NONE">None</option><option value="INCLUDED">Included in revenue/fare</option><option value="EXCLUDED">Excluded from revenue/fare</option></select></label>
       <button class="secondary" @click="reviewTrips=!reviewTrips">{{ reviewTrips ? 'Hide optional trip review' : 'Optional trip review / correction' }}</button>
       <div v-if="reviewTrips" class="reviews"><p v-if="!store.completedTrips.length" class="muted">No completed trips.</p><div v-for="t in store.completedTrips" :key="t.id" class="review"><select v-model="t.operator"><option v-for="operator in store.operators" :key="operator">{{ operator }}</option></select><input v-model="t.tripKm" type="number" min="0" step="0.1" placeholder="KM optional"><input v-model="t.revenue" type="number" min="0" step="0.01" placeholder="₹ optional"></div></div>
     </section>
 
     <div class="action-reserve"></div>
-    <div class="persistent-action"><button :class="actionClass" @click="primaryAction">{{ actionLabel }}</button></div>
+    <div class="persistent-action">
+      <div class="swipe-bar" :class="actionClass" :style="swipeStyle" role="button" tabindex="0" aria-label="Swipe from left to right to perform the current Work action" @pointerdown="onSwipeStart" @pointermove="onSwipeMove" @pointerup="onSwipeEnd" @pointercancel="onSwipeCancel" @pointerleave="onSwipeEnd" @keydown="onSwipeKey">
+        <span class="swipe-arrow">→</span><span>{{ actionLabel }}</span>
+      </div>
+      <small class="swipe-hint">{{ actionHint }}</small>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.cockpit{max-width:600px;margin:auto;padding:16px 16px 125px;color:#0f172a}.hero{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.hero small{font-size:.65rem;font-weight:900;color:#64748b;letter-spacing:.12em}.hero h1{margin:2px 0;font-size:1.45rem}.hero b{padding:7px 10px;border-radius:18px;font-size:.7rem}.on{background:#dcfce7;color:#166534}.off{background:#e2e8f0;color:#475569}.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(15,23,42,.05)}.state{display:flex;justify-content:space-between}.state div{display:flex;flex-direction:column;gap:3px}.state span,.muted{font-size:.75rem;color:#64748b}.state strong{font-size:.9rem}.gate h2{margin:0 0 5px;font-size:1rem}.gate label{display:block;font-size:.76rem;font-weight:800;margin:11px 0}.gate input,.gate select,.review input,.review select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;margin-top:5px;font:inherit}.secondary,.quiet{width:100%;padding:13px;border:0;border-radius:9px;font-weight:900;margin-top:12px}.secondary{background:#e2e8f0;color:#1e293b}.quiet{background:transparent;color:#64748b}.gap{background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px}.gap p{font-size:.75rem;color:#92400e}.current-operator{display:flex;justify-content:space-between;padding:12px;background:#f1f5f9;border-radius:10px}.operators{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.operators button{padding:11px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-weight:800}.operators button.selected{border:2px solid #111827}.trip{text-align:center}.trip h2{margin:7px 0}.timer{font:700 2rem ui-monospace,SFMono-Regular,Menlo,monospace;margin:14px 0}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.review{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px}.review input,.review select{font-size:.7rem;padding:8px}.message,.error{padding:10px 12px;border-radius:9px;margin-bottom:12px;font-size:.8rem}.message{background:#dcfce7;color:#166534}.error{background:#fee2e2;color:#991b1b}.error-text{color:#991b1b}.action-reserve{height:58px}.persistent-action{position:fixed;left:0;right:0;bottom:60px;height:58px;padding:7px 12px;box-sizing:border-box;background:rgba(248,250,252,.98);border-top:1px solid #e2e8f0;z-index:9998}.persistent-action button{width:100%;height:44px;border:0;border-radius:10px;color:#fff;font-weight:900;letter-spacing:.02em}.online-action{background:#111827}.offline-action{background:#dc2626}.trip-action{background:#dc2626}@media(max-width:380px){.two,.review{grid-template-columns:1fr}}
+.cockpit{max-width:600px;margin:auto;padding:16px 16px 142px;color:#0f172a}.hero{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.hero small{font-size:.65rem;font-weight:900;color:#64748b;letter-spacing:.12em}.hero h1{margin:2px 0;font-size:1.45rem}.hero b{padding:7px 10px;border-radius:18px;font-size:.7rem}.on{background:#dcfce7;color:#166534}.off{background:#e2e8f0;color:#475569}.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(15,23,42,.05)}.state{display:flex;justify-content:space-between}.state div{display:flex;flex-direction:column;gap:3px}.state span,.muted{font-size:.75rem;color:#64748b}.state strong{font-size:.9rem}.gate h2{margin:0 0 5px;font-size:1rem}.gate label{display:block;font-size:.76rem;font-weight:800;margin:11px 0}.gate input,.gate select,.review input,.review select{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;margin-top:5px;font:inherit}.secondary,.quiet{width:100%;padding:13px;border:0;border-radius:9px;font-weight:900;margin-top:12px}.secondary{background:#e2e8f0;color:#1e293b}.quiet{background:transparent;color:#64748b}.gap{background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px}.gap p{font-size:.75rem;color:#92400e}.current-operator{display:flex;justify-content:space-between;padding:12px;background:#f1f5f9;border-radius:10px}.operators{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.operators button{padding:11px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;font-weight:800}.operators button.selected{border:2px solid #111827}.trip{text-align:center}.trip h2{margin:7px 0}.timer{font:700 2rem ui-monospace,SFMono-Regular,Menlo,monospace;margin:14px 0}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.review{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px}.review input,.review select{font-size:.7rem;padding:8px}.message,.error{padding:10px 12px;border-radius:9px;margin-bottom:12px;font-size:.8rem}.message{background:#dcfce7;color:#166534}.error{background:#fee2e2;color:#991b1b}.error-text{color:#991b1b}.action-reserve{height:64px}.persistent-action{position:fixed;left:0;right:0;bottom:60px;height:64px;padding:5px 12px 4px;box-sizing:border-box;background:rgba(248,250,252,.98);border-top:1px solid #e2e8f0;z-index:9998}.swipe-bar{width:100%;height:42px;border-radius:12px;color:#fff;font-weight:900;letter-spacing:.02em;display:flex;align-items:center;justify-content:center;gap:8px;user-select:none;touch-action:pan-y;transition:transform .16s ease;cursor:grab;box-shadow:0 2px 6px rgba(15,23,42,.14)}.swipe-bar:active{cursor:grabbing}.swipe-arrow{font-size:1.25rem;line-height:1}.online-action{background:#111827}.offline-action{background:#dc2626}.trip-action{background:#dc2626}.swipe-hint{display:block;text-align:center;color:#64748b;font-size:.62rem;margin-top:2px}@media(max-width:380px){.two,.review{grid-template-columns:1fr}}
 </style>
