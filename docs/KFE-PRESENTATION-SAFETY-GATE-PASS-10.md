@@ -4,22 +4,22 @@
 
 ## Purpose
 
-This document protects KFE while the presentation architecture and later UI/UX are designed. It prevents presentation decisions from silently changing ERP capability, business meaning, authoritative data, persistence, or historical integrity.
+This document protects KFE while presentation architecture and later UI/UX are designed. It prevents presentation decisions from silently changing ERP capability, business meaning, authoritative data, persistence, or historical integrity.
 
 The rule is simple: **design the user-facing experience freely, but never use the presentation layer as an accidental authority for ERP changes.**
 
-## Presentation Non-Destructive Rule
+## 1. Change Classification
 
-The Presentation layer cannot permanently delete ERP capabilities, authoritative data, business rules, calculations, fields, or persistence requirements.
+Every meaningful requested change is first classified as one or more of these distinct categories.
 
-Presentation changes may:
+### Presentation change
 
-- Show
-- Hide
-- Move
-- Collapse
-- Expand
-- Reorder
+Changes how existing ERP capability is exposed to the user.
+
+Examples:
+- Show / hide
+- Move / reorder
+- Collapse / expand
 - Rename presentation labels
 - Change navigation location
 - Change layout
@@ -27,48 +27,41 @@ Presentation changes may:
 - Make contextual
 - Restore something previously hidden
 
-Therefore, when discussing Shell/UI/UX design, "delete" means remove from the current presentation unless the user explicitly initiates a separate product/domain/data change.
-
-## Capability Removal vs Data Deletion
-
-KFE must keep these operations separate:
-
-- Hide "Loan Payment" → presentation change.
-- Remove Loan Payment from a form → presentation change.
-- Stop supporting Loan Payments → product/domain change.
-- Delete an actual historical Loan Payment record → data/lifecycle operation with its own protected rules.
-
-These operations must never be mixed together.
-
-## Three-Way Change Classification
-
-Every meaningful requested change should first be classified as one or more of these distinct categories:
-
-### 1. Presentation change
-
-Changes how existing ERP capability is exposed to the user.
-
 **Authority:** Presentation.
 
-### 2. Capability / product change
+### Capability / product change
 
 Changes what KFE supports or what a business concept means.
 
-Examples: add Vehicle Sold capability, stop supporting Loan Payments, introduce a new lifecycle state, change a business rule.
+Examples:
+- Add Vehicle Sold capability.
+- Stop supporting Loan Payments.
+- Introduce a new lifecycle state.
+- Change a business rule.
 
 **Authority:** Domain/Application/product design as appropriate.
 
-### 3. Data / lifecycle change
+### Data / lifecycle change
 
 Changes an actual authoritative business record or its lifecycle state.
 
-Examples: mark a vehicle as sold, correct a historical record, void/cancel a record, protected deletion where permitted.
+Examples:
+- Mark a vehicle as sold.
+- Correct a historical record.
+- Void/cancel a record.
+- Perform protected deletion where permitted.
 
 **Authority:** Domain/Application through the authoritative repository/persistence path.
 
-**These three categories must never be silently conflated.**
+These categories must never be silently conflated.
 
-## Authority Resolution Gate
+For example:
+- Hide “Loan Payment” → presentation change.
+- Remove Loan Payment from a form → presentation change.
+- Stop supporting Loan Payments → capability/product change.
+- Delete an actual historical Loan Payment record → data/lifecycle operation.
+
+## 2. Authority Resolution Gate
 
 Before implementing a meaningful change, determine:
 
@@ -83,9 +76,9 @@ Before implementing a meaningful change, determine:
 
 A presentation request must never create a second business rule, store, repository, calculation, persistence path, or authority merely because the UI needs to represent something.
 
-## Dependency Impact Gate
+## 3. Change Impact Gate
 
-Before a consequential permanent change, identify what depends on the thing being changed.
+Before a consequential change, identify what depends on the thing being changed and whether the change is reversible.
 
 At minimum consider:
 
@@ -99,56 +92,11 @@ At minimum consider:
 - future sync
 - related lifecycle records
 - other product areas
+- reversibility / irreversibility
 
 The depth of analysis should match the impact. Minor presentation changes do not require unnecessary architectural ceremony.
 
-## Historical Integrity Protection
-
-Historical business records must remain reconstructable even when current configuration, lifecycle state, presentation, or supported capabilities change.
-
-A lifecycle change such as **Vehicle Sold** changes the vehicle's current state; it does not erase its historical Work, trips/rides, odometer, fuel, maintenance, loan, revenue, or other authoritative history.
-
-Historical records must not become invalid merely because the current UI or current configuration changes.
-
-## No Silent Semantic Change Gate
-
-Presentation labels may change without changing business meaning.
-
-The underlying business semantics must not change silently.
-
-For example, changing the label "Sold" to "Unavailable" does not automatically mean the domain meaning of Vehicle Sold has changed. If the requested change alters business meaning, it must be treated as a capability/domain change and evaluated at the owning layer.
-
-> **Labels may change. Business semantics may not silently change.**
-
-## No Orphan Capability Gate
-
-Every authoritative capability introduced into KFE must have an intentional path through the architecture:
-
-`Domain capability → Application operation → Authoritative record/state → Repository → Persistence → Read model → Presentation`
-
-Likewise, every user-facing action must map intentionally to an application operation and business meaning.
-
-No capability should exist only as an isolated UI element, and no UI action should exist without a defined business/application purpose.
-
-## Reversibility Awareness Gate
-
-For consequential changes, KFE should identify whether the change is reversible.
-
-Examples:
-
-- Hide a field → normally reversible.
-- Move a menu item → normally reversible.
-- Change a lifecycle state → requires defined correction/reversal rules.
-- Delete historical data → potentially irreversible and therefore protected.
-- Stop supporting a capability → major product/domain change.
-
-If a change is irreversible, that fact and its implications must be made clear before proceeding.
-
-## Permanent Change Gate
-
-A permanent removal or semantic change of an ERP capability, business rule, authoritative field, or persisted data must not be inferred from a normal UI/UX instruction.
-
-If a permanent change is proposed, KFE must first identify:
+For consequential or permanent changes, KFE must identify:
 
 1. What is being removed or changed.
 2. What owns it.
@@ -158,39 +106,56 @@ If a permanent change is proposed, KFE must first identify:
 6. Whether existing authoritative records remain valid and reconstructable.
 7. Whether backup/restore and future sync are affected.
 
-The implication must be explained to the user briefly and in simple language before proceeding.
+If a change is irreversible, that fact and its implications must be made clear to the user briefly and in simple language before proceeding.
 
-## No Silent Product Change Through UI
+## 4. Semantic & Historical Integrity
 
-The UI must never become the mechanism by which KFE accidentally changes the ERP itself.
+### Business meaning cannot silently change
 
-For example:
+Presentation labels may change without changing business meaning.
 
-> "Remove Vehicle Sold from this screen" = presentation change.
+For example, changing the label “Sold” to “Unavailable” does not automatically mean the domain meaning of Vehicle Sold has changed. If the requested change alters business meaning, it is a capability/domain change and must be evaluated at the owning layer.
 
-> "Remove Vehicle Sold from KFE" = capability/product change.
+> **Labels may change. Business semantics may not silently change.**
 
-The second request must leave the presentation layer and be evaluated by the owning domain/application design.
+### Historical records remain reconstructable
 
-## No Orphan UI Rule
+Historical business records must remain reconstructable even when current configuration, lifecycle state, presentation, or supported capabilities change.
 
-Every UI field, action, confirmation, status, or control must have an intentional business/application purpose.
+A lifecycle change such as **Vehicle Sold** changes the vehicle's current state; it does not erase its historical Work, trips/rides, odometer, fuel, maintenance, loan, revenue, or other authoritative history.
 
-A UI element must map to:
+Historical records must not become invalid merely because the current UI or current configuration changes.
+
+## 5. Capability & UI Traceability Gate
+
+Every authoritative capability introduced into KFE must have an intentional path through the architecture:
+
+`Domain capability → Application operation → Authoritative record/state → Repository → Persistence → Read model → Presentation`
+
+Every user-facing field, action, confirmation, status, or control must also have an intentional business/application purpose:
 
 `Presentation → Application operation/read model → Business meaning → Authoritative record`
 
-A visual control must not create a hidden private state authority or bypass the Standard Entry System.
+Therefore:
 
-## Standard Entry Protection
+- No capability may exist only as an isolated UI element.
+- No UI action may exist without a defined business/application purpose.
+- No UI element may create a hidden private state authority.
+- No UI action may bypass the Standard Entry System where that pipeline applies.
 
-New authoritative user-entered data must continue through the standard KFE entry path:
+This gate consolidates the former **No Orphan Capability Gate** and **No Orphan UI Rule**.
 
-`INPUT → STANDARD ENTRY SYSTEM → Input/Shape Validation → Application Validation → Domain/Business Validation → Calculation/Normalization → Confirmation/Commit → Repository Contract → Persistence Transaction → ONE AUTHORITATIVE LOCAL DATABASE`
+## 6. Presentation Non-Destructive Rule
 
-UI design may change how the user reaches this pipeline, but it cannot bypass it.
+The Presentation layer cannot permanently delete ERP capabilities, authoritative data, business rules, calculations, fields, or persistence requirements.
 
-## Coverage Protection
+Presentation design may show, hide, move, collapse, expand, reorder, relabel, contextualize, or relocate existing capability without deleting its underlying ERP authority.
+
+Therefore, when discussing Shell/UI/UX design, **“delete” means remove from the current presentation** unless the user explicitly initiates a separate capability/product or data/lifecycle change.
+
+Permanent removal of an ERP capability, business rule, authoritative field, or persisted data must occur at its owning layer, not through ordinary UI/UX design.
+
+## 7. ERP Coverage Rule
 
 Adding, hiding, moving, or simplifying UI must not silently remove ERP-required capability.
 
@@ -204,7 +169,9 @@ and
 
 Every authoritative business input, required decision, editable fact, lifecycle action, calculation, validation, confirmation, and required expense input must have an intentional user-facing path unless it is explicitly system-generated, derived, or otherwise intentionally non-user-entered.
 
-## Change Isolation
+UI/UX may simplify presentation, but simplification must not silently remove the underlying ERP capability.
+
+## 8. Change Isolation
 
 A presentation change must have the smallest reasonable scope and must not unintentionally alter unrelated presentation or business behavior.
 
@@ -219,33 +186,37 @@ Examples:
 
 Dependencies must be explicit rather than accidental.
 
-## Presentation Replacement / Evolution
+## 9. Presentation Replacement / Evolution
 
 The shell, navigation, layout, theme, forms, and screen composition may evolve or be replaced without requiring changes to domain rules, calculations, authoritative records, repository contracts, or persistence architecture.
 
 KFE maintains one unified presentation system, not parallel presentation implementations.
 
-## Business Meaning Before Visual Design
+This rule protects **independent evolution**. Change Isolation separately protects against **accidental propagation**.
 
-When a user introduces something new, KFE should establish its business meaning before deciding its final visual placement.
+## 10. Standard Entry Rule
 
-Example:
+New authoritative user-entered data must continue through the existing KFE Standard Entry System:
 
-> "Under Vehicles, add Vehicle Sold."
+`INPUT → STANDARD ENTRY SYSTEM → Input/Shape Validation → Application Validation → Domain/Business Validation → Calculation/Normalization → Confirmation/Commit → Repository Contract → Persistence Transaction → ONE AUTHORITATIVE LOCAL DATABASE`
 
-The correct sequence is:
+UI design may change how the user reaches this pipeline, but it cannot bypass it.
 
-1. Recognize Vehicle Sold as a vehicle lifecycle capability.
-2. Check whether the domain/application already supports the required lifecycle concept.
+This is an existing cross-layer architecture rule; Stage 10 does not create a second entry architecture.
+
+## 11. Information Architecture Rule
+
+Business completeness comes first. User-directed organization comes second. Visual design comes third.
+
+When something new is introduced:
+
+1. Establish its business meaning.
+2. Check whether the domain/application already supports it.
 3. Identify affected workflows, calculations, history, persistence and reporting.
-4. Define or confirm the authoritative record/state and application operation.
-5. Then decide where and how Vehicle Sold appears in the UI.
+4. Confirm the authoritative record/state and application operation.
+5. Then decide where and how it appears in the UI.
 
-The UI should expose the ERP capability; it should not invent the ERP capability accidentally.
-
-## User-Directed Information Architecture Remains Valid
-
-After ERP completeness is established, the user may direct how capabilities are organized:
+After ERP completeness is established, the user may direct how capabilities are organized across:
 
 - header
 - viewport
