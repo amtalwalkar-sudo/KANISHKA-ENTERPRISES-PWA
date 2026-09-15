@@ -9,9 +9,7 @@
     "dev:https": "vite --host 0.0.0.0 --https",
     "build": "vite build",
     "preview": "vite preview",
-    "validate:phase4-fuel-analytics": "node src/tests/fuelAnalytics.contract.js",
-    "validate:phase5-offline-sync": "node src/tests/offlineSync.contract.js",
-    "test": "npx vitest run"
+    "test": "node src/tests/fuelAnalytics.contract.js && node src/tests/offlineSync.contract.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",
