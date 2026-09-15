@@ -214,6 +214,26 @@ Therefore:
 
 This protects seamless future presentation growth while preserving KFE's one-responsibility/one-owner architecture.
 
+### New Presentation Consumption Rule
+
+A newly introduced presentation/product surface must first determine whether its required information already exists in authoritative KFE records.
+
+If the information already exists, the new surface must consume those authoritative records through the existing repository, application, and read-model boundaries rather than creating duplicate data or a private store.
+
+If the required information represents a genuinely new business concept, that concept must first be established through the normal:
+
+`Domain → Application → Repository Contract → Persistence → Read Model`
+
+path before the presentation consumes it.
+
+This means a new presentation surface such as a future **Passbook** can be introduced even if Passbook has never existed anywhere else in KFE. The first question is not “Where do we create Passbook data?” but “What does Passbook mean, and which authoritative KFE facts already provide its information?”
+
+A new presentation surface must therefore be able to consume existing authoritative information without rebuilding the underlying ERP, while a genuinely new business concept must establish its own authoritative meaning and persistence path before presentation.
+
+Therefore:
+
+> **New presentation does not imply new data authority. New business meaning must be established before it is presented.**
+
 ## 10. Standard Entry Rule
 
 New authoritative user-entered data must continue through the existing KFE Standard Entry System:
@@ -265,6 +285,8 @@ User-directed presentation is authoritative for **presentation organization**, b
 > **Historical state must remain reconstructable.**
 
 > **Navigation is extensible; business authority is not duplicated.**
+
+> **New presentation does not imply new data authority.**
 
 > **No consequential change proceeds without identifying its owner and impact.**
 
