@@ -21,7 +21,7 @@ export async function saveAdminRecord({ kind, fields, values, existing, override
 }
 
 export async function deleteAdminRecord({ kind, id, confirm = false }) {
-  if (!confirm) return { ok: false, stage: 'CONFIRMATION', warnings: ['Deletion is permanent for this source record. Confirm before continuing.'] }
+  if (!confirm) return { ok: false, stage: 'CONFIRMATION', warnings: ['This source record will be voided/deactivated and retained for audit and reconstruction. Confirm before continuing.'] }
   try {
     await AdminRepository.remove(kind, id)
     return { ok: true, stage: 'DELETED' }
