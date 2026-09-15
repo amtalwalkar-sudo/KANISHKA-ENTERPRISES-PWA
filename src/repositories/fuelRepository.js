@@ -12,10 +12,14 @@ export const FuelRepository = {
       const now = new Date().toISOString()
       const fuelRecord = {
         id: fuelData.id || generateUUID(),
-        odometer: Number(fuelData.odometer) || 0,
-        pricePerKg: Number(fuelData.pricePerKg) || 0,
-        amount: Number(fuelData.amount) || 0,
-        kg: Number(fuelData.kg) || 0,
+        odometer: Number(fuelData.odometer),
+        pricePerKg: Number(fuelData.pricePerKg),
+        amount: Number(fuelData.amount),
+        quantityKg: Number(fuelData.quantityKg),
+        latitude: fuelData.latitude ?? null,
+        longitude: fuelData.longitude ?? null,
+        accuracy: fuelData.accuracy ?? null,
+        capturedAt: fuelData.capturedAt || now,
         createdAt: fuelData.createdAt || now,
         updatedAt: now
       }
