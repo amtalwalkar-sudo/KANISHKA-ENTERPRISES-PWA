@@ -1,9 +1,7 @@
 import { generateUUID } from './uuid.js'
 
-const OLD_DB_NAME = 'kanishka_pwa_db'
 const CANONICAL_DB_NAME = 'kanishka_kfe_canonical_db'
-const CANONICAL_DB_VERSION = 5
-const LEGACY_SOURCE = OLD_DB_NAME
+const CANONICAL_DB_VERSION = 6
 
 let dbInstance = null
 let initializationPromise = null
@@ -14,16 +12,24 @@ export const openCanonicalDB = () => new Promise((resolve, reject) => {
   const request = indexedDB.open(CANONICAL_DB_NAME, CANONICAL_DB_VERSION)
   request.onupgradeneeded = (e) => {
     const db = e.target.result
+    const tx = e.target.transaction
+
     if (!db.objectStoreNames.contains('shifts')) {
       const store = db.createObjectStore('shifts', { keyPath: 'id' })
       store.createIndex('shiftEndAt', 'shiftEndAt', { unique: false })
-      store.createIndex('legacyId', 'legacyId', { unique: false })
+    } else {
+      const store = tx.objectStore('shifts')
+      if (store.indexNames.contains('legacyId')) store.deleteIndex('legacyId')
     }
+
     if (!db.objectStoreNames.contains('fuel_logs')) {
       const store = db.createObjectStore('fuel_logs', { keyPath: 'id' })
       store.createIndex('createdAt', 'createdAt', { unique: false })
-      store.createIndex('legacyId', 'legacyId', { unique: false })
+    } else {
+      const store = tx.objectStore('fuel_logs')
+      if (store.indexNames.contains('legacyId')) store.deleteIndex('legacyId')
     }
+
     if (!db.objectStoreNames.contains('odoGaps')) db.createObjectStore('odoGaps', { keyPath: 'id' })
     if (!db.objectStoreNames.contains('pending_mutations')) {
       const store = db.createObjectStore('pending_mutations', { keyPath: 'id' })
@@ -63,7 +69,12 @@ export const openCanonicalDB = () => new Promise((resolve, reject) => {
   }
   request.onsuccess = () => {
     dbInstance = request.result
-    dbInstance.onversionchange = () => { dbInstance.close(); dbInstance = null; isInitialized = false; initializationPromise = null }
+    dbInstance.onversionchange = () => {
+      dbInstance.close()
+      dbInstance = null
+      isInitialized = false
+      initializationPromise = null
+    }
     resolve(dbInstance)
   }
   request.onerror = () => reject(request.error || new Error('Canonical database could not be opened.'))
@@ -72,63 +83,90 @@ export const openCanonicalDB = () => new Promise((resolve, reject) => {
 export const initializeCanonicalStorage = async () => {
   if (isInitialized && dbInstance) return dbInstance
   if (initializationPromise) return initializationPromise
-  initializationPromise = (async () => { const db = await openCanonicalDB(); await migrateLegacyDataStrict(db); isInitialized = true; return db })()
-  try { return await initializationPromise } catch (error) { isInitialized = false; throw error } finally { initializationPromise = null }
+  initializationPromise = (async () => {
+    const db = await openCanonicalDB()
+    isInitialized = true
+    return db
+  })()
+  try {
+    return await initializationPromise
+  } catch (error) {
+    isInitialized = false
+    throw error
+  } finally {
+    initializationPromise = null
+  }
 }
 
-const readLegacyData = (oldDb) => {
-  const hasShifts = oldDb.objectStoreNames.contains('shifts')
-  const hasFuel = oldDb.objectStoreNames.contains('fuel_logs')
-  if (!hasShifts && !hasFuel) { oldDb.close(); return Promise.resolve({ shifts: [], fuelLogs: [] }) }
+export const saveCompletedShift = async (data) => {
+  const db = await openCanonicalDB()
   return new Promise((resolve, reject) => {
-    const stores = [hasShifts ? 'shifts' : null, hasFuel ? 'fuel_logs' : null].filter(Boolean)
-    const tx = oldDb.transaction(stores, 'readonly')
-    let shifts = []; let fuelLogs = []; let settled = false
-    const fail = (error) => { if (settled) return; settled = true; oldDb.close(); reject(error || new Error('Legacy database read failed.')) }
-    tx.onabort = () => fail(tx.error); tx.onerror = () => fail(tx.error)
-    tx.oncomplete = () => { if (settled) return; settled = true; oldDb.close(); resolve({ shifts, fuelLogs }) }
-    if (hasShifts) { const req = tx.objectStore('shifts').getAll(); req.onsuccess = () => { shifts = req.result || [] }; req.onerror = () => fail(req.error) }
-    if (hasFuel) { const req = tx.objectStore('fuel_logs').getAll(); req.onsuccess = () => { fuelLogs = req.result || [] }; req.onerror = () => fail(req.error) }
-  })
-}
-
-const migrateLegacyDataStrict = async (canonicalDb) => {
-  let exists = true
-  if (typeof indexedDB.databases === 'function') { const databases = await indexedDB.databases(); exists = databases.some((database) => database.name === OLD_DB_NAME) }
-  if (!exists) return
-  const oldDb = await new Promise((resolve, reject) => { const req = indexedDB.open(OLD_DB_NAME); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error || new Error('Legacy database could not be opened.')) })
-  const { shifts: oldShifts, fuelLogs: oldFuelLogs } = await readLegacyData(oldDb)
-  if (oldShifts.length === 0 && oldFuelLogs.length === 0) return
-  await new Promise((resolve, reject) => {
-    const tx = canonicalDb.transaction(['shifts', 'fuel_logs'], 'readwrite')
-    const shiftStore = tx.objectStore('shifts'); const fuelStore = tx.objectStore('fuel_logs')
-    tx.oncomplete = resolve; tx.onerror = () => reject(tx.error || new Error('Migration transaction failed.')); tx.onabort = () => reject(tx.error || new Error('Migration transaction aborted.'))
-    const shiftIndexReq = shiftStore.getAll(); const fuelIndexReq = fuelStore.getAll()
-    let processed = 0
-    const processIfReady = () => {
-      processed += 1; if (processed !== 2) return
-      const existingShifts = shiftIndexReq.result || []; const existingFuelLogs = fuelIndexReq.result || []
-      const existingLegacyShiftIds = new Set(existingShifts.filter(r => r.legacySource === LEGACY_SOURCE && r.legacyId != null).map(r => String(r.legacyId)))
-      const existingLegacyFuelIds = new Set(existingFuelLogs.filter(r => r.legacySource === LEGACY_SOURCE && r.legacyId != null).map(r => String(r.legacyId)))
-      const now = new Date().toISOString()
-      for (const legacyShift of oldShifts) {
-        if (legacyShift.id != null && existingLegacyShiftIds.has(String(legacyShift.id))) continue
-        const timestamp = legacyShift.timestamp || legacyShift.shiftEndAt || now
-        shiftStore.put({ id: generateUUID(), legacyId: legacyShift.id ?? null, legacySource: LEGACY_SOURCE, startOdometer: Number(legacyShift.startOdometer) || 0, endOdometer: Number(legacyShift.endOdometer) || 0, totalDistance: Number(legacyShift.totalDistance) || 0, revenue: Number(legacyShift.revenue) || 0, shiftStartAt: legacyShift.shiftStartAt || timestamp, shiftEndAt: legacyShift.shiftEndAt || timestamp, createdAt: legacyShift.createdAt || timestamp, updatedAt: now })
-      }
-      for (const legacyFuel of oldFuelLogs) {
-        if (legacyFuel.id != null && existingLegacyFuelIds.has(String(legacyFuel.id))) continue
-        const timestamp = legacyFuel.timestamp || legacyFuel.createdAt || now
-        fuelStore.put({ id: generateUUID(), legacyId: legacyFuel.id ?? null, legacySource: LEGACY_SOURCE, odometer: Number(legacyFuel.odometer) || 0, pricePerKg: Number(legacyFuel.pricePerKg) || 0, amount: Number(legacyFuel.amount) || 0, kg: Number(legacyFuel.kg) || 0, createdAt: timestamp, updatedAt: now })
-      }
+    const tx = db.transaction('shifts', 'readwrite')
+    const store = tx.objectStore('shifts')
+    const now = new Date().toISOString()
+    const record = {
+      id: data.id || generateUUID(),
+      startOdometer: Number(data.startOdometer) || 0,
+      endOdometer: Number(data.endOdometer) || 0,
+      totalDistance: Number(data.totalDistance) || 0,
+      revenue: Number(data.revenue) || 0,
+      shiftStartAt: data.shiftStartAt || now,
+      shiftEndAt: data.shiftEndAt || now,
+      createdAt: data.createdAt || now,
+      updatedAt: now
     }
-    shiftIndexReq.onsuccess = processIfReady; fuelIndexReq.onsuccess = processIfReady
-    shiftIndexReq.onerror = () => reject(shiftIndexReq.error); fuelIndexReq.onerror = () => reject(fuelIndexReq.error)
+    try { store.put(record) } catch (error) { reject(error); return }
+    tx.oncomplete = () => resolve(record)
+    tx.onerror = () => reject(tx.error || new Error('Shift persistence failed.'))
+    tx.onabort = () => reject(tx.error || new Error('Shift persistence aborted.'))
   })
 }
 
-export const saveCompletedShift = async (data) => { const db = await openCanonicalDB(); return new Promise((resolve, reject) => { const tx = db.transaction('shifts', 'readwrite'); const store = tx.objectStore('shifts'); const now = new Date().toISOString(); const record = { id: data.id || generateUUID(), startOdometer: Number(data.startOdometer) || 0, endOdometer: Number(data.endOdometer) || 0, totalDistance: Number(data.totalDistance) || 0, revenue: Number(data.revenue) || 0, shiftStartAt: data.shiftStartAt || now, shiftEndAt: data.shiftEndAt || now, createdAt: data.createdAt || now, updatedAt: now }; try { store.put(record) } catch (error) { reject(error); return } tx.oncomplete = () => resolve(record); tx.onerror = () => reject(tx.error || new Error('Shift persistence failed.')); tx.onabort = () => reject(tx.error || new Error('Shift persistence aborted.')) }) }
-export const getAllCompletedShifts = async () => { const db = await openCanonicalDB(); return new Promise((resolve, reject) => { const tx = db.transaction('shifts', 'readonly'); const req = tx.objectStore('shifts').getAll(); req.onsuccess = () => resolve(req.result || []); req.onerror = () => reject(req.error || new Error('Failed to read completed shifts.')) }) }
-export const getLastOdometer = async () => { const shifts = await getAllCompletedShifts(); if (!shifts.length) return 0; const sorted = [...shifts].sort((a,b) => new Date(b.shiftEndAt || b.createdAt).getTime() - new Date(a.shiftEndAt || a.createdAt).getTime()); return Number(sorted[0].endOdometer) || 0 }
-export const saveFuelLog = async (data) => { const db = await openCanonicalDB(); return new Promise((resolve, reject) => { const tx = db.transaction('fuel_logs','readwrite'); const store=tx.objectStore('fuel_logs'); const now=new Date().toISOString(); const record={id:data.id||generateUUID(),odometer:Number(data.odometer)||0,pricePerKg:Number(data.pricePerKg)||0,amount:Number(data.amount)||0,kg:Number(data.kg)||0,createdAt:data.createdAt||now,updatedAt:now}; try{store.put(record)}catch(error){reject(error);return}; tx.oncomplete=()=>resolve(record);tx.onerror=()=>reject(tx.error||new Error('Fuel log persistence failed.'));tx.onabort=()=>reject(tx.error||new Error('Fuel log persistence aborted.')) }) }
-export const getAllFuelLogs = async () => { const db=await openCanonicalDB(); return new Promise((resolve,reject)=>{const tx=db.transaction('fuel_logs','readonly');const req=tx.objectStore('fuel_logs').getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error||new Error('Failed to read fuel logs.'))}) }
+export const getAllCompletedShifts = async () => {
+  const db = await openCanonicalDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('shifts', 'readonly')
+    const req = tx.objectStore('shifts').getAll()
+    req.onsuccess = () => resolve(req.result || [])
+    req.onerror = () => reject(req.error || new Error('Failed to read completed shifts.'))
+  })
+}
+
+export const getLastOdometer = async () => {
+  const shifts = await getAllCompletedShifts()
+  if (!shifts.length) return 0
+  const sorted = [...shifts].sort((a, b) => new Date(b.shiftEndAt || b.createdAt).getTime() - new Date(a.shiftEndAt || a.createdAt).getTime())
+  return Number(sorted[0].endOdometer) || 0
+}
+
+export const saveFuelLog = async (data) => {
+  const db = await openCanonicalDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('fuel_logs', 'readwrite')
+    const store = tx.objectStore('fuel_logs')
+    const now = new Date().toISOString()
+    const record = {
+      id: data.id || generateUUID(),
+      odometer: Number(data.odometer) || 0,
+      pricePerKg: Number(data.pricePerKg) || 0,
+      amount: Number(data.amount) || 0,
+      kg: Number(data.kg) || 0,
+      createdAt: data.createdAt || now,
+      updatedAt: now
+    }
+    try { store.put(record) } catch (error) { reject(error); return }
+    tx.oncomplete = () => resolve(record)
+    tx.onerror = () => reject(tx.error || new Error('Fuel log persistence failed.'))
+    tx.onabort = () => reject(tx.error || new Error('Fuel log persistence aborted.'))
+  })
+}
+
+export const getAllFuelLogs = async () => {
+  const db = await openCanonicalDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('fuel_logs', 'readonly')
+    const req = tx.objectStore('fuel_logs').getAll()
+    req.onsuccess = () => resolve(req.result || [])
+    req.onerror = () => reject(req.error || new Error('Failed to read fuel logs.'))
+  })
+}
