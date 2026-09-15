@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { MutationRepository } from './repositories/mutationRepository.js'
-import { useDayShiftTripStore } from './stores/dayShiftTrip.js'
+import { useShiftTripStore } from './stores/shiftTrip.js'
 
 const app = createApp(App)
 app.config.errorHandler = (err, instance, info) => {
@@ -18,5 +18,5 @@ app.mount('#app')
 
 void MutationRepository.recoverStaleSyncing().catch(error => console.error('Offline mutation recovery failed during startup:', error))
 
-const workStore = useDayShiftTripStore(pinia)
+const workStore = useShiftTripStore(pinia)
 void workStore.initialize().catch(error => console.error('KFE Work lifecycle initialization failed:', error))
