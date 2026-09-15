@@ -1,10 +1,10 @@
 <script setup>
 import { ref, onErrorCaptured, onMounted } from 'vue'
-import { useDayShiftTripStore } from './stores/dayShiftTrip.js'
+import { useShiftTripStore } from './stores/shiftTrip.js'
 import { initializeCanonicalStorage } from './utils/indexedDB.js'
 import DiagnosticBubble from './components/DiagnosticBubble.vue'
 
-const store = useDayShiftTripStore()
+const store = useShiftTripStore()
 const renderError = ref(null)
 const storageReady = ref(false)
 const storageError = ref(null)
