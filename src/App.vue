@@ -32,7 +32,6 @@ onMounted(async () => { try { await initializeCanonicalStorage(); await store.in
     <DiagnosticBubble />
     <nav class="bottom-nav">
       <router-link to="/" class="nav-item"><span class="icon">🛺</span><span>Work</span></router-link>
-      <router-link to="/performance" class="nav-item"><span class="icon">📈</span><span>Performance</span></router-link>
       <router-link to="/admin" class="nav-item"><span class="icon">⚙️</span><span>Admin</span></router-link>
     </nav>
   </div>
