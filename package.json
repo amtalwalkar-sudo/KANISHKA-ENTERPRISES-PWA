@@ -13,6 +13,7 @@
     "validate:phase4-fuel-analytics": "node src/tests/fuelAnalytics.contract.js",
     "validate:phase5-offline-sync": "node src/tests/offlineSync.contract.js",
     "validate:phase7-day-shift-trip": "node js/testing/phase-7-day-shift-trip-workflow.mjs",
+    "validate:phase8-work-ui": "node js/testing/phase-8-work-ui-contract.mjs",
     "validate:shell-resolver": "node js/testing/shell-resolver-contract.mjs",
     "validate:replaceable-shell": "node js/testing/replaceable-shell-contract.mjs",
     "validate:settings": "node js/testing/settings-contract.mjs",
