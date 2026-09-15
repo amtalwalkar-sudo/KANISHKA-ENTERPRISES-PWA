@@ -11,6 +11,7 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
   const registeredTrips = ref([])
   const completedTrips = ref([])
   const lifecycleLocations = ref([])
+  const tripLocations = ref([])
   const lastKnownOdometer = ref(null)
   const defaultOperator = ref('Uber')
   const initialized = ref(false)
@@ -25,8 +26,8 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
   const startOdometer = computed(() => shift.value?.startOdometer ?? lastKnownOdometer.value)
 
   const loadLifecycleLocations = async () => {
-    if (shift.value) lifecycleLocations.value = await LocationRepository.forEntity('SHIFT', shift.value.id)
-    else lifecycleLocations.value = []
+    lifecycleLocations.value = shift.value ? await LocationRepository.forEntity('SHIFT', shift.value.id) : []
+    tripLocations.value = trip.value ? await LocationRepository.forEntity('TRIP', trip.value.id) : []
   }
 
   const refresh = async () => {
@@ -73,7 +74,6 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     const record = await ShiftTripRepository.createShift({ startOdometer: Number(odo), openingPersonalKm: personalKm, openingDeadKm: deadKm, openingPersonalToll: Number(allocation?.personalToll || 0), openingPersonalParking: Number(allocation?.personalParking || 0) })
     shift.value = record
     await refresh()
-    // GPS is evidence only. Never block the lifecycle action on location permission, timeout, or reverse geocoding.
     void captureLifecycleLocation({ entityType: 'SHIFT', entityId: record.id, eventType: 'ONLINE' }).then(loadLifecycleLocations)
     return { ok: true }
   }
@@ -86,7 +86,7 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     trip.value = record
     defaultOperator.value = selected
     registeredTrips.value = [...registeredTrips.value, record]
-    void captureLifecycleLocation({ entityType: 'TRIP', entityId: record.id, eventType: 'START' })
+    void captureLifecycleLocation({ entityType: 'TRIP', entityId: record.id, eventType: 'START' }).then(loadLifecycleLocations)
     return { ok: true, trip: record }
   }
 
@@ -95,7 +95,7 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     const tripId = trip.value.id
     await ShiftTripRepository.completeTrip({ id: tripId })
     await refresh()
-    void captureLifecycleLocation({ entityType: 'TRIP', entityId: tripId, eventType: 'END' })
+    void captureLifecycleLocation({ entityType: 'TRIP', entityId: tripId, eventType: 'END' }).then(loadLifecycleLocations)
     return true
   }
 
@@ -104,7 +104,7 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     const tripId = trip.value.id
     await ShiftTripRepository.cancelTrip({ id: tripId, reason, revenue })
     await refresh()
-    void captureLifecycleLocation({ entityType: 'TRIP', entityId: tripId, eventType: 'CANCELLED' })
+    void captureLifecycleLocation({ entityType: 'TRIP', entityId: tripId, eventType: 'CANCELLED' }).then(loadLifecycleLocations)
     return true
   }
 
@@ -121,5 +121,5 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     return result
   }
 
-  return { shift, trip, registeredTrips, completedTrips, lifecycleLocations, operators, defaultOperator, lastKnownOdometer, startOdometer, isShiftActive, isTripActive, isOnline, isFinancialDayActive, headerShiftStatus, headerTripStatus, initialize, refresh, calculateGap, startShift, startTrip, endTrip, cancelTrip, updateTrip, endShift }
+  return { shift, trip, registeredTrips, completedTrips, lifecycleLocations, tripLocations, operators, defaultOperator, lastKnownOdometer, startOdometer, isShiftActive, isTripActive, isOnline, isFinancialDayActive, headerShiftStatus, headerTripStatus, initialize, refresh, calculateGap, startShift, startTrip, endTrip, cancelTrip, updateTrip, endShift }
 })
