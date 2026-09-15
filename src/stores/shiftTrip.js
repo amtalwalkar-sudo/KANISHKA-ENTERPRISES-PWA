@@ -6,6 +6,7 @@ import { completeEndShift } from '../application/work/endShift.js'
 export const useShiftTripStore = defineStore('shiftTrip', () => {
   const shift = ref(null)
   const trip = ref(null)
+  const registeredTrips = ref([])
   const completedTrips = ref([])
   const lastKnownOdometer = ref(null)
   const defaultOperator = ref('Uber')
@@ -15,7 +16,9 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
   const isShiftActive = computed(() => shift.value?.status === 'ACTIVE')
   const isTripActive = computed(() => trip.value?.status === 'ACTIVE')
   const isOnline = isShiftActive
-  const isFinancialDayActive = computed(() => isShiftActive.value && completedTrips.value.length > 0)
+  // Financial Day is a derived reporting state: it becomes active only when
+  // an Online Shift has at least one registered Trip. There is no Day record.
+  const isFinancialDayActive = computed(() => isShiftActive.value && registeredTrips.value.length > 0)
   const headerShiftStatus = computed(() => isShiftActive.value ? 'ONLINE' : 'OFFLINE')
   const headerTripStatus = computed(() => isTripActive.value ? 'ON' : 'OFF')
   const startOdometer = computed(() => shift.value?.startOdometer ?? lastKnownOdometer.value)
@@ -24,8 +27,13 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     const active = await ShiftTripRepository.getActive()
     shift.value = active.shift
     trip.value = active.trip
-    if (shift.value) completedTrips.value = await ShiftTripRepository.getCompletedTripsForShift(shift.value.id)
-    else completedTrips.value = []
+    if (shift.value) {
+      registeredTrips.value = await ShiftTripRepository.getTripsForShift(shift.value.id)
+      completedTrips.value = registeredTrips.value.filter(item => item.status === 'COMPLETED')
+    } else {
+      registeredTrips.value = []
+      completedTrips.value = []
+    }
     const previous = await ShiftTripRepository.getLastCompletedShift()
     lastKnownOdometer.value = previous?.endOdometer ?? null
     const previousTrip = await ShiftTripRepository.getLastCompletedTrip()
@@ -48,12 +56,20 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     if (isShiftActive.value) return { ok: false, reason: 'A Shift is already active.' }
     const check = calculateGap(odo)
     if (!check.valid) return { ok: false, reason: check.reason }
+    let personalKm = 0
+    let deadKm = 0
     if (check.gapKm > 0) {
-      const personal = Number(allocation?.personalKm || 0)
-      const dead = Number(allocation?.deadKm || 0)
-      if (personal < 0 || dead < 0 || personal + dead !== check.gapKm) return { ok: false, requiresGapAllocation: true, gapKm: check.gapKm }
+      personalKm = Number(allocation?.personalKm || 0)
+      deadKm = Number(allocation?.deadKm || 0)
+      if (personalKm < 0 || deadKm < 0 || personalKm + deadKm !== check.gapKm) return { ok: false, requiresGapAllocation: true, gapKm: check.gapKm }
     }
-    const record = await ShiftTripRepository.createShift({ startOdometer: Number(odo) })
+    const record = await ShiftTripRepository.createShift({
+      startOdometer: Number(odo),
+      openingPersonalKm: personalKm,
+      openingDeadKm: deadKm,
+      openingPersonalToll: Number(allocation?.personalToll || 0),
+      openingPersonalParking: Number(allocation?.personalParking || 0)
+    })
     shift.value = record
     await refresh()
     return { ok: true }
@@ -66,6 +82,7 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     const record = await ShiftTripRepository.createTrip({ shiftId: shift.value.id, operator: selected })
     trip.value = record
     defaultOperator.value = selected
+    registeredTrips.value = [...registeredTrips.value, record]
     return { ok: true, trip: record }
   }
 
@@ -76,9 +93,9 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     return true
   }
 
-  const cancelTrip = async () => {
+  const cancelTrip = async ({ reason = 'DRIVER_MISTAKE', revenue = '' } = {}) => {
     if (!isTripActive.value) return false
-    await ShiftTripRepository.cancelTrip(trip.value.id)
+    await ShiftTripRepository.cancelTrip({ id: trip.value.id, reason, revenue })
     await refresh()
     return true
   }
@@ -98,5 +115,5 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     return result
   }
 
-  return { shift, trip, completedTrips, operators, defaultOperator, lastKnownOdometer, startOdometer, isShiftActive, isTripActive, isOnline, isFinancialDayActive, headerShiftStatus, headerTripStatus, initialize, refresh, calculateGap, startShift, startTrip, endTrip, cancelTrip, updateTrip, endShift }
+  return { shift, trip, registeredTrips, completedTrips, operators, defaultOperator, lastKnownOdometer, startOdometer, isShiftActive, isTripActive, isOnline, isFinancialDayActive, headerShiftStatus, headerTripStatus, initialize, refresh, calculateGap, startShift, startTrip, endTrip, cancelTrip, updateTrip, endShift }
 })
