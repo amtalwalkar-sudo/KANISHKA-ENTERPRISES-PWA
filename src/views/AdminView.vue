@@ -91,10 +91,13 @@
           <label><span>Shift end</span><input type="datetime-local" name="shiftEnd" /></label>
           <label><span>Opening odometer</span><input type="number" name="openingOdometer" min="0" inputmode="numeric" /></label>
           <label><span>Closing odometer</span><input type="number" name="closingOdometer" min="0" inputmode="numeric" /></label>
+          <label><span>Shift revenue</span><input type="number" name="shiftRevenue" min="0" step="0.01" inputmode="decimal" /></label>
           <label><span>Personal KM</span><input type="number" name="personalKm" min="0" step="0.01" inputmode="decimal" /></label>
           <label><span>Dead KM allocation / source</span><input type="text" name="deadKmSource" /></label>
           <label><span>Business toll</span><input type="number" name="businessToll" min="0" step="0.01" inputmode="decimal" /></label>
+          <label><span>Business toll treatment</span><select name="businessTollTreatment"><option value="">Select</option><option value="none">None</option><option value="included">Included</option><option value="excluded">Excluded</option></select></label>
           <label><span>Business parking</span><input type="number" name="businessParking" min="0" step="0.01" inputmode="decimal" /></label>
+          <label><span>Business parking treatment</span><select name="businessParkingTreatment"><option value="">Select</option><option value="none">None</option><option value="included">Included</option><option value="excluded">Excluded</option></select></label>
           <label><span>Personal toll</span><input type="number" name="personalToll" min="0" step="0.01" inputmode="decimal" /></label>
           <label><span>Personal parking</span><input type="number" name="personalParking" min="0" step="0.01" inputmode="decimal" /></label>
           <label><span>Correction reason</span><input type="text" name="shiftCorrectionReason" /></label>
@@ -112,6 +115,7 @@
           <label><span>Ride start</span><input type="datetime-local" name="tripStart" /></label>
           <label><span>Ride end</span><input type="datetime-local" name="tripEnd" /></label>
           <label><span>Ride KM</span><input type="number" name="tripKm" min="0" step="0.01" inputmode="decimal" /></label>
+          <label><span>Trip KM source</span><select name="tripKmSource"><option value="">Select</option><option value="gps">GPS</option><option value="admin_correction">Admin correction / verified manual correction</option></select></label>
           <label><span>Ride revenue</span><input type="number" name="tripRevenue" min="0" step="0.01" inputmode="decimal" /></label>
           <label><span>Cancellation status</span><input type="text" name="tripCancellationStatus" /></label>
           <label><span>Cancellation reason</span><input type="text" name="tripCancellationReason" /></label>
