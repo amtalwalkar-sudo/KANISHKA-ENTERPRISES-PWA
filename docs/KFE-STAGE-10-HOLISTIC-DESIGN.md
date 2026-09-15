@@ -24,11 +24,6 @@ Historical Timeline material is reference evidence only and must not be recreate
 
 The following are permanently excluded from current and future KFE architecture unless explicitly reopened by a new design decision:
 
-- OCR
-- OCR engines or providers
-- screenshot OCR
-- AI/machine extraction from screenshots
-- OCR-specific contracts or adapters
 - Timeline as a product area
 - multiple shells
 - multiple databases
@@ -39,7 +34,7 @@ The following are permanently excluded from current and future KFE architecture 
 - feature-specific private persistence
 - parallel Work implementations
 
-Screenshots may exist only as optional source evidence. They never become machine-extracted business authority.
+Screenshots, if retained, are optional source evidence only. They never become authoritative business records through machine extraction.
 
 ## 4. Presentation Architecture
 
@@ -343,7 +338,7 @@ The design supports:
 - periodic location pings
 - optional higher-detail/continuous location mode
 
-Both periodic and continuous modes may be available from launch. The driver can select the mode at shift start where the implementation exposes that choice.
+Both periodic and continuous modes are available from launch. The driver selects the desired location mode at Shift Start. The selected mode uses the same underlying location architecture and does not create a second location authority.
 
 Location is evidence for reconstruction and operational context, not the authoritative vehicle-KM source.
 
