@@ -2,22 +2,87 @@ import { initializeCanonicalStorage } from '../utils/indexedDB.js'
 import { generateUUID } from '../utils/uuid.js'
 import { buildMutationRecord } from './mutationRepository.js'
 
-const atomic = async (stores, writer) => { const db = await initializeCanonicalStorage(); return new Promise((resolve, reject) => { const tx = db.transaction([...stores, 'pending_mutations'], 'readwrite'); const mutationStore = tx.objectStore('pending_mutations'); try { writer(tx, mutationStore) } catch (e) { reject(e); return } tx.oncomplete = () => resolve(true); tx.onerror = () => reject(tx.error || new Error('Lifecycle persistence failed.')); tx.onabort = () => reject(tx.error || new Error('Lifecycle transaction aborted.')) }) }
-const saveMutation = (m, entityId, entityType, action, payload, createdAt) => m.put(buildMutationRecord({ entityId, entityType, action, payload, createdAt }))
+const atomic = async (stores, writer) => {
+  const db = await initializeCanonicalStorage()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([...stores, 'pending_mutations'], 'readwrite')
+    const mutations = tx.objectStore('pending_mutations')
+    try { writer(tx, mutations) } catch (error) { reject(error); return }
+    tx.oncomplete = () => resolve(true)
+    tx.onerror = () => reject(tx.error || new Error('Lifecycle persistence failed.'))
+    tx.onabort = () => reject(tx.error || new Error('Lifecycle transaction aborted.'))
+  })
+}
+
+const saveMutation = (store, entityId, entityType, action, payload, createdAt) => store.put(buildMutationRecord({ entityId, entityType, action, payload, createdAt }))
+
+const readAll = async storeName => {
+  const db = await initializeCanonicalStorage()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([storeName], 'readonly')
+    const request = tx.objectStore(storeName).getAll()
+    request.onsuccess = () => resolve(request.result || [])
+    request.onerror = () => reject(request.error || new Error(`${storeName} query failed.`))
+  })
+}
 
 export const DayShiftTripRepository = {
-  async createDay(data = {}) { const now = new Date().toISOString(); const record = { id: data.id || generateUUID(), dayStartAt: data.dayStartAt || now, dayEndAt: null, status: 'ACTIVE', hasCompletedBusinessTrip: false, createdAt: now, updatedAt: now }; await atomic(['days'], (_, m) => { _.objectStore('days').put(record); saveMutation(m, record.id, 'DAY', 'CREATE', record, now) }); return record },
-  async endDay(id) { const db = await initializeCanonicalStorage(); return new Promise((resolve, reject) => { const tx = db.transaction(['days', 'pending_mutations'], 'readwrite'), s = tx.objectStore('days'), m = tx.objectStore('pending_mutations'), req = s.get(id); req.onsuccess = () => { const r = req.result; if (!r) { reject(new Error('Day not found.')); return }  const now = new Date().toISOString(); r.dayEndAt = now; r.status = 'COMPLETED'; r.updatedAt = now; s.put(r); saveMutation(m, r.id, 'DAY', 'UPDATE', r, now) }; req.onerror = () => reject(req.error); tx.oncomplete = () => resolve(true); tx.onerror = () => reject(tx.error || new Error('Day end failed.')); tx.onabort = () => reject(tx.error || new Error('Day end aborted.')) }) },
-  async createShift(data) { const now = new Date().toISOString(); const record = { id: data.id || generateUUID(), dayId: data.dayId, startOdometer: Number(data.startOdometer), endOdometer: null, totalDistance: 0, revenue: 0, businessKm: null, deadKm: null, unclassifiedKm: null, movementReconciliation: null, movementReconciliationStatus: 'PENDING', revenueReconciliation: null, shiftStartAt: data.shiftStartAt || now, shiftEndAt: null, status: 'ACTIVE', createdAt: now, updatedAt: now }; await atomic(['shifts'], (_, m) => { _.objectStore('shifts').put(record); saveMutation(m, record.id, 'SHIFT', 'CREATE', record, now) }); return record },
-  async endShift(data) { const db = await initializeCanonicalStorage(); return new Promise((resolve, reject) => { const tx = db.transaction(['shifts', 'pending_mutations'], 'readwrite'), s = tx.objectStore('shifts'), m = tx.objectStore('pending_mutations'), req = s.get(data.id); req.onsuccess = () => { const r = req.result; if (!r) { reject(new Error('Active shift not found.')); return } const now = new Date().toISOString(); r.endOdometer = Number(data.endOdometer); r.totalDistance = r.endOdometer - r.startOdometer; r.revenue = Number(data.revenue); r.businessKm = data.businessKm == null ? null : Number(data.businessKm); r.deadKm = data.deadKm == null ? null : Number(data.deadKm); r.unclassifiedKm = data.unclassifiedKm == null ? null : Number(data.unclassifiedKm); r.movementReconciliation = data.movementReconciliation || null; r.movementReconciliationStatus = data.movementReconciliationStatus || 'PENDING'; r.revenueReconciliation = data.revenueReconciliation || null; r.shiftEndAt = now; r.status = 'COMPLETED'; r.updatedAt = now; s.put(r); saveMutation(m, r.id, 'SHIFT', 'UPDATE', r, now) }; req.onerror = () => reject(req.error); tx.oncomplete = () => resolve(true); tx.onerror = () => reject(tx.error || new Error('Shift end failed.')); tx.onabort = () => reject(tx.error || new Error('Shift end aborted.')) }) },
-  async createTrip(data) { const now = new Date().toISOString(); const record = { id: data.id || generateUUID(), dayId: data.dayId, shiftId: data.shiftId, tripStartAt: data.tripStartAt || now, tripEndAt: null, status: 'ACTIVE', tripStartLocation: data.tripStartLocation || null, tripEndLocation: null, uberBusinessKm: null, uberBusinessKmAuthority: 'ESTIMATE', uberRevenue: null, uberRevenueAuthority: 'ESTIMATE', createdAt: now, updatedAt: now }; await atomic(['trips'], (_, m) => { _.objectStore('trips').put(record); saveMutation(m, record.id, 'TRIP', 'CREATE', record, now) }); return record },
-  async endTrip(data) { const db = await initializeCanonicalStorage(); return new Promise((resolve, reject) => { const tx = db.transaction(['trips', 'days', 'pending_mutations'], 'readwrite'), t = tx.objectStore('trips'), d = tx.objectStore('days'), m = tx.objectStore('pending_mutations'), req = t.get(data.id); req.onsuccess = () => { const r = req.result; if (!r) { reject(new Error('Active trip not found.')); return } const now = new Date().toISOString(); r.tripEndAt = data.tripEndAt || now; r.status = 'COMPLETED'; r.tripEndLocation = data.tripEndLocation || null; r.updatedAt = now; t.put(r); saveMutation(m, r.id, 'TRIP', 'UPDATE', r, now); const dayReq = d.get(r.dayId); dayReq.onsuccess = () => { const day = dayReq.result; if (day) { day.hasCompletedBusinessTrip = true; day.updatedAt = now; d.put(day); saveMutation(m, day.id, 'DAY', 'UPDATE', day, now) } } }; req.onerror = () => reject(req.error); tx.oncomplete = () => resolve(true); tx.onerror = () => reject(tx.error || new Error('Trip end failed.')); tx.onabort = () => reject(tx.error || new Error('Trip end aborted.')) }) },
-  async getCompletedTrips(dayId) { const db = await initializeCanonicalStorage(); return new Promise((resolve, reject) => { const tx = db.transaction(['trips'], 'readonly'), req = tx.objectStore('trips').getAll(); req.onsuccess = () => resolve((req.result || []).filter(x => x.status === 'COMPLETED' && (!dayId || x.dayId === dayId)).sort((a, b) => new Date(a.tripStartAt) - new Date(b.tripStartAt))); req.onerror = () => reject(req.error || new Error('Trip query failed.')); tx.onerror = () => reject(tx.error || new Error('Trip query failed.')) }) },
-  async getCompletedTripsForShift(shiftId) { const trips = await this.getCompletedTrips(); return trips.filter(x => x.shiftId === shiftId) },
-  async updateTripReconciliation(data) { const db = await initializeCanonicalStorage(); return new Promise((resolve, reject) => { const tx = db.transaction(['trips', 'pending_mutations'], 'readwrite'), s = tx.objectStore('trips'), m = tx.objectStore('pending_mutations'), req = s.get(data.id); req.onsuccess = () => { const r = req.result; if (!r) { reject(new Error('Trip not found.')); return } const now = new Date().toISOString(); if (data.uberBusinessKm !== undefined) { const km = Number(data.uberBusinessKm); if (!Number.isFinite(km) || km < 0) { reject(new Error('Uber Business KM must be a non-negative number.')); return } r.uberBusinessKm = km; r.uberBusinessKmAuthority = 'MANUAL_UBER' } if (data.uberRevenue !== undefined) { const revenue = Number(data.uberRevenue); if (!Number.isFinite(revenue) || revenue < 0) { reject(new Error('Uber Revenue must be a non-negative number.')); return } r.uberRevenue = revenue; r.uberRevenueAuthority = 'MANUAL_UBER' } r.updatedAt = now; s.put(r); saveMutation(m, r.id, 'TRIP', 'UPDATE', r, now) }; req.onerror = () => reject(req.error); tx.oncomplete = () => resolve(true); tx.onerror = () => reject(tx.error || new Error('Trip reconciliation failed.')); tx.onabort = () => reject(tx.error || new Error('Trip reconciliation aborted.')) }) },
-  async getLastCompletedShift() { const db = await initializeCanonicalStorage(); return new Promise((resolve, reject) => { const tx = db.transaction(['shifts'], 'readonly'), req = tx.objectStore('shifts').getAll(); req.onsuccess = () => { const shifts = (req.result || []).filter(x => x.status === 'COMPLETED' && Number.isFinite(Number(x.endOdometer)) && Number(x.endOdometer) >= 0).sort((a, b) => new Date(b.shiftEndAt || b.updatedAt || b.createdAt) - new Date(a.shiftEndAt || a.updatedAt || a.createdAt)); resolve(shifts[0] || null) }; req.onerror = () => reject(req.error || new Error('Shift query failed.')); tx.onerror = () => reject(tx.error || new Error('Shift query failed.')) }) },
-  async createInterShiftGap(data) { const now = new Date().toISOString(); const record = { id: data.id || generateUUID(), previousShiftId: data.previousShiftId, currentShiftId: data.currentShiftId, previousShiftEndOdometer: Number(data.previousShiftEndOdometer), currentShiftStartOdometer: Number(data.currentShiftStartOdometer), gapKm: Number(data.gapKm), personalKm: null, deadKm: null, unclassifiedKm: null, status: 'OPEN', createdAt: now, updatedAt: now }; await atomic(['odoGaps'], (_, m) => { _.objectStore('odoGaps').put(record); saveMutation(m, record.id, 'ODO_GAP', 'CREATE', record, now) }); return record },
-  async getOpenInterShiftGap(currentShiftId) { const db = await initializeCanonicalStorage(); return new Promise((resolve, reject) => { const tx = db.transaction(['odoGaps'], 'readonly'), req = tx.objectStore('odoGaps').getAll(); req.onsuccess = () => resolve((req.result || []).filter(x => x.currentShiftId === currentShiftId && x.status === 'OPEN').sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null); req.onerror = () => reject(req.error || new Error('Odometer gap query failed.')); tx.onerror = () => reject(tx.error || new Error('Odometer gap query failed.')) }) },
-  async allocateInterShiftGap(data) { const db = await initializeCanonicalStorage(); return new Promise((resolve, reject) => { const tx = db.transaction(['odoGaps', 'pending_mutations'], 'readwrite'), s = tx.objectStore('odoGaps'), m = tx.objectStore('pending_mutations'), req = s.get(data.id); req.onsuccess = () => { const r = req.result; if (!r) { reject(new Error('Inter-shift odometer gap not found.')); return } const now = new Date().toISOString(); r.personalKm = Number(data.personalKm); r.deadKm = Number(data.deadKm); r.unclassifiedKm = Number(data.unclassifiedKm); r.status = 'ALLOCATED'; r.updatedAt = now; s.put(r); saveMutation(m, r.id, 'ODO_GAP', 'UPDATE', r, now) }; req.onerror = () => reject(req.error); tx.oncomplete = () => resolve(true); tx.onerror = () => reject(tx.error || new Error('Odometer gap allocation failed.')); tx.onabort = () => reject(tx.error || new Error('Odometer gap allocation aborted.')) }) },
-  async getActive() { const db = await initializeCanonicalStorage(); return new Promise((resolve, reject) => { const tx = db.transaction(['days', 'shifts', 'trips'], 'readonly'), ds = tx.objectStore('days').getAll(), ss = tx.objectStore('shifts').getAll(), ts = tx.objectStore('trips').getAll(); let n = 0, out = { day: null, shift: null, trip: null }; const done = () => { if (++n < 3) return; out.day = (ds.result || []).find(x => x.status === 'ACTIVE') || null; out.shift = (ss.result || []).find(x => x.status === 'ACTIVE') || null; out.trip = (ts.result || []).find(x => x.status === 'ACTIVE') || null; resolve(out) }; ds.onsuccess = done; ss.onsuccess = done; ts.onsuccess = done; ds.onerror = () => reject(ds.error); ss.onerror = () => reject(ss.error); ts.onerror = () => reject(ts.error) }) }
+  async createShift(data) {
+    const now = new Date().toISOString()
+    const record = { id: data.id || generateUUID(), startOdometer: Number(data.startOdometer), endOdometer: null, totalDistance: 0, revenue: 0, toll: 0, parking: 0, tollParkingRevenueTreatment: 'NONE', shiftStartAt: data.shiftStartAt || now, shiftEndAt: null, status: 'ACTIVE', createdAt: now, updatedAt: now }
+    await atomic(['shifts'], (_, m) => { _.objectStore('shifts').put(record); saveMutation(m, record.id, 'SHIFT', 'CREATE', record, now) })
+    return record
+  },
+
+  async endShift(data) {
+    const db = await initializeCanonicalStorage()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(['shifts', 'pending_mutations'], 'readwrite'), shifts = tx.objectStore('shifts'), mutations = tx.objectStore('pending_mutations'), request = shifts.get(data.id)
+      request.onsuccess = () => { const r = request.result; if (!r) { reject(new Error('Active shift not found.')); return }; const now = new Date().toISOString(); r.endOdometer = Number(data.endOdometer); r.totalDistance = r.endOdometer - r.startOdometer; r.revenue = Number(data.revenue); r.toll = Number(data.toll || 0); r.parking = Number(data.parking || 0); r.tollParkingRevenueTreatment = data.tollParkingRevenueTreatment || 'NONE'; r.shiftEndAt = now; r.status = 'COMPLETED'; r.updatedAt = now; shifts.put(r); saveMutation(mutations, r.id, 'SHIFT', 'UPDATE', r, now) }
+      request.onerror = () => reject(request.error)
+      tx.oncomplete = () => resolve(true)
+      tx.onerror = () => reject(tx.error || new Error('Shift end failed.'))
+      tx.onabort = () => reject(tx.error || new Error('Shift end aborted.'))
+    })
+  },
+
+  async createTrip(data) {
+    const now = new Date().toISOString()
+    const record = { id: data.id || generateUUID(), shiftId: data.shiftId, operator: data.operator, tripStartAt: data.tripStartAt || now, tripEndAt: null, status: 'ACTIVE', tripStartLocation: data.tripStartLocation || null, tripEndLocation: null, tripKm: null, tripKmAuthority: 'ESTIMATE', revenue: null, revenueAuthority: 'ESTIMATE', createdAt: now, updatedAt: now }
+    await atomic(['trips'], (_, m) => { _.objectStore('trips').put(record); saveMutation(m, record.id, 'TRIP', 'CREATE', record, now) })
+    return record
+  },
+
+  async completeTrip(data) { return this._finishTrip(data, 'COMPLETED') },
+  async cancelTrip(id) { return this._finishTrip({ id }, 'CANCELLED') },
+
+  async _finishTrip(data, status) {
+    const db = await initializeCanonicalStorage()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(['trips', 'pending_mutations'], 'readwrite'), trips = tx.objectStore('trips'), mutations = tx.objectStore('pending_mutations'), request = trips.get(data.id)
+      request.onsuccess = () => { const r = request.result; if (!r) { reject(new Error('Trip not found.')); return }; const now = new Date().toISOString(); r.tripEndAt = data.tripEndAt || now; r.status = status; r.tripEndLocation = data.tripEndLocation || null; r.updatedAt = now; trips.put(r); saveMutation(mutations, r.id, 'TRIP', 'UPDATE', r, now) }
+      request.onerror = () => reject(request.error)
+      tx.oncomplete = () => resolve(true)
+      tx.onerror = () => reject(tx.error || new Error('Trip update failed.'))
+      tx.onabort = () => reject(tx.error || new Error('Trip update aborted.'))
+    })
+  },
+
+  async updateTrip(data) {
+    const db = await initializeCanonicalStorage()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(['trips', 'pending_mutations'], 'readwrite'), trips = tx.objectStore('trips'), mutations = tx.objectStore('pending_mutations'), request = trips.get(data.id)
+      request.onsuccess = () => { const r = request.result; if (!r) { reject(new Error('Trip not found.')); return }; const now = new Date().toISOString(); if (data.operator !== undefined) r.operator = data.operator; if (data.tripKm !== undefined && data.tripKm !== '') { const km = Number(data.tripKm); if (!Number.isFinite(km) || km < 0) { reject(new Error('Trip KM must be a non-negative number.')); return }; r.tripKm = km; r.tripKmAuthority = 'MANUAL' }; if (data.revenue !== undefined && data.revenue !== '') { const revenue = Number(data.revenue); if (!Number.isFinite(revenue) || revenue < 0) { reject(new Error('Trip revenue must be a non-negative number.')); return }; r.revenue = revenue; r.revenueAuthority = 'MANUAL' }; r.updatedAt = now; trips.put(r); saveMutation(mutations, r.id, 'TRIP', 'UPDATE', r, now) }
+      request.onerror = () => reject(request.error)
+      tx.oncomplete = () => resolve(true)
+      tx.onerror = () => reject(tx.error || new Error('Trip correction failed.'))
+      tx.onabort = () => reject(tx.error || new Error('Trip correction aborted.'))
+    })
+  },
+
+  async getCompletedTripsForShift(shiftId) { const trips = await readAll('trips'); return trips.filter(t => t.shiftId === shiftId && t.status === 'COMPLETED').sort((a, b) => new Date(a.tripStartAt) - new Date(b.tripStartAt)) },
+  async getLastCompletedShift() { const shifts = await readAll('shifts'); return shifts.filter(s => s.status === 'COMPLETED' && Number.isFinite(Number(s.endOdometer))).sort((a, b) => new Date(b.shiftEndAt || b.updatedAt) - new Date(a.shiftEndAt || a.updatedAt))[0] || null },
+  async getLastCompletedTrip() { const trips = await readAll('trips'); return trips.filter(t => t.status === 'COMPLETED' && t.operator).sort((a, b) => new Date(b.tripEndAt || b.updatedAt) - new Date(a.tripEndAt || a.updatedAt))[0] || null },
+  async getActive() { const [shifts, trips] = await Promise.all([readAll('shifts'), readAll('trips')]); return { shift: shifts.find(s => s.status === 'ACTIVE') || null, trip: trips.find(t => t.status === 'ACTIVE') || null } },
+  async getOpenInterShiftGap() { return null }
 }
