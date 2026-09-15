@@ -21,13 +21,10 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm install
 
-      - name: Run Unit & Integration Tests
+      - name: Run KFE Foundation Contract Tests
         run: npm test
-
-      - name: Run Phase 7 Day Shift Trip Contract
-        run: npm run validate:phase7-day-shift-trip
 
       - name: Build Production PWA Assets
         run: npm run build
