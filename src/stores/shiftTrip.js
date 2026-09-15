@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ShiftTripRepository } from '../repositories/shiftTripRepository.js'
+import { LocationRepository } from '../repositories/locationRepository.js'
+import { captureLifecycleLocation } from '../application/work/location.js'
 import { completeEndShift } from '../application/work/endShift.js'
 
 export const useShiftTripStore = defineStore('shiftTrip', () => {
@@ -8,6 +10,7 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
   const trip = ref(null)
   const registeredTrips = ref([])
   const completedTrips = ref([])
+  const lifecycleLocations = ref([])
   const lastKnownOdometer = ref(null)
   const defaultOperator = ref('Uber')
   const initialized = ref(false)
@@ -16,12 +19,15 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
   const isShiftActive = computed(() => shift.value?.status === 'ACTIVE')
   const isTripActive = computed(() => trip.value?.status === 'ACTIVE')
   const isOnline = isShiftActive
-  // Financial Day is a derived reporting state: it becomes active only when
-  // an Online Shift has at least one registered Trip. There is no Day record.
   const isFinancialDayActive = computed(() => isShiftActive.value && registeredTrips.value.length > 0)
   const headerShiftStatus = computed(() => isShiftActive.value ? 'ONLINE' : 'OFFLINE')
   const headerTripStatus = computed(() => isTripActive.value ? 'ON' : 'OFF')
   const startOdometer = computed(() => shift.value?.startOdometer ?? lastKnownOdometer.value)
+
+  const loadLifecycleLocations = async () => {
+    if (shift.value) lifecycleLocations.value = await LocationRepository.forEntity('SHIFT', shift.value.id)
+    else lifecycleLocations.value = []
+  }
 
   const refresh = async () => {
     const active = await ShiftTripRepository.getActive()
@@ -38,6 +44,7 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     lastKnownOdometer.value = previous?.endOdometer ?? null
     const previousTrip = await ShiftTripRepository.getLastCompletedTrip()
     if (previousTrip?.operator && operators.includes(previousTrip.operator)) defaultOperator.value = previousTrip.operator
+    await loadLifecycleLocations()
     initialized.value = true
   }
 
@@ -63,15 +70,11 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
       deadKm = Number(allocation?.deadKm || 0)
       if (personalKm < 0 || deadKm < 0 || personalKm + deadKm !== check.gapKm) return { ok: false, requiresGapAllocation: true, gapKm: check.gapKm }
     }
-    const record = await ShiftTripRepository.createShift({
-      startOdometer: Number(odo),
-      openingPersonalKm: personalKm,
-      openingDeadKm: deadKm,
-      openingPersonalToll: Number(allocation?.personalToll || 0),
-      openingPersonalParking: Number(allocation?.personalParking || 0)
-    })
+    const record = await ShiftTripRepository.createShift({ startOdometer: Number(odo), openingPersonalKm: personalKm, openingDeadKm: deadKm, openingPersonalToll: Number(allocation?.personalToll || 0), openingPersonalParking: Number(allocation?.personalParking || 0) })
     shift.value = record
     await refresh()
+    // GPS is evidence only. Never block the lifecycle action on location permission, timeout, or reverse geocoding.
+    void captureLifecycleLocation({ entityType: 'SHIFT', entityId: record.id, eventType: 'ONLINE' }).then(loadLifecycleLocations)
     return { ok: true }
   }
 
@@ -83,37 +86,40 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     trip.value = record
     defaultOperator.value = selected
     registeredTrips.value = [...registeredTrips.value, record]
+    void captureLifecycleLocation({ entityType: 'TRIP', entityId: record.id, eventType: 'START' })
     return { ok: true, trip: record }
   }
 
   const endTrip = async () => {
     if (!isTripActive.value) return false
-    await ShiftTripRepository.completeTrip({ id: trip.value.id })
+    const tripId = trip.value.id
+    await ShiftTripRepository.completeTrip({ id: tripId })
     await refresh()
+    void captureLifecycleLocation({ entityType: 'TRIP', entityId: tripId, eventType: 'END' })
     return true
   }
 
   const cancelTrip = async ({ reason = 'DRIVER_MISTAKE', revenue = '' } = {}) => {
     if (!isTripActive.value) return false
-    await ShiftTripRepository.cancelTrip({ id: trip.value.id, reason, revenue })
+    const tripId = trip.value.id
+    await ShiftTripRepository.cancelTrip({ id: tripId, reason, revenue })
     await refresh()
+    void captureLifecycleLocation({ entityType: 'TRIP', entityId: tripId, eventType: 'CANCELLED' })
     return true
   }
 
-  const updateTrip = async data => {
-    await ShiftTripRepository.updateTrip(data)
-    await refresh()
-    return true
-  }
+  const updateTrip = async data => { await ShiftTripRepository.updateTrip(data); await refresh(); return true }
 
   const endShift = async data => {
     if (!isShiftActive.value) return { ok: false, reason: 'No active Shift.' }
-    if (isTripActive.value) return { ok: false, reason: 'End the active Trip before going Offline.' }
-    const result = await completeEndShift({ shiftId: shift.value.id, ...data })
+    if (isTripActive.value) return { ok: false, reason: 'Cannot go Offline while a Trip is active. End the active Trip first.' }
+    const shiftId = shift.value.id
+    const result = await completeEndShift({ shiftId, ...data })
     if (!result.ok) return result
     await refresh()
+    void captureLifecycleLocation({ entityType: 'SHIFT', entityId: shiftId, eventType: 'OFFLINE' }).then(loadLifecycleLocations)
     return result
   }
 
-  return { shift, trip, registeredTrips, completedTrips, operators, defaultOperator, lastKnownOdometer, startOdometer, isShiftActive, isTripActive, isOnline, isFinancialDayActive, headerShiftStatus, headerTripStatus, initialize, refresh, calculateGap, startShift, startTrip, endTrip, cancelTrip, updateTrip, endShift }
+  return { shift, trip, registeredTrips, completedTrips, lifecycleLocations, operators, defaultOperator, lastKnownOdometer, startOdometer, isShiftActive, isTripActive, isOnline, isFinancialDayActive, headerShiftStatus, headerTripStatus, initialize, refresh, calculateGap, startShift, startTrip, endTrip, cancelTrip, updateTrip, endShift }
 })
