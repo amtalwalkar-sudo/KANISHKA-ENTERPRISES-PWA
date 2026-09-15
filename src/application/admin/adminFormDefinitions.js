@@ -127,7 +127,7 @@ export const ADMIN_FORM_DEFINITIONS = {
   },
   driverTarget: {
     title: 'Driver Target',
-    category: 'target-breakEven',
+    category: 'targetBreakEven',
     fields: [
       select('driverId', 'Driver', [], { required: true }),
       date('effectiveFrom', 'Effective from', { required: true }),
@@ -141,7 +141,7 @@ export const ADMIN_FORM_DEFINITIONS = {
   },
   breakEvenInputs: {
     title: 'Break-even Inputs',
-    category: 'target-breakEven',
+    category: 'targetBreakEven',
     fields: [
       date('effectiveFrom', 'Effective from', { required: true }),
       number('fixedCosts', 'Fixed costs', { required: true, min: 0 }),
