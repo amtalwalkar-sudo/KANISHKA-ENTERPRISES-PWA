@@ -2,23 +2,17 @@ import { initializeCanonicalStorage, openCanonicalDB } from '../utils/indexedDB.
 import { generateUUID } from '../utils/uuid.js'
 
 const STORE = 'admin_records'
-
-async function db() {
-  await initializeCanonicalStorage()
-  return openCanonicalDB()
-}
+async function db() { await initializeCanonicalStorage(); return openCanonicalDB() }
 
 export const AdminRepository = {
   async list(formKey) {
     const database = await db()
     return new Promise((resolve, reject) => {
-      const tx = database.transaction(STORE, 'readonly')
-      const request = tx.objectStore(STORE).index('formKey').getAll(formKey)
+      const request = database.transaction(STORE, 'readonly').objectStore(STORE).index('formKey').getAll(formKey)
       request.onsuccess = () => resolve(request.result || [])
       request.onerror = () => reject(request.error || new Error('Failed to read Admin records.'))
     })
   },
-
   async get(formKey, id) {
     const database = await db()
     return new Promise((resolve, reject) => {
@@ -27,23 +21,12 @@ export const AdminRepository = {
       request.onerror = () => reject(request.error || new Error('Failed to read Admin record.'))
     })
   },
-
   async save(formKey, values, existingId = null) {
     const database = await db()
+    const id = existingId || generateUUID()
     const now = new Date().toISOString()
-    const record = {
-      id: existingId || generateUUID(),
-      recordKey: `${formKey}:${existingId || generateUUID()}`,
-      formKey,
-      values: structuredClone(values),
-      createdAt: now,
-      updatedAt: now,
-    }
-    if (existingId) {
-      const existing = await this.get(formKey, existingId)
-      record.recordKey = `${formKey}:${existingId}`
-      record.createdAt = existing?.createdAt || now
-    }
+    const existing = existingId ? await this.get(formKey, existingId) : null
+    const record = { id, recordKey: `${formKey}:${id}`, formKey, values: structuredClone(values), createdAt: existing?.createdAt || now, updatedAt: now }
     return new Promise((resolve, reject) => {
       const tx = database.transaction(STORE, 'readwrite')
       tx.objectStore(STORE).put(record)
@@ -52,7 +35,6 @@ export const AdminRepository = {
       tx.onabort = () => reject(tx.error || new Error('Admin record save aborted.'))
     })
   },
-
   async remove(formKey, id) {
     const database = await db()
     return new Promise((resolve, reject) => {
