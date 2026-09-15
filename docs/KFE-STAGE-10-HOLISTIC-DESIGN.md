@@ -34,7 +34,7 @@ The following are permanently excluded from current and future KFE architecture 
 - feature-specific private persistence
 - parallel Work implementations
 
-Screenshots, if retained, are optional source evidence only. They never become authoritative business records through machine extraction.
+Screenshots, if retained, are optional source evidence only and never become business authority.
 
 ## 4. Presentation Architecture
 
