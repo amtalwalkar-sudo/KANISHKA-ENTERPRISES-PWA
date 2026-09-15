@@ -645,7 +645,7 @@ Work, Performance and Admin are different presentation modes over the same ERP a
 
 ## 37. Provider Independence
 
-Presentation must not depend on a specific cloud, database, backup, sync, AI, OCR or external provider.
+Presentation must not depend on a specific cloud, database, backup, sync, or external provider.
 
 Provider-specific implementation belongs behind infrastructure/application boundaries.
 
@@ -688,7 +688,6 @@ Stage 10 does not:
 - create a second shell
 - create a second database
 - create presentation-specific business logic
-- introduce OCR
 - introduce Timeline
 - create duplicate forms
 - create duplicate calculation engines
