@@ -1,176 +1,41 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import UniversalAdminForm from '../components/admin/UniversalAdminForm.vue'
+import { ADMIN_FORM_DEFINITIONS, ADMIN_FORM_KEYS } from '../application/admin/adminFormDefinitions.js'
+import { AdminService } from '../application/admin/adminService.js'
 
-const activeSection = ref(null)
-
-const sections = [
-  {
-    key: 'operations',
-    icon: '🛠️',
-    title: 'Operations',
-    description: 'Vehicle, driver, compliance, maintenance and Driver Cockpit records.',
-    groups: [
-      {
-        title: 'Vehicle',
-        items: ['Vehicle details', 'Registration number', 'Make / model / variant', 'Fuel type', 'Acquisition date', 'Acquisition cost/value', 'Buy price', 'Opening odometer', 'Vehicle status', 'Status date', 'Expiry date', 'Sell price', 'Sale date']
-      },
-      {
-        title: 'Driver',
-        items: ['Driver details', 'Driver identity/contact information', 'Driver status', 'Vehicle assignment']
-      },
-      {
-        title: 'Compliance',
-        items: ['Compliance item name', 'Validity dates', 'Amount']
-      },
-      {
-        title: 'Maintenance',
-        items: ['Maintenance date', 'Odometer', 'Maintenance type/category', 'Validity type', 'KM based', 'Duration based', 'Validity value', 'Amount', 'Catalog', 'Next service information', 'Next service KM', 'Next service date']
-      },
-      {
-        title: 'Driver-collected Data',
-        items: ['Shifts', 'Shift start', 'Shift end', 'Opening odometer', 'Closing odometer', 'Rides', 'Operator', 'Ride start/end', 'Ride KM', 'Ride revenue', 'Ride status/lifecycle', 'Cancelled rides', 'Cancellation reason', 'Cancellation revenue, where applicable', 'Personal KM', 'Dead KM allocation/source records', 'Fuel', 'Fuel odometer', 'Fuel amount', 'Fuel price/kg', 'Fuel type', 'Business toll', 'Business parking', 'Personal toll', 'Personal parking', 'Toll/parking business/personal treatment', 'Other Driver Cockpit records']
-      }
-    ]
-  },
-  {
-    key: 'finance',
-    icon: '💰',
-    title: 'Finance',
-    description: 'Loan setup, payments, delayed payments, adjustments and prepayments.',
-    groups: [
-      {
-        title: 'Loan',
-        items: ['Loan entry', 'Principal', 'Interest rate', 'Tenure', 'Loan start date', 'Loan status', 'EMI — automatic calculation']
-      },
-      {
-        title: 'Loan Payments',
-        items: ['EMI number', 'Due date', 'Scheduled EMI amount', 'Actual payment date', 'Actual amount paid', 'Payment status', 'Delayed payment amount/charges', 'Loan-related adjustments/records']
-      },
-      {
-        title: 'Prepayments',
-        items: ['Prepayment date', 'Prepayment amount', 'Outstanding principal before prepayment', 'Outstanding principal after prepayment', 'Effect on loan schedule', 'Prepayment status', 'Notes/reference']
-      }
-    ]
-  },
-  {
-    key: 'target',
-    icon: '🎯',
-    title: 'Target & Break-even',
-    description: 'Driver targets and ERP-controlled break-even inputs using authoritative records.',
-    groups: [
-      {
-        title: 'Driver Target',
-        items: ['Driver', 'Target value']
-      },
-      {
-        title: 'Break-even Inputs',
-        items: ['Maintenance cost rate', 'Fuel cost', 'Loan obligation', 'Compliance/renewal provision', 'Business toll', 'Business parking', 'Other applicable business costs']
-      }
-    ],
-    note: 'No separate duplicate entry forms are created where an authoritative source record already exists.'
-  },
-  {
-    key: 'settings',
-    icon: '⚙️',
-    title: 'Settings',
-    description: 'Backup, restore, themes and controlled testing tools.',
-    groups: [
-      {
-        title: 'Backup & Restore',
-        items: ['Local backup', 'Local restore', 'Backup status', 'Last backup information', 'Cloud backup & restore', 'Automatic cloud backup settings', 'Last successful backup']
-      },
-      {
-        title: 'Themes',
-        items: ['Theme selection']
-      },
-      {
-        title: 'Temporary',
-        items: ['Data Reset — testing only']
-      }
-    ]
-  }
-]
-
-const derived = [
-  'Vehicle KM', 'Business KM', 'Dead KM', 'Mileage', 'Fuel efficiency',
-  'Revenue/KM', 'Revenue/hour', 'Cost/KM', 'Profit', 'Break-even result',
-  'Achievement', 'Pace', 'Projection', 'Provision totals'
-]
+const groups=[{key:'operations',title:'Operations',forms:['vehicle','driver','compliance','maintenance','driverCollectedData']},{key:'finance',title:'Finance',forms:['loan','loanPayment','prepayment']},{key:'targetBreakEven',title:'Target & Break-even',forms:['driverTarget','breakEvenInputs']}]
+const selected=ref('vehicle'), records=ref([]), editing=ref(null), draft=ref({}), loading=ref(false), error=ref(''), notice=ref('')
+const baseDefinition=computed(()=>ADMIN_FORM_DEFINITIONS[selected.value])
+const options=computed(()=>({vehicles:recordsFor('vehicle'),drivers:recordsFor('driver'),loans:recordsFor('loan')}))
+function recordsFor(key){return key===selected.value?records.value:[]}
+function label(key,r){if(!r)return '';const v=r.values||r;return key==='vehicle'?[v.registrationNumber,v.make,v.model].filter(Boolean).join(' · ')||r.id:key==='driver'?v.name||r.id:key==='loan'?[v.lender,v.accountReference].filter(Boolean).join(' · ')||r.id:r.id}
+function definition(){const d=structuredClone(baseDefinition.value);for(const f of d.fields){if(f.key==='vehicleId')f.options=options.value.vehicles.map(x=>x.id);if(f.key==='driverId')f.options=options.value.drivers.map(x=>x.id);if(f.key==='loanId')f.options=options.value.loans.map(x=>x.id)}return d}
+const activeDefinition=computed(definition)
+const optionLabels=computed(()=>{const map={};for(const x of options.value.vehicles)map[x.id]=label('vehicle',x);for(const x of options.value.drivers)map[x.id]=label('driver',x);for(const x of options.value.loans)map[x.id]=label('loan',x);return map})
+async function load(){loading.value=true;error.value='';try{records.value=await AdminService.list(selected.value)}catch(e){error.value=e.message||'Unable to load records.'}finally{loading.value=false}}
+function choose(key){selected.value=key;editing.value=null;draft.value={};notice.value='';load()}
+function add(){editing.value=null;draft.value={}}
+function edit(r){editing.value=r.id;draft.value=structuredClone(r.values||{})}
+async function save(values){loading.value=true;error.value='';notice.value='';try{await AdminService.save(selected.value,values,editing.value);notice.value='Saved successfully.';editing.value=null;draft.value={};await load()}catch(e){error.value=e.validation?Object.values(e.validation).join(' '):e.message||'Save failed.'}finally{loading.value=false}}
+async function remove(r){if(!confirm('Delete this source record? Related records may prevent deletion.'))return;loading.value=true;error.value='';try{await AdminService.remove(selected.value,r.id);notice.value='Deleted.';await load()}catch(e){error.value=e.message||'Delete failed.'}finally{loading.value=false}}
+onMounted(load)
 </script>
-
 <template>
-  <section class="admin-page" aria-label="Admin">
-    <header class="admin-header">
-      <small>ADMIN</small>
-      <h1>Control &amp; Records</h1>
-      <p>Entry, edit and delete area for KFE source records. ERP rules remain authoritative.</p>
-    </header>
-
-    <div class="section-grid">
-      <button
-        v-for="section in sections"
-        :key="section.key"
-        class="section-card"
-        :class="{ selected: activeSection === section.key }"
-        type="button"
-        @click="activeSection = activeSection === section.key ? null : section.key"
-      >
-        <span class="section-icon">{{ section.icon }}</span>
-        <span class="section-copy">
-          <strong>{{ section.title }}</strong>
-          <span>{{ section.description }}</span>
-        </span>
-        <span class="chevron">{{ activeSection === section.key ? '⌄' : '›' }}</span>
-      </button>
-    </div>
-
-    <section v-if="activeSection" class="detail-panel" :aria-label="`${sections.find(s => s.key === activeSection)?.title} details`">
-      <template v-for="section in sections.filter(s => s.key === activeSection)" :key="section.key">
-        <div class="detail-heading">
-          <span class="detail-icon">{{ section.icon }}</span>
-          <div>
-            <small>ADMIN AREA</small>
-            <h2>{{ section.title }}</h2>
-          </div>
-        </div>
-
-        <div class="group-list">
-          <article v-for="group in section.groups" :key="group.title" class="record-group">
-            <h3>{{ group.title }}</h3>
-            <div class="field-list">
-              <div v-for="item in group.items" :key="item" class="field-row">
-                <span>{{ item }}</span>
-                <span class="field-action">Manage ›</span>
-              </div>
-            </div>
-          </article>
-        </div>
-
-        <p v-if="section.note" class="info-note">{{ section.note }}</p>
-      </template>
-    </section>
-
-    <section class="derived-panel">
-      <div>
-        <small>ERP CALCULATIONS</small>
-        <h2>Derived automatically</h2>
-        <p>These are never separate Admin entry forms. They are reconstructed after source-record changes.</p>
-      </div>
-      <div class="derived-list">
-        <span v-for="item in derived" :key="item">{{ item }}</span>
-      </div>
-    </section>
-
-    <aside class="admin-safety">
-      <span>🛡️</span>
-      <div>
-        <strong>ERP-controlled changes</strong>
-        <p>Admin actions go through application and domain validation. Conflicts or consequential changes are flagged before saving; permitted overrides remain auditable.</p>
-      </div>
-    </aside>
-  </section>
+<section class="admin-page" aria-label="Admin">
+<header><small>ADMIN</small><h1>Control &amp; Records</h1><p>Manage authoritative KFE source records. Derived ERP values are calculated elsewhere.</p></header>
+<nav class="category-nav"><button v-for="g in groups" :key="g.key" :class="{active:g.forms.includes(selected)}" @click="choose(g.forms[0])">{{g.title}}</button></nav>
+<div class="form-tabs"><button v-for="g in groups" v-for="key in g.forms" :key="key" :class="{active:selected===key}" @click="choose(key)">{{ADMIN_FORM_DEFINITIONS[key].title}}</button></div>
+<section class="panel"><div class="panel-head"><div><small>SOURCE RECORD</small><h2>{{baseDefinition.title}}</h2></div><button class="primary" @click="add">+ New</button></div>
+<p v-if="error" class="error">{{error}}</p><p v-if="notice" class="notice">{{notice}}</p>
+<UniversalAdminForm v-if="editing!==null || records.length===0 && draft" :definition="activeDefinition" :model-value="draft" @update:model-value="draft=$event" @submit="save" @cancel="editing=null;draft={}" :submit-label="editing!==null?'Update':'Save'" />
+<div v-else class="record-list"><article v-for="r in records" :key="r.id" class="record"><div><strong>{{label(selected,r)}}</strong><small>Updated {{r.updatedAt||'—'}}</small><div class="chips"><span v-for="(v,k) in r.values" v-if="v!==''&&v!==null&&v!==undefined&&k!=='notes'" :key="k">{{optionLabels[v]||v}}</span></div></div><div class="actions"><button @click="edit(r)">Edit</button><button @click="remove(r)">Delete</button></div></article></div>
+<p v-if="!loading && records.length===0" class="empty">No {{baseDefinition.title}} records yet. Create the first source record above.</p>
+</section>
+<section class="derived"><small>ERP CALCULATIONS</small><h2>Derived automatically</h2><p>Vehicle KM, Business KM, Dead KM, mileage, revenue/KM, revenue/hour, cost/KM, profit, break-even result, achievement, pace, projection and provision totals are not Admin inputs.</p></section>
+<aside class="boundary">🛡️ <span><strong>Controlled boundary</strong><br>Admin validates source records and persists through the Admin application/repository path. Operational execution and ERP calculations remain outside Admin.</span></aside>
+</section>
 </template>
-
 <style scoped>
-.admin-page{min-height:100%;box-sizing:border-box;padding:20px 16px 28px;background:#f8fafc;color:#0f172a}.admin-header{margin-bottom:18px}.admin-header small,.detail-heading small,.derived-panel small{font-size:.68rem;font-weight:900;letter-spacing:.12em;color:#64748b}.admin-header h1{margin:3px 0 5px;font-size:1.45rem}.admin-header p{margin:0;color:#64748b;font-size:.82rem;line-height:1.4}.section-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.section-card{min-height:150px;text-align:left;border:1px solid #e2e8f0;border-radius:16px;background:#fff;padding:18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 1px 3px rgba(15,23,42,.06);cursor:pointer;color:inherit}.section-card.selected{border-color:#94a3b8}.section-icon{font-size:1.7rem}.section-copy{display:flex;flex-direction:column;gap:6px;flex:1}.section-copy strong{font-size:1rem}.section-copy span{font-size:.76rem;line-height:1.35;color:#64748b}.chevron{font-size:1.45rem;color:#94a3b8;line-height:1;align-self:flex-end}.detail-panel,.derived-panel{margin-top:16px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;padding:16px}.detail-heading{display:flex;align-items:center;gap:11px;padding-bottom:14px;border-bottom:1px solid #e2e8f0}.detail-icon{font-size:1.55rem}.detail-heading h2,.derived-panel h2{margin:3px 0 0;font-size:1.1rem}.group-list{display:flex;flex-direction:column;gap:14px;padding-top:14px}.record-group{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden}.record-group h3{margin:0;padding:11px 12px;background:#f8fafc;font-size:.86rem}.field-list{display:flex;flex-direction:column}.field-row{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-top:1px solid #f1f5f9;font-size:.78rem}.field-action{color:#64748b;white-space:nowrap}.info-note{margin:14px 0 0;padding:11px 12px;border-radius:10px;background:#f8fafc;color:#64748b;font-size:.72rem;line-height:1.4}.derived-panel{display:flex;flex-direction:column;gap:12px}.derived-panel p{margin:4px 0 0;color:#64748b;font-size:.72rem;line-height:1.4}.derived-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.derived-list span{padding:8px 9px;border-radius:8px;background:#f8fafc;color:#475569;font-size:.7rem}.admin-safety{display:flex;gap:11px;align-items:flex-start;margin-top:16px;padding:13px 14px;border:1px solid #cbd5e1;border-radius:12px;background:#fff}.admin-safety strong{font-size:.78rem}.admin-safety p{margin:3px 0 0;color:#64748b;font-size:.7rem;line-height:1.4}@media(max-width:640px){.section-card{min-height:140px;padding:15px}.admin-page{padding-left:12px;padding-right:12px}.derived-list{grid-template-columns:1fr}}
+.admin-page{min-height:100%;padding:18px 14px 30px;background:#f8fafc;color:#0f172a;box-sizing:border-box}header h1{margin:3px 0 5px;font-size:1.45rem}header p{margin:0;color:#64748b;font-size:.82rem}small{font-size:.68rem;font-weight:800;letter-spacing:.08em;color:#64748b}.category-nav,.form-tabs{display:flex;gap:8px;overflow:auto;margin-top:14px;padding-bottom:2px}.category-nav button,.form-tabs button,.actions button,.primary{border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:9px 11px;white-space:nowrap;font-weight:650}.category-nav button.active,.form-tabs button.active{border-color:#475569;background:#f1f5f9}.panel,.derived,.boundary{margin-top:14px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;padding:14px}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.panel h2,.derived h2{margin:3px 0;font-size:1.05rem}.primary{background:#0f172a;color:#fff;border-color:#0f172a}.record-list{display:grid;gap:9px}.record{display:flex;justify-content:space-between;gap:12px;border:1px solid #e2e8f0;border-radius:11px;padding:11px}.record small{display:block;margin-top:3px;letter-spacing:0;font-weight:500}.chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.chips span{background:#f1f5f9;border-radius:7px;padding:4px 6px;font-size:.68rem}.actions{display:flex;gap:6px;align-items:center}.error{color:#b42318;background:#fef3f2;padding:9px;border-radius:8px;font-size:.75rem}.notice{color:#166534;background:#f0fdf4;padding:9px;border-radius:8px;font-size:.75rem}.empty{color:#64748b;font-size:.76rem}.derived p,.boundary{color:#64748b;font-size:.72rem;line-height:1.45}.boundary{display:flex;gap:9px}@media(max-width:640px){.record{flex-direction:column}.actions{justify-content:flex-end}}
 </style>
