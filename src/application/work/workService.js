@@ -1,7 +1,9 @@
 import { ShiftTripRepository } from '../../repositories/shiftTripRepository.js'
 import { LocationRepository } from '../../repositories/locationRepository.js'
+import { captureLifecycleLocation } from './location.js'
 import { completeEndShift } from './endShift.js'
 import { recordFuelEntry } from './fuel.js'
+import { validateShiftStartOdometer, validateGapAllocation } from '../../domain/work/shift.js'
 
 export const WorkService = Object.freeze({
   async getActiveState() {
@@ -18,6 +20,15 @@ export const WorkService = Object.freeze({
   },
   async getLocations(entityType, entityId) {
     return LocationRepository.forEntity(entityType, entityId)
+  },
+  async captureLocation(data) {
+    return captureLifecycleLocation(data)
+  },
+  validateShiftStartOdometer(currentOdometer, previousOdometer) {
+    return validateShiftStartOdometer(currentOdometer, previousOdometer)
+  },
+  validateGapAllocation(gapKm, personalKm, deadKm) {
+    return validateGapAllocation(gapKm, personalKm, deadKm)
   },
   async startShift(data) {
     return ShiftTripRepository.createShift(data)
@@ -41,5 +52,3 @@ export const WorkService = Object.freeze({
     return recordFuelEntry(data)
   },
 })
-
-export const WorkReadService = WorkService
