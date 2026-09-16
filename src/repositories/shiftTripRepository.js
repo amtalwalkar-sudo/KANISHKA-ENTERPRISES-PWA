@@ -81,6 +81,23 @@ export const ShiftTripRepository = {
       request.onerror = () => reject(request.error); tx.oncomplete = () => resolve(true); tx.onerror = () => reject(tx.error || new Error('Trip correction failed.')); tx.onabort = () => reject(tx.error || new Error('Trip correction aborted.'))
     })
   },
+  async createCapturedRide(data) {
+    const now = new Date().toISOString()
+    const record = {
+      id: data.id || generateUUID(), shiftId: data.shiftId || null, operator: data.operator,
+      tripStartAt: data.rideStartAt, tripEndAt: data.rideEndAt, status: data.cancellation ? 'CANCELLED' : 'COMPLETED',
+      tripStartLocation: data.pickupAddress ? { placeName: data.pickupAddress } : null,
+      tripEndLocation: data.dropAddress ? { placeName: data.dropAddress } : null,
+      pickupAddress: data.pickupAddress, dropAddress: data.dropAddress,
+      tripKm: Number(data.rideKm), tripKmAuthority: 'OCR_VALIDATED',
+      revenue: Number(data.fare), revenueAuthority: 'OCR_VALIDATED',
+      fare: Number(data.fare), durationMinutes: Number(data.durationMinutes), rideKm: Number(data.rideKm),
+      cancellation: data.cancellation || null, captureSource: 'RIDE_SCREENSHOT', captureStatus: 'CONFIRMED',
+      createdAt: now, updatedAt: now,
+    }
+    await atomic(['trips'], (_, m) => { _.objectStore('trips').put(record); saveMutation(m, record.id, 'TRIP', 'CREATE', record, now) })
+    return record
+  },
   async getAllShifts() { return readAll('shifts') },
   async getTripsForShift(shiftId) { const trips = await readAll('trips'); return trips.filter(t => t.shiftId === shiftId).sort((a, b) => new Date(a.tripStartAt) - new Date(b.tripStartAt)) },
   async getAllTrips() { return readAll('trips') },
