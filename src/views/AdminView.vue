@@ -1,23 +1,21 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import UniversalAdminForm from '../components/admin/UniversalAdminForm.vue'
-import { ADMIN_FORM_DEFINITIONS, ADMIN_FORM_KEYS } from '../application/admin/adminFormDefinitions.js'
+import { ADMIN_FORM_DEFINITIONS } from '../application/admin/adminFormDefinitions.js'
 import { AdminService } from '../application/admin/adminService.js'
 
 const groups=[{key:'operations',title:'Operations',forms:['vehicle','driver','compliance','maintenance','driverCollectedData']},{key:'finance',title:'Finance',forms:['loan','loanPayment','prepayment']},{key:'targetBreakEven',title:'Target & Break-even',forms:['driverTarget','breakEvenInputs']}]
-const selected=ref('vehicle'), records=ref([]), editing=ref(null), draft=ref({}), loading=ref(false), error=ref(''), notice=ref('')
+const selected=ref('vehicle'),records=ref([]),editing=ref(null),draft=ref({}),formOpen=ref(false),loading=ref(false),error=ref(''),notice=ref('')
 const baseDefinition=computed(()=>ADMIN_FORM_DEFINITIONS[selected.value])
-const options=computed(()=>({vehicles:recordsFor('vehicle'),drivers:recordsFor('driver'),loans:recordsFor('loan')}))
-function recordsFor(key){return key===selected.value?records.value:[]}
-function label(key,r){if(!r)return '';const v=r.values||r;return key==='vehicle'?[v.registrationNumber,v.make,v.model].filter(Boolean).join(' · ')||r.id:key==='driver'?v.name||r.id:key==='loan'?[v.lender,v.accountReference].filter(Boolean).join(' · ')||r.id:r.id}
-function definition(){const d=structuredClone(baseDefinition.value);for(const f of d.fields){if(f.key==='vehicleId')f.options=options.value.vehicles.map(x=>x.id);if(f.key==='driverId')f.options=options.value.drivers.map(x=>x.id);if(f.key==='loanId')f.options=options.value.loans.map(x=>x.id)}return d}
-const activeDefinition=computed(definition)
-const optionLabels=computed(()=>{const map={};for(const x of options.value.vehicles)map[x.id]=label('vehicle',x);for(const x of options.value.drivers)map[x.id]=label('driver',x);for(const x of options.value.loans)map[x.id]=label('loan',x);return map})
-async function load(){loading.value=true;error.value='';try{records.value=await AdminService.list(selected.value)}catch(e){error.value=e.message||'Unable to load records.'}finally{loading.value=false}}
-function choose(key){selected.value=key;editing.value=null;draft.value={};notice.value='';load()}
-function add(){editing.value=null;draft.value={}}
-function edit(r){editing.value=r.id;draft.value=structuredClone(r.values||{})}
-async function save(values){loading.value=true;error.value='';notice.value='';try{await AdminService.save(selected.value,values,editing.value);notice.value='Saved successfully.';editing.value=null;draft.value={};await load()}catch(e){error.value=e.validation?Object.values(e.validation).join(' '):e.message||'Save failed.'}finally{loading.value=false}}
+const all=ref({vehicle:[],driver:[],loan:[]})
+const activeDefinition=computed(()=>{const d=structuredClone(baseDefinition.value);for(const f of d.fields){if(f.key==='vehicleId')f.options=all.value.vehicle.map(x=>x.id);if(f.key==='driverId')f.options=all.value.driver.map(x=>x.id);if(f.key==='loanId')f.options=all.value.loan.map(x=>x.id)}return d})
+function label(key,r){const v=r.values||r;return key==='vehicle'?[v.registrationNumber,v.make,v.model].filter(Boolean).join(' · ')||r.id:key==='driver'?v.name||r.id:key==='loan'?[v.lender,v.accountReference].filter(Boolean).join(' · ')||r.id:r.id}
+function display(v){for(const k of ['vehicle','driver','loan']){const found=all.value[k].find(x=>x.id===v);if(found)return label(k,found)}return v}
+async function load(){loading.value=true;error.value='';try{records.value=await AdminService.list(selected.value);for(const key of Object.keys(all.value))all.value[key]=await AdminService.list(key)}catch(e){error.value=e.message||'Unable to load records.'}finally{loading.value=false}}
+function choose(key){selected.value=key;editing.value=null;draft.value={};formOpen.value=false;notice.value='';load()}
+function add(){editing.value=null;draft.value={};formOpen.value=true}
+function edit(r){editing.value=r.id;draft.value=structuredClone(r.values||{});formOpen.value=true}
+async function save(values){loading.value=true;error.value='';notice.value='';try{await AdminService.save(selected.value,values,editing.value);notice.value='Saved successfully.';editing.value=null;draft.value={};formOpen.value=false;await load()}catch(e){error.value=e.validation?Object.values(e.validation).join(' '):e.message||'Save failed.'}finally{loading.value=false}}
 async function remove(r){if(!confirm('Delete this source record? Related records may prevent deletion.'))return;loading.value=true;error.value='';try{await AdminService.remove(selected.value,r.id);notice.value='Deleted.';await load()}catch(e){error.value=e.message||'Delete failed.'}finally{loading.value=false}}
 onMounted(load)
 </script>
@@ -25,12 +23,12 @@ onMounted(load)
 <section class="admin-page" aria-label="Admin">
 <header><small>ADMIN</small><h1>Control &amp; Records</h1><p>Manage authoritative KFE source records. Derived ERP values are calculated elsewhere.</p></header>
 <nav class="category-nav"><button v-for="g in groups" :key="g.key" :class="{active:g.forms.includes(selected)}" @click="choose(g.forms[0])">{{g.title}}</button></nav>
-<div class="form-tabs"><button v-for="g in groups" v-for="key in g.forms" :key="key" :class="{active:selected===key}" @click="choose(key)">{{ADMIN_FORM_DEFINITIONS[key].title}}</button></div>
+<div class="form-tabs"><template v-for="g in groups" :key="g.key"><button v-for="key in g.forms" :key="key" :class="{active:selected===key}" @click="choose(key)">{{ADMIN_FORM_DEFINITIONS[key].title}}</button></template></div>
 <section class="panel"><div class="panel-head"><div><small>SOURCE RECORD</small><h2>{{baseDefinition.title}}</h2></div><button class="primary" @click="add">+ New</button></div>
 <p v-if="error" class="error">{{error}}</p><p v-if="notice" class="notice">{{notice}}</p>
-<UniversalAdminForm v-if="editing!==null || records.length===0 && draft" :definition="activeDefinition" :model-value="draft" @update:model-value="draft=$event" @submit="save" @cancel="editing=null;draft={}" :submit-label="editing!==null?'Update':'Save'" />
-<div v-else class="record-list"><article v-for="r in records" :key="r.id" class="record"><div><strong>{{label(selected,r)}}</strong><small>Updated {{r.updatedAt||'—'}}</small><div class="chips"><span v-for="(v,k) in r.values" v-if="v!==''&&v!==null&&v!==undefined&&k!=='notes'" :key="k">{{optionLabels[v]||v}}</span></div></div><div class="actions"><button @click="edit(r)">Edit</button><button @click="remove(r)">Delete</button></div></article></div>
-<p v-if="!loading && records.length===0" class="empty">No {{baseDefinition.title}} records yet. Create the first source record above.</p>
+<UniversalAdminForm v-if="formOpen" :definition="activeDefinition" :model-value="draft" @update:model-value="draft=$event" @submit="save" @cancel="formOpen=false;editing=null;draft={}" :submit-label="editing!==null?'Update':'Save'" />
+<div v-else class="record-list"><article v-for="r in records" :key="r.id" class="record"><div><strong>{{label(selected,r)}}</strong><small>Updated {{r.updatedAt||'—'}}</small><div class="chips"><span v-for="(v,k) in r.values" v-if="v!==''&&v!==null&&v!==undefined&&k!=='notes'" :key="k">{{display(v)}}</span></div></div><div class="actions"><button @click="edit(r)">Edit</button><button @click="remove(r)">Delete</button></div></article></div>
+<p v-if="!loading && records.length===0 && !formOpen" class="empty">No {{baseDefinition.title}} records yet. Create the first source record.</p>
 </section>
 <section class="derived"><small>ERP CALCULATIONS</small><h2>Derived automatically</h2><p>Vehicle KM, Business KM, Dead KM, mileage, revenue/KM, revenue/hour, cost/KM, profit, break-even result, achievement, pace, projection and provision totals are not Admin inputs.</p></section>
 <aside class="boundary">🛡️ <span><strong>Controlled boundary</strong><br>Admin validates source records and persists through the Admin application/repository path. Operational execution and ERP calculations remain outside Admin.</span></aside>
