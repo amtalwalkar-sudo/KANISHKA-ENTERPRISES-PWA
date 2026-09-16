@@ -1,6 +1,6 @@
 import { initializeCanonicalStorage } from '../utils/indexedDB.js'
 import { generateUUID } from '../utils/uuid.js'
-import { buildMutationRecord } from './mutationRepository.js'
+import { writeMutationAndAudit } from './mutationRepository.js'
 
 const FORM_STORE = Object.freeze({
   vehicle: 'vehicles', driver: 'drivers', compliance: 'compliance_records', maintenance: 'maintenance_records',
@@ -16,7 +16,23 @@ function toFormRecord(formKey, record) { if (!record) return null; if (isSetting
 export const AdminRepository = {
   async list(formKey) { const records = await readAll(storeFor(formKey)); return records.filter(record => !isSettingsForm(formKey) || record.settingKey === formKey).map(record => toFormRecord(formKey, record)).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))) },
   async get(formKey, id) { const db = await initializeCanonicalStorage(); return new Promise((resolve, reject) => { const request = db.transaction(storeFor(formKey), 'readonly').objectStore(storeFor(formKey)).get(id); request.onsuccess = () => resolve(toFormRecord(formKey, request.result)); request.onerror = () => reject(request.error || new Error(`Failed to read ${formKey}.`)) }) },
-  async save(formKey, values, existingId = null) { const db = await initializeCanonicalStorage(); const storeName = storeFor(formKey); const existing = existingId ? await this.get(formKey, existingId) : null; const existingRaw = existing ? { id: existing.id, createdAt: existing.createdAt, updatedAt: existing.updatedAt, ...existing.values } : null; const record = toStoredRecord(formKey, values, existingRaw); const now = record.updatedAt; const action = existing ? 'UPDATE' : 'CREATE'; return new Promise((resolve, reject) => { const tx = db.transaction([storeName, 'pending_mutations'], 'readwrite'); tx.objectStore(storeName).put(record); tx.objectStore('pending_mutations').add(buildMutationRecord({ entityId: record.id, entityType: formKey, action, payload: record, createdAt: now })); tx.oncomplete = () => resolve(toFormRecord(formKey, record)); tx.onerror = () => reject(tx.error || new Error(`Failed to save ${formKey}.`)); tx.onabort = () => reject(tx.error || new Error(`Save ${formKey} aborted.`)) }) },
-  async remove(formKey, id) { const db = await initializeCanonicalStorage(); const storeName = storeFor(formKey); const now = new Date().toISOString(); return new Promise((resolve, reject) => { const tx = db.transaction([storeName, 'pending_mutations'], 'readwrite'); tx.objectStore(storeName).delete(id); tx.objectStore('pending_mutations').add(buildMutationRecord({ entityId: id, entityType: formKey, action: 'DELETE', payload: { id, formKey }, createdAt: now })); tx.oncomplete = () => resolve(true); tx.onerror = () => reject(tx.error || new Error(`Failed to delete ${formKey}.`)); tx.onabort = () => reject(tx.error || new Error(`Delete ${formKey} aborted.`)) }) },
+  async save(formKey, values, existingId = null) {
+    const db = await initializeCanonicalStorage(); const storeName = storeFor(formKey); const existing = existingId ? await this.get(formKey, existingId) : null
+    const existingRaw = existing ? { id: existing.id, createdAt: existing.createdAt, updatedAt: existing.updatedAt, ...existing.values } : null
+    const record = toStoredRecord(formKey, values, existingRaw); const now = record.updatedAt; const action = existing ? 'UPDATE' : 'CREATE'
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([storeName, 'pending_mutations', 'audit_history'], 'readwrite')
+      try { tx.objectStore(storeName).put(record); writeMutationAndAudit(tx.objectStore('pending_mutations'), tx.objectStore('audit_history'), { entityId: record.id, entityType: formKey, action, payload: record, createdAt: now }) } catch (error) { try { tx.abort() } catch (_) {}; reject(error); return }
+      tx.oncomplete = () => resolve(toFormRecord(formKey, record)); tx.onerror = () => reject(tx.error || new Error(`Failed to save ${formKey}.`)); tx.onabort = () => reject(tx.error || new Error(`Save ${formKey} aborted.`))
+    })
+  },
+  async remove(formKey, id) {
+    const db = await initializeCanonicalStorage(); const storeName = storeFor(formKey); const now = new Date().toISOString()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([storeName, 'pending_mutations', 'audit_history'], 'readwrite')
+      try { tx.objectStore(storeName).delete(id); writeMutationAndAudit(tx.objectStore('pending_mutations'), tx.objectStore('audit_history'), { entityId: id, entityType: formKey, action: 'DELETE', payload: { id, formKey }, createdAt: now }) } catch (error) { try { tx.abort() } catch (_) {}; reject(error); return }
+      tx.oncomplete = () => resolve(true); tx.onerror = () => reject(tx.error || new Error(`Failed to delete ${formKey}.`)); tx.onabort = () => reject(tx.error || new Error(`Delete ${formKey} aborted.`))
+    })
+  },
 }
 export const CANONICAL_ADMIN_STORE_MAP = FORM_STORE
