@@ -5,6 +5,7 @@ import { captureLifecycleLocation } from './location.js'
 import { completeEndShift } from './endShift.js'
 import { recordFuelEntry } from './fuel.js'
 import { validateShiftStartOdometer, validateGapAllocation } from '../../domain/work/shift.js'
+import { calculateFuelQuantity } from '../../domain/work/fuel.js'
 
 export const WorkService = Object.freeze({
   async getActiveState() {
@@ -33,6 +34,9 @@ export const WorkService = Object.freeze({
   },
   validateGapAllocation(gapKm, personalKm, deadKm) {
     return validateGapAllocation(gapKm, personalKm, deadKm)
+  },
+  calculateFuelQuantity(pricePerKg, amount) {
+    return calculateFuelQuantity({ pricePerKg, amount })
   },
   async startShift(data) {
     return ShiftTripRepository.createShift(data)
