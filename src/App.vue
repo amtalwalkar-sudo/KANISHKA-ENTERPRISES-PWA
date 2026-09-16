@@ -17,10 +17,7 @@ onMounted(async () => {
 
 <template>
   <div class="viewport-wrapper">
-    <header class="top-bar">
-      <span class="app-title">Kanishka Enterprises</span>
-      <span class="app-context">KFE</span>
-    </header>
+    <header class="top-bar"><span class="app-title">Kanishka Enterprises</span><span class="app-context">KFE</span></header>
     <main class="content-scroll-area">
       <div v-if="renderError" class="error-container"><h3>Something went wrong</h3><p>{{ renderError }}</p><button @click="recoverApp" class="retry-btn">Reload Application</button></div>
       <div v-else-if="storageError" class="error-container"><h3>Application initialization failed</h3><p>{{ storageError }}</p><button @click="recoverApp" class="retry-btn">Retry Initialization</button></div>
@@ -29,9 +26,9 @@ onMounted(async () => {
     </main>
     <DiagnosticBubble />
     <nav class="bottom-nav" aria-label="Primary navigation">
-      <router-link to="/" class="nav-item"><span class="icon">Work</span><span>Work</span></router-link>
-      <router-link to="/performance" class="nav-item"><span class="icon">Performance</span><span>Performance</span></router-link>
-      <router-link to="/admin" class="nav-item"><span class="icon">Admin</span><span>Admin</span></router-link>
+      <router-link to="/" class="nav-item" exact-active-class="nav-item-active"><span class="icon">Work</span><span>Work</span></router-link>
+      <router-link to="/performance" class="nav-item" exact-active-class="nav-item-active"><span class="icon">Performance</span><span>Performance</span></router-link>
+      <router-link to="/admin" class="nav-item" exact-active-class="nav-item-active"><span class="icon">Admin</span><span>Admin</span></router-link>
     </nav>
   </div>
 </template>
@@ -40,5 +37,5 @@ onMounted(async () => {
 html,body{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:system-ui,-apple-system,sans-serif}
 </style>
 <style scoped>
-.viewport-wrapper{position:fixed;inset:0;display:flex;flex-direction:column;height:100vh;width:100vw;background:#f8fafc;overflow:hidden}.top-bar{position:fixed;top:0;left:0;right:0;height:48px;background:#0f172a;color:white;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:9999}.app-title{font-weight:800;font-size:.9rem}.app-context{font-size:.7rem;font-weight:800;letter-spacing:.08em;opacity:.75}.content-scroll-area{position:absolute;top:48px;bottom:60px;left:0;right:0;overflow-y:auto;-webkit-overflow-scrolling:touch}.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:space-around;align-items:center;z-index:9999}.nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:80px;text-decoration:none;color:#64748b;font-size:.75rem}.nav-item.router-link-active{color:#2563eb;font-weight:800}.icon{font-size:.65rem;font-weight:900;letter-spacing:.04em}.error-container,.loading-container{padding:20px;text-align:center}.error-container{color:#dc2626}.retry-btn{padding:10px 16px;background:#2563eb;color:white;border:none;border-radius:6px;font-weight:bold;cursor:pointer}
+.viewport-wrapper{position:fixed;inset:0;display:flex;flex-direction:column;height:100vh;width:100vw;background:#f8fafc;overflow:hidden}.top-bar{position:fixed;top:0;left:0;right:0;height:48px;background:#0f172a;color:white;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:9999}.app-title{font-weight:800;font-size:.9rem}.app-context{font-size:.7rem;font-weight:800;letter-spacing:.08em;opacity:.75}.content-scroll-area{position:absolute;top:48px;bottom:60px;left:0;right:0;overflow-y:auto;-webkit-overflow-scrolling:touch}.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:space-around;align-items:center;z-index:9999}.nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:80px;text-decoration:none;color:#64748b;font-size:.75rem}.nav-item-active{color:#2563eb;font-weight:800}.icon{font-size:.65rem;font-weight:900;letter-spacing:.04em}.error-container,.loading-container{padding:20px;text-align:center}.error-container{color:#dc2626}.retry-btn{padding:10px 16px;background:#2563eb;color:white;border:none;border-radius:6px;font-weight:bold;cursor:pointer}
 </style>
