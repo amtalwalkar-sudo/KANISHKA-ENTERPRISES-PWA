@@ -9,6 +9,10 @@ function definitionFor(formKey) {
 }
 
 export const AdminService = {
+  getDefinition(formKey) { return definitionFor(formKey) },
+  validate(formKey, values, context = {}) {
+    return validateAdminForm(definitionFor(formKey), values, context)
+  },
   async list(formKey) { definitionFor(formKey); return AdminRepository.list(formKey) },
   async save(formKey, values, existingId = null, context = {}) {
     const definition = definitionFor(formKey)
