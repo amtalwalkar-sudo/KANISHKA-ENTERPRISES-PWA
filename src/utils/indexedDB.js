@@ -1,5 +1,5 @@
 const CANONICAL_DB_NAME = 'kanishka_kfe_canonical_db'
-const CANONICAL_DB_VERSION = 8
+const CANONICAL_DB_VERSION = 9
 
 let dbInstance = null
 let initializationPromise = null
@@ -35,6 +35,7 @@ export const openCanonicalDB = () => new Promise((resolve, reject) => {
     createSimpleStore(db, 'driver_targets', ['driverId', 'effectiveFrom', 'active'])
     createSimpleStore(db, 'break_even_inputs', ['effectiveFrom'])
     createSimpleStore(db, 'settings', ['settingKey', 'updatedAt'])
+    createSimpleStore(db, 'audit_history', ['entityId', 'entityType', 'action', 'createdAt'])
     if (db.objectStoreNames.contains('admin_records')) db.deleteObjectStore('admin_records')
     if (db.objectStoreNames.contains('financial_inputs')) db.deleteObjectStore('financial_inputs')
   }
@@ -57,3 +58,5 @@ export const getLastOdometer = async () => {
     request.onerror = () => reject(request.error || new Error('Failed to read odometer history.'))
   })
 }
+
+export { CANONICAL_DB_NAME, CANONICAL_DB_VERSION }
