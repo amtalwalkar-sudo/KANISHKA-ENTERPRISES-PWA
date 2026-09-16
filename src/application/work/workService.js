@@ -7,6 +7,9 @@ import { recordFuelEntry } from './fuel.js'
 import { validateShiftStartOdometer, validateGapAllocation } from '../../domain/work/shift.js'
 import { calculateFuelQuantity } from '../../domain/work/fuel.js'
 import { WORK_TRIP_OPERATORS, validateTripOperator, validateTripCorrection } from '../../domain/work/trip.js'
+import { BackupService } from '../backup/backupService.js'
+
+const checkpoint = () => BackupService.requestLocalBackupCheckpoint()
 
 export const WorkService = Object.freeze({
   getTripOperators() { return WORK_TRIP_OPERATORS },
@@ -18,23 +21,23 @@ export const WorkService = Object.freeze({
   async getLastCompletedTrip() { return ShiftTripRepository.getLastCompletedTrip() },
   async getFuelLogs() { return FuelRepository.getAll() },
   async getLocations(entityType, entityId) { return LocationRepository.forEntity(entityType, entityId) },
-  async captureLocation(data) { return captureLifecycleLocation(data) },
+  async captureLocation(data) { const result = await captureLifecycleLocation(data); checkpoint(); return result },
   validateShiftStartOdometer(currentOdometer, previousOdometer) { return validateShiftStartOdometer(currentOdometer, previousOdometer) },
   validateGapAllocation(gapKm, personalKm, deadKm) { return validateGapAllocation(gapKm, personalKm, deadKm) },
   calculateFuelQuantity(pricePerKg, amount) { return calculateFuelQuantity({ pricePerKg, amount }) },
-  async startShift(data) { return ShiftTripRepository.createShift(data) },
+  async startShift(data) { const result = await ShiftTripRepository.createShift(data); checkpoint(); return result },
   async startTrip(data) {
     const validation = validateTripOperator(data?.operator)
     if (!validation.valid) return { ok: false, reason: validation.reason }
-    return ShiftTripRepository.createTrip({ ...data, operator: validation.operator })
+    const result = await ShiftTripRepository.createTrip({ ...data, operator: validation.operator }); checkpoint(); return result
   },
-  async completeTrip(data) { return ShiftTripRepository.completeTrip(data) },
-  async cancelTrip(data) { return ShiftTripRepository.cancelTrip(data) },
+  async completeTrip(data) { const result = await ShiftTripRepository.completeTrip(data); checkpoint(); return result },
+  async cancelTrip(data) { const result = await ShiftTripRepository.cancelTrip(data); checkpoint(); return result },
   async updateTrip(data) {
     const validation = validateTripCorrection(data)
     if (!validation.valid) return { ok: false, reason: validation.reason }
-    return ShiftTripRepository.updateTrip({ ...data, ...validation })
+    const result = await ShiftTripRepository.updateTrip({ ...data, ...validation }); checkpoint(); return result
   },
-  async endShift(data) { return completeEndShift(data) },
-  async recordFuel(data) { return recordFuelEntry(data) },
+  async endShift(data) { const result = await completeEndShift(data); checkpoint(); return result },
+  async recordFuel(data) { const result = await recordFuelEntry(data); checkpoint(); return result },
 })
