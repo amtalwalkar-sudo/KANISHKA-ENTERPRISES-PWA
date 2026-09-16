@@ -7,6 +7,10 @@ export const useFuelStore = defineStore('fuel', () => {
   const saving = ref(false)
 
   const refresh = async () => { logs.value = await WorkService.getFuelLogs() }
+  const calculateQuantity = (pricePerKg, amount) => {
+    const result = WorkService.calculateFuelQuantity(pricePerKg, amount)
+    return result.valid ? result.quantityKg : 0
+  }
 
   const save = async data => {
     saving.value = true
@@ -14,10 +18,8 @@ export const useFuelStore = defineStore('fuel', () => {
       const result = await WorkService.recordFuel(data)
       if (result.ok) await refresh()
       return result
-    } finally {
-      saving.value = false
-    }
+    } finally { saving.value = false }
   }
 
-  return { logs, saving, refresh, save }
+  return { logs, saving, refresh, save, calculateQuantity }
 })
