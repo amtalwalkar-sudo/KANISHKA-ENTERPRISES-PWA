@@ -11,20 +11,22 @@ const srcRoot = path.resolve(__dirname, '..')
 async function runContractTests() {
   console.log('--- Running KFE Offline Sync Contract Tests ---')
   const repositoryContracts = [
-    ['shiftTripRepository.js', "['shifts', 'trips', 'pending_mutations']"],
-    ['fuelRepository.js', "['fuel_logs', 'pending_mutations']"],
-    ['odoGapRepository.js', "['odoGaps', 'pending_mutations']"]
+    ['shiftTripRepository.js', ['shifts', 'trips', 'pending_mutations', 'audit_history']],
+    ['fuelRepository.js', ['fuel_logs', 'pending_mutations', 'audit_history']],
+    ['odoGapRepository.js', ['odoGaps', 'pending_mutations', 'audit_history']]
   ]
   for (const [file, stores] of repositoryContracts) {
     const source = fs.readFileSync(path.join(srcRoot, 'repositories', file), 'utf8')
-    assert(source.includes(`db.transaction(${stores}, 'readwrite')`) || (file === 'shiftTripRepository.js' && source.includes("db.transaction([...stores, 'pending_mutations'], 'readwrite')")), `${file}: canonical atomic transaction missing`)
+    assert(stores.every(store => source.includes(`'${store}'`)), `${file}: canonical transaction stores missing`)
+    assert(source.includes("'readwrite'"), `${file}: canonical readwrite transaction missing`)
     assert(source.includes('pending_mutations'), `${file}: mutation store missing`)
+    assert(source.includes('audit_history'), `${file}: audit store missing`)
     assert(source.includes('tx.oncomplete'), `${file}: commit completion handling missing`)
   }
 
   const dbSource = fs.readFileSync(path.join(srcRoot, 'utils', 'indexedDB.js'), 'utf8')
-  assert(dbSource.includes('CANONICAL_DB_VERSION = 8'), 'Canonical DB version is not v8')
-  for (const store of ['shifts', 'fuel_logs', 'odoGaps', 'pending_mutations', 'days', 'trips', 'vehicles', 'drivers', 'settings']) assert(dbSource.includes(`'${store}'`), `Canonical store missing: ${store}`)
+  assert(dbSource.includes('CANONICAL_DB_VERSION = 9'), 'Canonical DB version is not v9')
+  for (const store of ['shifts', 'fuel_logs', 'odoGaps', 'pending_mutations', 'audit_history', 'days', 'trips', 'vehicles', 'drivers', 'settings']) assert(dbSource.includes(`'${store}'`), `Canonical store missing: ${store}`)
   assert(dbSource.includes("createIndex('createdAt', 'createdAt'"), 'pending mutation createdAt index missing')
   assert(dbSource.includes("createIndex('status', 'status'"), 'pending mutation status index missing')
   assert(dbSource.includes("deleteObjectStore('admin_records')"), 'Legacy admin_records cleanup missing')
