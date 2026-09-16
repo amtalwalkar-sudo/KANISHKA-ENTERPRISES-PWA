@@ -1,7 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { PerformanceService } from '../application/performance/performanceService.js'
-import { derivePerformance, layerRows, previousRange } from '../domain/performance/performanceEngine.js'
 
 const PERIODS = ['DAY','WEEK','MONTH','3 MONTHS','6 MONTHS','1 YEAR','MULTI-YEAR','TILL DATE','CUSTOM RANGE']
 const LAYERS = { target:['Position','Pace & projection','Target drivers','Comparison','Detailed period'], revenue:['Revenue position','Revenue composition','Revenue efficiency','Time & trend','Detailed revenue'], cost:['Break-even position','Cost drivers','Cost movement','Break-even analysis','Detailed costs'], profit:['Profit position','Provision position','Provision buckets','After provisions','Profit trend','Detailed financial records'] }
@@ -35,8 +34,8 @@ const range = computed(() => {
   return { from, to }
 })
 
-const metrics = computed(() => derivePerformance(snapshot.value, range.value, previousRange(range.value)))
-const activeRows = computed(() => activeCard.value ? layerRows(activeCard.value, activeLayer.value, metrics.value) : [])
+const metrics = computed(() => PerformanceService.getMetrics(snapshot.value, range.value))
+const activeRows = computed(() => activeCard.value ? PerformanceService.getLayerRows(activeCard.value, activeLayer.value, metrics.value) : [])
 const cards = computed(() => ({
   target: { title: '🎯 Target & Position', rows: [['Achieved revenue', money(metrics.value.revenue)], ['Target', metrics.value.target == null ? 'Not configured' : money(metrics.value.target)], ['Achievement', metrics.value.target == null ? '—' : pct(metrics.value.revenue / metrics.value.target * 100)]] },
   revenue: { title: '💰 Revenue', rows: [['Total revenue', money(metrics.value.revenue)], ['Revenue / KM', money(metrics.value.revenuePerKm)], ['Revenue / trip', money(metrics.value.revenuePerTrip)]] },
