@@ -6,7 +6,7 @@ import AdminView from '../views/AdminView.vue'
 const routes = [
   { path: '/', name: 'Work', component: WorkModuleView },
   { path: '/performance', name: 'Performance', component: PerformanceView },
-  { path: '/admin', name: 'Admin', component: AdminView }
+  { path: '/admin', name: 'Admin', component: AdminView },
 ]
 
 const router = createRouter({

@@ -1,50 +1,43 @@
 <script setup>
 import { ref, onErrorCaptured, onMounted } from 'vue'
-import { useDayShiftTripStore } from './stores/dayShiftTrip.js'
-import { initializeCanonicalStorage } from './utils/indexedDB.js'
+import { ShellService } from './application/shell/shellService.js'
+import { BackupService } from './application/backup/backupService.js'
 import DiagnosticBubble from './components/DiagnosticBubble.vue'
 
-const store = useDayShiftTripStore()
 const renderError = ref(null)
 const storageReady = ref(false)
 const storageError = ref(null)
 
 onErrorCaptured((err) => { console.error('Captured Runtime Boundary Error:', err); renderError.value = err.message || 'An unexpected rendering error occurred.'; return false })
-const recoverApp = () => { renderError.value=null;storageError.value=null;storageReady.value=false;window.location.reload() }
-onMounted(async () => { try { await initializeCanonicalStorage(); await store.initialize(); storageReady.value=true } catch(e){console.error('App storage initialization failed:',e);storageError.value=e?.message||'Canonical storage initialization failed.'} })
+const recoverApp = () => { renderError.value = null; storageError.value = null; storageReady.value = false; window.location.reload() }
+onMounted(async () => {
+  try {
+    await ShellService.initialize()
+    storageReady.value = true
+    void BackupService.maybeDailyLocalBackup().catch(error => console.warn('KFE daily local backup checkpoint failed:', error))
+  } catch (e) { console.error('Application shell initialization failed:', e); storageError.value = e?.message || 'Application initialization failed.' }
+})
 </script>
 
 <template>
   <div class="viewport-wrapper">
-    <header class="top-bar">
-      <span class="app-title">Kanishka Driver App</span>
-      <div class="work-indicators" aria-label="Current work status">
-        <span class="indicator">SHIFT: {{ store.headerShiftStatus }}</span>
-        <span v-if="store.isShiftActive || store.isTripActive" class="indicator">TRIP: {{ store.headerTripStatus }}</span>
-      </div>
-    </header>
-    <main class="content-scroll-area">
-      <div v-if="renderError" class="error-container"><h3>Something went wrong</h3><p>{{ renderError }}</p><button @click="recoverApp" class="retry-btn">🔄 Reload Application</button></div>
-      <div v-else-if="storageError" class="error-container"><h3>Storage initialization failed</h3><p>{{ storageError }}</p><button @click="recoverApp" class="retry-btn">🔄 Retry Initialization</button></div>
-      <div v-else-if="!storageReady" class="loading-container"><p>Initializing secure local storage…</p></div>
+    <a class="kfe-skip-link" href="#main-content">Skip to main content</a>
+    <header class="top-bar" aria-label="KFE application header"><span class="app-title">Kanishka Enterprises</span><span class="app-context">KFE</span></header>
+    <main id="main-content" class="content-scroll-area" tabindex="-1">
+      <div v-if="renderError" class="error-container" role="alert"><h3>Something went wrong</h3><p>{{ renderError }}</p><button @click="recoverApp" class="retry-btn">Reload Application</button></div>
+      <div v-else-if="storageError" class="error-container" role="alert"><h3>Application initialization failed</h3><p>{{ storageError }}</p><button @click="recoverApp" class="retry-btn">Retry Initialization</button></div>
+      <div v-else-if="!storageReady" class="loading-container" role="status" aria-live="polite"><p>Initializing KFE…</p></div>
       <router-view v-else v-slot="{ Component }"><keep-alive><component :is="Component" /></keep-alive></router-view>
     </main>
     <DiagnosticBubble />
-    <nav class="bottom-nav">
-      <router-link to="/" class="nav-item"><span class="icon">🛺</span><span>Work</span></router-link>
-      <router-link to="/performance" class="nav-item"><span class="icon">📈</span><span>Performance</span></router-link>
-      <router-link to="/admin" class="nav-item"><span class="icon">⚙️</span><span>Admin</span></router-link>
+    <nav class="bottom-nav" aria-label="Primary navigation">
+      <router-link to="/" class="nav-item" exact-active-class="nav-item-active" aria-label="Work"><span class="icon" aria-hidden="true">WORK</span><span>Work</span></router-link>
+      <router-link to="/performance" class="nav-item" exact-active-class="nav-item-active" aria-label="Performance"><span class="icon" aria-hidden="true">KPI</span><span>Performance</span></router-link>
+      <router-link to="/admin" class="nav-item" exact-active-class="nav-item-active" aria-label="Admin"><span class="icon" aria-hidden="true">ADMIN</span><span>Admin</span></router-link>
     </nav>
   </div>
 </template>
 
-<style>
-html,body{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:system-ui,-apple-system,sans-serif}
-</style>
 <style scoped>
-.viewport-wrapper{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;height:100vh;width:100vw;background:#f8fafc;overflow:hidden}
-.top-bar{position:fixed;top:0;left:0;right:0;height:48px;background:#0f172a;color:white;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:9999}
-.app-title{font-weight:bold;font-size:.9rem}.work-indicators{display:flex;align-items:center;gap:6px}.indicator{font-size:.65rem;font-weight:800;padding:4px 7px;border-radius:10px;background:#475569}.indicator:last-child{background:#16a34a}
-.content-scroll-area{position:absolute;top:48px;bottom:60px;left:0;right:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:space-around;align-items:center;z-index:9999}.nav-item{display:flex;flex-direction:column;align-items:center;text-decoration:none;color:#64748b;font-size:.75rem}.nav-item.router-link-active{color:#2563eb;font-weight:bold}.icon{font-size:1.2rem}.error-container,.loading-container{padding:20px;text-align:center}.error-container{color:#dc2626}.retry-btn{padding:10px 16px;background:#2563eb;color:white;border:none;border-radius:6px;font-weight:bold;cursor:pointer}
+.viewport-wrapper{position:fixed;inset:0;display:flex;flex-direction:column;height:100vh;height:100dvh;width:100vw;background:var(--kfe-bg);overflow:hidden}.top-bar{position:fixed;top:0;left:0;right:0;min-height:52px;height:52px;background:var(--kfe-text);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));padding-top:env(safe-area-inset-top);z-index:9999}.app-title{font-weight:800;font-size:.9rem}.app-context{font-size:.7rem;font-weight:800;letter-spacing:.08em;opacity:.75}.content-scroll-area{position:absolute;top:52px;bottom:64px;left:0;right:0;overflow-y:auto;-webkit-overflow-scrolling:touch;scroll-padding-top:12px;padding-bottom:env(safe-area-inset-bottom)}.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:64px;padding-bottom:env(safe-area-inset-bottom);background:var(--kfe-surface);border-top:1px solid var(--kfe-border);display:flex;justify-content:space-around;align-items:center;z-index:9999}.nav-item{display:flex;flex:1;max-width:140px;min-height:44px;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:var(--kfe-text-muted);font-size:.75rem}.nav-item-active{color:var(--kfe-primary);font-weight:800}.icon{font-size:.58rem;font-weight:900;letter-spacing:.04em}.error-container,.loading-container{max-width:560px;margin:auto;padding:28px 20px;text-align:center}.error-container{color:var(--kfe-danger)}.retry-btn{min-height:44px;padding:10px 16px;background:var(--kfe-primary);color:#fff;border:0;border-radius:var(--kfe-radius-sm);font-weight:800;cursor:pointer}@media(max-width:600px){.content-scroll-area{bottom:68px}.bottom-nav{height:68px}}
 </style>

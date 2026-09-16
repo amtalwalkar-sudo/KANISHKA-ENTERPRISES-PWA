@@ -1,192 +1,84 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useWorkCycleStore } from '../stores/workCycle'
-import { MileageAccountingService } from '../services/mileageAccountingService'
-import { ODO_GAP_CATEGORIES } from '../repositories/odoGapRepository'
+import { computed, onMounted, ref } from 'vue'
+import { PerformanceService } from '../application/performance/performanceService.js'
 
-const store = useWorkCycleStore()
-const shifts = ref([])
-const gaps = ref([])
-const mileage = ref({
-  recordedShiftDistance: 0,
-  interShiftDistance: 0,
-  deadMiles: 0,
-  personalTrips: 0,
-  unclassifiedKm: 0,
-  totalVehicleDistance: 0,
-  gapCount: 0,
-  unclassifiedGapCount: 0
-})
+const PERIODS = ['DAY','WEEK','MONTH','3 MONTHS','6 MONTHS','1 YEAR','MULTI-YEAR','TILL DATE','CUSTOM RANGE']
+const LAYERS = { target:['Position','Pace & projection','Target drivers','Comparison','Detailed period'], revenue:['Revenue position','Revenue composition','Revenue efficiency','Time & trend','Detailed revenue'], cost:['Break-even position','Cost drivers','Cost movement','Break-even analysis','Detailed costs'], profit:['Profit position','Provision position','Provision buckets','After provisions','Profit trend','Detailed financial records'] }
+const period = ref('MONTH')
+const navigatorOpen = ref(false)
+const activeCard = ref(null)
+const activeLayer = ref(0)
+const customFrom = ref('')
+const customTo = ref('')
 const loading = ref(true)
-const classifyingGapId = ref(null)
+const error = ref('')
+const snapshot = ref({ shifts: [], trips: [], fuelLogs: [], vehicles: [], drivers: [], compliance: [], maintenance: [], driverCollectedData: [], loans: [], loanPayments: [], prepayments: [], driverTargets: [], breakEvenInputs: [] })
 
-const loadPerformance = async () => {
-  loading.value = true
-  try {
-    const [accounting, unclassifiedGaps] = await Promise.all([
-      MileageAccountingService.getMileageAccounting(),
-      MileageAccountingService.getUnclassifiedGaps()
-    ])
+const money = value => Number.isFinite(value) ? `₹${Math.round(value).toLocaleString('en-IN')}` : '—'
+const num = value => Number.isFinite(value) ? value.toLocaleString('en-IN', { maximumFractionDigits: 1 }) : '—'
+const pct = value => Number.isFinite(value) ? `${value.toFixed(1)}%` : '—'
 
-    mileage.value = accounting
-    gaps.value = unclassifiedGaps
-
-    // Keep the existing shift log presentation sourced through the repository layer.
-    const { ShiftRepository } = await import('../repositories/shiftRepository')
-    const data = await ShiftRepository.getAll()
-    shifts.value = (data || []).map(s => ({
-      ...s,
-      revenue: Number(s.revenue ?? s.totalRevenue ?? 0)
-    })).sort((a, b) => new Date(b.shiftEndAt || b.createdAt || 0).getTime() - new Date(a.shiftEndAt || a.createdAt || 0).getTime())
-  } catch (err) {
-    console.error('Failed to load performance metrics:', err)
-  } finally {
-    loading.value = false
-  }
-}
-
-const classifyGap = async (gapId, category) => {
-  classifyingGapId.value = gapId
-  try {
-    await MileageAccountingService.classifyGap(gapId, category)
-    await loadPerformance()
-  } catch (err) {
-    console.error('Failed to classify odometer gap:', err)
-  } finally {
-    classifyingGapId.value = null
-  }
-}
-
-onMounted(() => {
-  loadPerformance()
+const range = computed(() => {
+  const now = new Date()
+  let from = new Date(now)
+  const to = new Date(now)
+  if (period.value === 'CUSTOM RANGE' && customFrom.value && customTo.value) return { from: new Date(`${customFrom.value}T00:00:00`), to: new Date(`${customTo.value}T23:59:59.999`) }
+  if (period.value === 'DAY') from.setHours(0, 0, 0, 0)
+  else if (period.value === 'WEEK') { from.setHours(0, 0, 0, 0); from.setDate(from.getDate() - ((from.getDay() + 6) % 7)) }
+  else if (period.value === 'MONTH') from = new Date(now.getFullYear(), now.getMonth(), 1)
+  else if (period.value === '3 MONTHS') from.setMonth(from.getMonth() - 3)
+  else if (period.value === '6 MONTHS') from.setMonth(from.getMonth() - 6)
+  else if (period.value === '1 YEAR') from.setFullYear(from.getFullYear() - 1)
+  else if (period.value === 'MULTI-YEAR') from.setFullYear(now.getFullYear() - 5)
+  else if (period.value === 'TILL DATE') from = new Date(0)
+  return { from, to }
 })
 
-const totalRevenue = computed(() => {
-  return shifts.value.reduce((acc, s) => acc + (Number(s.revenue) || 0), 0)
+const metrics = computed(() => PerformanceService.getMetrics(snapshot.value, range.value))
+const activeRows = computed(() => activeCard.value ? PerformanceService.getLayerRows(activeCard.value, activeLayer.value, metrics.value) : [])
+const cards = computed(() => ({
+  target: { title: '🎯 Target & Position', rows: [['Achieved revenue', money(metrics.value.revenue)], ['Target', metrics.value.target == null ? 'Not configured' : money(metrics.value.target)], ['Achievement', metrics.value.target == null ? '—' : pct(metrics.value.revenue / metrics.value.target * 100)]] },
+  revenue: { title: '💰 Revenue', rows: [['Total revenue', money(metrics.value.revenue)], ['Revenue / KM', money(metrics.value.revenuePerKm)], ['Revenue / trip', money(metrics.value.revenuePerTrip)]] },
+  cost: { title: '🧾 Cost & Break-even', rows: [['Running cost', money(metrics.value.runningCost)], ['Break-even', money(metrics.value.breakEvenRevenue)], ['Cost / KM', money(metrics.value.costPerKm)]] },
+  profit: { title: '🏦 Profit & Provisions', rows: [['Actual profit', money(metrics.value.actualProfit)], ['Available profit', money(metrics.value.availableProfit)], ['Provision requirement', money(metrics.value.provisionRequired)]] }
+}))
+const layerTitle = computed(() => activeCard.value ? `${cards.value[activeCard.value].title.replace(/^\S+\s/, '')} — ${LAYERS[activeCard.value][activeLayer.value]}` : '')
+const completeness = computed(() => metrics.value.completeness)
+function choosePeriod(value) { period.value = value; if (value !== 'CUSTOM RANGE') navigatorOpen.value = false }
+function applyCustom() { if (customFrom.value && customTo.value) { period.value = 'CUSTOM RANGE'; navigatorOpen.value = false } }
+function openCard(key) { activeCard.value = key; activeLayer.value = 0 }
+function back() { if (activeLayer.value) activeLayer.value -= 1; else activeCard.value = null }
+function next() { if (activeCard.value && activeLayer.value < LAYERS[activeCard.value].length - 1) activeLayer.value += 1 }
+onMounted(async () => {
+  try { snapshot.value = await PerformanceService.getSnapshot() }
+  catch (e) { error.value = e?.message || 'Performance data could not be loaded.' }
+  finally { loading.value = false }
 })
-
-const totalShiftsCount = computed(() => shifts.value.length)
-const deadMiles = computed(() => Number(mileage.value.deadMiles) || 0)
-const personalTrips = computed(() => Number(mileage.value.personalTrips) || 0)
-const unclassifiedKm = computed(() => Number(mileage.value.unclassifiedKm) || 0)
-const totalVehicleDistance = computed(() => Number(mileage.value.totalVehicleDistance) || 0)
 </script>
 
 <template>
-  <div style="padding: 12px; max-width: 600px; margin: 0 auto; box-sizing: border-box;">
-    <header style="margin-bottom: 16px;">
-      <h1 style="font-size: 1.25rem; font-weight: bold; color: #0f172a; margin: 0;">Performance Dashboard</h1>
-      <p style="font-size: 0.8rem; color: #64748b; margin: 0;">Real-time shift metrics and mileage accounting</p>
-    </header>
-
-    <div style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 14px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <span style="font-size: 0.85rem; font-weight: bold; color: #334155;">Current Shift Metrics</span>
-        <span
-          style="font-size: 0.75rem; font-weight: bold; padding: 2px 8px; border-radius: 12px;"
-          :style="{ background: store.isOnline ? '#dcfce7' : '#f1f5f9', color: store.isOnline ? '#15803d' : '#64748b' }"
-        >
-          {{ store.isOnline ? 'ONLINE' : 'OFFLINE' }}
-        </span>
+  <section class="performance-page">
+    <div v-if="loading" class="state">Loading Performance…</div>
+    <div v-else-if="error" class="state error">{{ error }}</div>
+    <template v-else-if="!activeCard">
+      <header class="head"><div><small>PERFORMANCE</small><h1>Business position</h1></div><button class="period" @click="navigatorOpen = true">{{ period }}⌄</button></header>
+      <div class="grid">
+        <button v-for="key in ['target','revenue','cost','profit']" :key="key" class="box" @click="openCard(key)">
+          <h2>{{ cards[key].title }}</h2>
+          <div v-for="row in cards[key].rows" :key="row[0]" class="row"><span>{{ row[0] }}</span><strong>{{ row[1] }}</strong></div>
+          <em>View detail →</em>
+        </button>
       </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem;">
-        <div style="background: #f8fafc; padding: 8px; border-radius: 6px;">
-          <span style="color: #64748b; display: block; font-size: 0.75rem;">Start Odometer</span>
-          <strong style="color: #0f172a; font-size: 0.95rem;">{{ store.isOnline ? `${store.onlineStartOdometer} km` : '--' }}</strong>
-        </div>
-        <div style="background: #f8fafc; padding: 8px; border-radius: 6px;">
-          <span style="color: #64748b; display: block; font-size: 0.75rem;">Shift Status</span>
-          <strong style="color: #0f172a; font-size: 0.95rem;">{{ store.isOnline ? 'In Progress' : 'No Active Shift' }}</strong>
-        </div>
-      </div>
-    </div>
-
-    <div style="background: #1e293b; color: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-      <h2 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin: 0 0 12px 0;">Total Lifetime Performance</h2>
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center;">
-        <div>
-          <span style="font-size: 0.7rem; color: #cbd5e1; display: block;">Total Revenue</span>
-          <strong style="font-size: 1.1rem; color: #4ade80;">₹{{ totalRevenue }}</strong>
-        </div>
-        <div>
-          <span style="font-size: 0.7rem; color: #cbd5e1; display: block;">Total Vehicle KM</span>
-          <strong style="font-size: 1.1rem; color: #38bdf8;">{{ totalVehicleDistance }} km</strong>
-        </div>
-        <div>
-          <span style="font-size: 0.7rem; color: #cbd5e1; display: block;">Total Shifts</span>
-          <strong style="font-size: 1.1rem; color: #facc15;">{{ totalShiftsCount }}</strong>
-        </div>
-      </div>
-    </div>
-
-    <div style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-      <h2 style="font-size: 0.95rem; font-weight: bold; color: #0f172a; margin: 0 0 12px 0;">Mileage Accounting</h2>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-        <div style="background: #f8fafc; padding: 10px; border-radius: 8px;">
-          <span style="display:block; color:#64748b; font-size:0.72rem;">Recorded Shift KM</span>
-          <strong style="font-size:1rem; color:#0f172a;">{{ mileage.recordedShiftDistance }} km</strong>
-        </div>
-        <div style="background: #f8fafc; padding: 10px; border-radius: 8px;">
-          <span style="display:block; color:#64748b; font-size:0.72rem;">Inter-shift KM</span>
-          <strong style="font-size:1rem; color:#0f172a;">{{ mileage.interShiftDistance }} km</strong>
-        </div>
-        <div style="background: #f8fafc; padding: 10px; border-radius: 8px;">
-          <span style="display:block; color:#64748b; font-size:0.72rem;">Dead Miles</span>
-          <strong style="font-size:1rem; color:#2563eb;">{{ deadMiles }} km</strong>
-        </div>
-        <div style="background: #f8fafc; padding: 10px; border-radius: 8px;">
-          <span style="display:block; color:#64748b; font-size:0.72rem;">Personal Trips</span>
-          <strong style="font-size:1rem; color:#7c3aed;">{{ personalTrips }} km</strong>
-        </div>
-      </div>
-
-      <div style="margin-top: 10px; padding: 10px; border-radius: 8px; background: #fff7ed; border: 1px solid #fed7aa;">
-        <span style="display:block; color:#9a3412; font-size:0.72rem;">Unclassified KM</span>
-        <strong style="font-size:1rem; color:#c2410c;">{{ unclassifiedKm }} km</strong>
-      </div>
-    </div>
-
-    <div v-if="gaps.length > 0" style="background: white; border: 1px solid #fed7aa; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-      <h2 style="font-size: 0.95rem; font-weight: bold; color: #9a3412; margin: 0 0 4px 0;">Unclassified Odometer Gaps</h2>
-      <p style="font-size: 0.75rem; color: #64748b; margin: 0 0 12px 0;">Choose what each inter-shift kilometre represents. This does not block shift submission.</p>
-
-      <div v-for="gap in gaps" :key="gap.id" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; margin-bottom: 8px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-          <div>
-            <strong style="font-size:0.85rem; color:#1e293b; display:block;">{{ gap.previousOdometer }} km → {{ gap.newOdometer }} km</strong>
-            <span style="font-size:0.75rem; color:#64748b;">{{ gap.gapDistance }} km unclassified</span>
-          </div>
-          <span style="font-size:0.68rem; color:#9a3412; font-weight:700;">REVIEW</span>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
-          <button type="button" @click="classifyGap(gap.id, ODO_GAP_CATEGORIES.DEAD_MILES)" :disabled="classifyingGapId === gap.id" style="padding:8px; border:1px solid #93c5fd; background:#eff6ff; color:#1d4ed8; border-radius:7px; font-size:0.75rem; font-weight:700;">Dead Miles</button>
-          <button type="button" @click="classifyGap(gap.id, ODO_GAP_CATEGORIES.PERSONAL_TRIPS)" :disabled="classifyingGapId === gap.id" style="padding:8px; border:1px solid #c4b5fd; background:#f5f3ff; color:#6d28d9; border-radius:7px; font-size:0.75rem; font-weight:700;">Personal Trip</button>
-        </div>
-      </div>
-    </div>
-
-    <div style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <h2 style="font-size: 0.95rem; font-weight: bold; color: #0f172a; margin: 0;">Completed Shift Logs</h2>
-        <button type="button" @click="loadPerformance" style="padding: 4px 10px; background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;">🔄 Refresh</button>
-      </div>
-
-      <div v-if="loading" style="text-align: center; color: #64748b; font-size: 0.85rem; padding: 16px 0;">Loading logs...</div>
-      <div v-else-if="shifts.length === 0" style="text-align: center; color: #64748b; font-size: 0.85rem; padding: 16px 0;">No completed shifts found in IndexedDB.</div>
-
-      <div v-else style="display: flex; flex-direction: column; gap: 8px;">
-        <div v-for="(shift, index) in shifts" :key="shift.id || index" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <strong style="font-size: 0.85rem; color: #1e293b; display: block;">Shift</strong>
-            <span style="font-size: 0.75rem; color: #64748b;">{{ shift.startOdometer }} km → {{ shift.endOdometer }} km ({{ shift.totalDistance }} km total)</span>
-          </div>
-          <div style="text-align: right;">
-            <strong style="font-size: 0.95rem; color: #16a34a;">₹{{ shift.revenue }}</strong>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+      <section class="pulse"><small>OPERATIONAL PULSE</small><h2>What matters now</h2><div class="pulse-grid"><div><span>Vehicle KM</span><b>{{ num(metrics.vehicleKm) }}</b></div><div><span>Business KM</span><b>{{ num(metrics.businessKm) }}</b></div><div><span>Trips</span><b>{{ num(metrics.counts.trips) }}</b></div><div><span>Fuel cost</span><b>{{ money(metrics.fuelCost) }}</b></div></div></section>
+    </template>
+    <template v-else>
+      <header class="head"><button class="back" @click="back">‹</button><div><small>PERFORMANCE</small><h1>{{ layerTitle }}</h1></div><button v-if="activeLayer < LAYERS[activeCard].length - 1" class="next" @click="next">Next ›</button></header>
+      <section class="detail"><div class="tabs"><button v-for="(layer, index) in LAYERS[activeCard]" :key="layer" :class="{ active: index === activeLayer }" @click="activeLayer = index">{{ index + 1 }}. {{ layer }}</button></div><h2>{{ LAYERS[activeCard][activeLayer] }}</h2><p>Period: <b>{{ period }}</b></p><div class="detail-grid"><div v-for="(row, index) in activeRows" :key="index"><span>{{ row[0] }}</span><b>{{ row.slice(1).join(' · ') }}</b></div></div><div class="status-grid"><span>Target {{ completeness.target ? 'configured' : 'not configured' }}</span><span>Loan {{ completeness.loan ? 'configured' : 'not configured' }}</span><span>Hourly {{ completeness.hourlyData ? 'available' : 'unavailable' }}</span><span>Break-even {{ completeness.breakEven ? 'calculated' : 'unavailable' }}</span></div><div class="note">Read-only interpretation of authoritative KFE records. Missing authoritative inputs remain visibly unavailable; Performance never invents substitute values.</div></section>
+    </template>
+    <div v-if="navigatorOpen" class="overlay"><section class="navigator"><header><div><small>PERIOD</small><h2>Choose reporting range</h2></div><button @click="navigatorOpen = false">✕</button></header><div class="periods"><button v-for="item in PERIODS" :key="item" :class="{ selected: period === item }" @click="choosePeriod(item)">{{ item }}<span>›</span></button></div><div v-if="period === 'CUSTOM RANGE'" class="custom"><label>From<input v-model="customFrom" type="date"></label><label>To<input v-model="customTo" type="date"></label><button @click="applyCustom">Apply range</button></div></section></div>
+  </section>
 </template>
+
+<style scoped>
+.performance-page{min-height:100%;padding:16px;box-sizing:border-box;color:#0f172a;max-width:760px;margin:auto}.head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px}.head small,.pulse small{font-size:.68rem;font-weight:800;color:#64748b;letter-spacing:.08em}.head h1{font-size:1.22rem;margin:3px 0 0}.period,.back,.next,.navigator header button{border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:9px 11px;font-weight:800}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.box,.pulse,.detail{background:#fff;border:1px solid #e2e8f0;border-radius:16px}.box{min-height:190px;padding:15px;text-align:left;box-shadow:0 3px 12px rgba(15,23,42,.04)}.box h2{font-size:.96rem;margin:0 0 14px}.row{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid #f1f5f9;font-size:.75rem}.row strong{text-align:right;font-size:.78rem}.box em{display:block;margin-top:12px;color:#2563eb;font-style:normal;font-size:.74rem;font-weight:800}.pulse{margin-top:12px;padding:15px}.pulse h2{font-size:1rem;margin:3px 0 10px}.pulse-grid,.detail-grid,.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pulse-grid div,.detail-grid div,.status-grid span{background:#f8fafc;border-radius:10px;padding:10px}.pulse-grid span,.detail-grid span{display:block;color:#64748b;font-size:.7rem}.pulse-grid b,.detail-grid b{display:block;margin-top:3px}.state{padding:24px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;text-align:center}.error{color:#b91c1c}.back{font-size:1.3rem;padding:4px 11px}.next{color:#2563eb}.detail{padding:14px}.tabs{display:flex;gap:7px;overflow-x:auto;padding-bottom:10px}.tabs button{white-space:nowrap;border:1px solid #e2e8f0;background:#f8fafc;border-radius:999px;padding:7px 10px;font-size:.7rem;font-weight:800}.tabs button.active{background:#0f172a;color:#fff}.detail h2{font-size:1.08rem;margin:10px 0 4px}.detail p{color:#64748b;font-size:.78rem}.detail-grid{margin-top:12px}.status-grid{margin-top:12px}.status-grid span{font-size:.7rem;font-weight:800}.note{margin-top:14px;padding:12px;border-radius:10px;background:#f8fafc;color:#475569;font-size:.75rem;line-height:1.45}.overlay{position:fixed;inset:0;background:rgba(15,23,42,.48);z-index:10000;display:flex;align-items:flex-end}.navigator{width:100%;max-height:88vh;overflow:auto;background:#fff;border-radius:20px 20px 0 0;padding:18px;box-sizing:border-box}.navigator header{display:flex;justify-content:space-between;align-items:flex-start}.navigator h2{font-size:1.1rem;margin:3px 0 14px}.periods{display:grid;gap:7px}.periods button{display:flex;justify-content:space-between;border:1px solid #e2e8f0;background:#f8fafc;border-radius:11px;padding:12px;font-weight:800}.periods button.selected{border-color:#2563eb;background:#eff6ff;color:#1d4ed8}.custom{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.custom label{font-size:.72rem;font-weight:800}.custom input{display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:10px;border:1px solid #cbd5e1;border-radius:9px}.custom button{grid-column:1/-1;padding:11px;border:0;border-radius:10px;background:#0f172a;color:#fff;font-weight:800}@media(max-width:430px){.grid{gap:8px}.box{padding:12px;min-height:185px}.performance-page{padding:12px}}
+</style>
