@@ -2,6 +2,7 @@ const text = value => value == null ? '' : String(value).trim()
 const number = value => value === '' || value == null ? null : Number(value)
 
 export const normalizeRideExtraction = input => ({
+  shiftId: text(input?.shiftId) || null,
   operator: text(input?.operator),
   pickupAddress: text(input?.pickupAddress),
   dropAddress: text(input?.dropAddress),
