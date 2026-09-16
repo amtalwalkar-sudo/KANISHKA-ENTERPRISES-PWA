@@ -1,7 +1,7 @@
 import { initializeCanonicalStorage, openCanonicalDB } from '../utils/indexedDB.js'
 import { generateUUID } from '../utils/uuid.js'
 
-const MUTATION_VERSION = 1
+export const MUTATION_VERSION = 1
 
 export const buildMutationRecord = ({ entityId, entityType, action, payload, createdAt }) => ({
   id: generateUUID(),
@@ -91,5 +91,3 @@ export const MutationRepository = {
     })
   }
 }
-
-export const MUTATION_VERSION = MUTATION_VERSION
