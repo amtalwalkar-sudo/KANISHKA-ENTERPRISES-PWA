@@ -31,6 +31,10 @@ export const RideCaptureService = Object.freeze({
     const [shifts] = await Promise.all([listShifts()])
     return { shifts }
   },
+  async getRecentRides(limit = 10) {
+    const rides = await ShiftTripRepository.getAllTrips()
+    return rides.filter(r => r.captureSource === 'RIDE_SCREENSHOT' || r.status === 'COMPLETED').sort((a, b) => new Date(b.tripEndAt || b.updatedAt) - new Date(a.tripEndAt || a.updatedAt)).slice(0, limit)
+  },
   async save(data) {
     const validation = this.validate(data)
     if (!validation.ok) return validation
