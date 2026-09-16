@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { RideCaptureService } from '../application/rideCapture/rideCaptureService.js'
+import { notifyRideReview } from '../infrastructure/notifications/rideReviewNotification.js'
 
 const file = ref(null)
 const extraction = ref(null)
@@ -30,6 +31,7 @@ const extract = async () => {
     const result = await RideCaptureService.extract(file.value)
     if (!result.ok) return fail(result.errors.join(' '))
     extraction.value = { ...result.value, shiftId: shifts.value[0]?.id || null, rideStartAt: localDateTime(result.value.rideStartAt), rideEndAt: localDateTime(result.value.rideEndAt) }
+    await notifyRideReview(result.value)
     message.value = 'Ride extracted. Review every field before saving.'
   } catch (e) { fail(e?.message || 'Ride extraction failed.') } finally { busy.value = false }
 }
