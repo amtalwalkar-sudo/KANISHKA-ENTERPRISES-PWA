@@ -1,7 +1,6 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { RideCaptureService } from '../application/rideCapture/rideCaptureService.js'
-import { ShiftTripRepository } from '../repositories/shiftTripRepository.js'
 
 const file = ref(null)
 const extraction = ref(null)
@@ -11,7 +10,18 @@ const busy = ref(false)
 const message = ref('')
 const error = ref('')
 
-const sortedRecent = computed(() => recent.value.slice().sort((a, b) => new Date(b.tripEndAt || b.updatedAt) - new Date(a.tripEndAt || a.updatedAt)).slice(0, 10))
+const localDateTime = value => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const pad = n => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+const isoDateTime = value => {
+  if (!value) return ''
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString()
+}
 const setFile = event => { file.value = event.target.files?.[0] || null; extraction.value = null; error.value = ''; message.value = '' }
 const extract = async () => {
   if (!file.value) return fail('Select a ride screenshot first.')
@@ -19,15 +29,16 @@ const extract = async () => {
   try {
     const result = await RideCaptureService.extract(file.value)
     if (!result.ok) return fail(result.errors.join(' '))
-    extraction.value = { ...result.value, shiftId: shifts.value[0]?.id || null }
+    extraction.value = { ...result.value, shiftId: shifts.value[0]?.id || null, rideStartAt: localDateTime(result.value.rideStartAt), rideEndAt: localDateTime(result.value.rideEndAt) }
     message.value = 'Ride extracted. Review every field before saving.'
   } catch (e) { fail(e?.message || 'Ride extraction failed.') } finally { busy.value = false }
 }
 const validate = () => {
   if (!extraction.value) return false
-  const result = RideCaptureService.validate(extraction.value)
+  const candidate = { ...extraction.value, rideStartAt: isoDateTime(extraction.value.rideStartAt), rideEndAt: isoDateTime(extraction.value.rideEndAt) }
+  const result = RideCaptureService.validate(candidate)
   if (!result.ok) { fail(result.errors.join(' ')); return false }
-  extraction.value = result.value
+  extraction.value = { ...result.value, rideStartAt: localDateTime(result.value.rideStartAt), rideEndAt: localDateTime(result.value.rideEndAt) }
   error.value = ''
   return true
 }
@@ -35,7 +46,8 @@ const save = async () => {
   if (!validate()) return
   busy.value = true
   try {
-    const result = await RideCaptureService.save(extraction.value)
+    const payload = { ...extraction.value, rideStartAt: isoDateTime(extraction.value.rideStartAt), rideEndAt: isoDateTime(extraction.value.rideEndAt) }
+    const result = await RideCaptureService.save(payload)
     if (!result.ok) return fail(result.errors.join(' '))
     message.value = 'Ride confirmed and saved to the canonical trip record.'
     extraction.value = null
@@ -49,7 +61,7 @@ const fail = text => { error.value = text; message.value = '' }
 const refresh = async () => {
   const context = await RideCaptureService.getReviewContext()
   shifts.value = context.shifts
-  recent.value = await ShiftTripRepository.getAllTrips()
+  recent.value = await RideCaptureService.getRecentRides(10)
 }
 onMounted(refresh)
 </script>
@@ -82,7 +94,7 @@ onMounted(refresh)
       <p class="warning">Saving creates the canonical <strong>trip</strong> record. Fare/revenue and ride KM remain available to Work and Performance through the same authoritative trip data.</p>
     </section>
 
-    <section class="card"><div class="eyebrow">3 · RECENT</div><h2>Recently captured / completed rides</h2><p v-if="!sortedRecent.length" class="muted">No rides saved yet.</p><div v-for="ride in sortedRecent" :key="ride.id" class="ride-row"><div><strong>{{ ride.operator || 'Unknown operator' }}</strong><span>{{ ride.pickupAddress || ride.tripStartLocation?.placeName || 'Pickup unavailable' }} → {{ ride.dropAddress || ride.tripEndLocation?.placeName || 'Drop unavailable' }}</span><small>{{ ride.tripStartAt ? new Date(ride.tripStartAt).toLocaleString() : 'Time unavailable' }}</small></div><strong>₹{{ Number(ride.revenue || 0).toFixed(2) }} · {{ Number(ride.tripKm || 0).toFixed(1) }} km</strong></div></section>
+    <section class="card"><div class="eyebrow">3 · RECENT</div><h2>Recently captured / completed rides</h2><p v-if="!recent.length" class="muted">No rides saved yet.</p><div v-for="ride in recent" :key="ride.id" class="ride-row"><div><strong>{{ ride.operator || 'Unknown operator' }}</strong><span>{{ ride.pickupAddress || ride.tripStartLocation?.placeName || 'Pickup unavailable' }} → {{ ride.dropAddress || ride.tripEndLocation?.placeName || 'Drop unavailable' }}</span><small>{{ ride.tripStartAt ? new Date(ride.tripStartAt).toLocaleString() : 'Time unavailable' }}</small></div><strong>₹{{ Number(ride.revenue || 0).toFixed(2) }} · {{ Number(ride.tripKm || 0).toFixed(1) }} km</strong></div></section>
   </main>
 </template>
 
