@@ -7,13 +7,12 @@ import { getShell } from './shell-registry.js';
 import {
   readKfeShellSelection,
   persistKfeShellSelection,
-} from '../../../js/ui/shell-selection.js';
+} from './shell-selection.js';
 
 function safePersist(name) {
   try {
     return persistKfeShellSelection(KFE_SHELL_SELECTION_KEY, name);
   } catch {
-    // A shell preference must never prevent the application from mounting.
     return name;
   }
 }
