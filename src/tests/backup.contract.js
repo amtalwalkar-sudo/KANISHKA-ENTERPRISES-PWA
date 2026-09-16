@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { BACKUP_FORMAT, BACKUP_FORMAT_VERSION, CANONICAL_BACKUP_STORES, BackupService } from '../application/backup/backupService.js'
+import { createDropboxBackupProvider, DROPBOX_DEFAULT_BACKUP_PATH } from '../infrastructure/backup/dropboxBackupProvider.js'
 
 const emptyStores = Object.fromEntries(CANONICAL_BACKUP_STORES.map(store => [store, []]))
 const emptyCounts = Object.fromEntries(CANONICAL_BACKUP_STORES.map(store => [store, 0]))
@@ -23,5 +24,13 @@ assert.throws(() => BackupService.validateBackup(badId), /invalid record/)
 const serialized = BackupService.serializeBackup(withRecord)
 assert.equal(typeof serialized, 'string')
 assert.deepEqual(BackupService.validateBackup(serialized), withRecord)
+assert.equal(DROPBOX_DEFAULT_BACKUP_PATH, '/Apps/KFE/kfe-latest-backup.json')
+assert.throws(() => createDropboxBackupProvider(), /Dropbox access token is required/)
+const provider = createDropboxBackupProvider({ accessToken: 'test-token' })
+assert.equal(provider.name, 'Dropbox')
+assert.equal(typeof provider.upload, 'function')
+assert.equal(typeof provider.download, 'function')
+assert.equal(BackupService.getCloudBackupProviderName(), null)
+assert.throws(() => BackupService.backupToCloud(valid), /No cloud backup provider is configured/)
 
 console.log('Backup contract: PASS')
