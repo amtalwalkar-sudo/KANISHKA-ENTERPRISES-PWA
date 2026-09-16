@@ -22,7 +22,7 @@ const assertForbidden = (dirs, patterns, label) => {
 }
 
 assertForbidden(
-  ['views', 'components', 'stores'],
+  ['views', 'components', 'stores', 'presentation'],
   [
     /from\s+['"][^'"]*\/repositories\//,
     /from\s+['"][^'"]*\/utils\/indexedDB\.js['"]/
@@ -31,13 +31,13 @@ assertForbidden(
 )
 
 assertForbidden(
-  ['views', 'components'],
+  ['views', 'components', 'presentation'],
   [
     /from\s+['"][^'"]*\/domain\/performance\//,
     /from\s+['"][^'"]*\/domain\/work\//,
     /from\s+['"][^'"]*\/domain\/math\//
   ],
-  'Views/components must not orchestrate domain logic directly'
+  'Presentation must not orchestrate domain logic directly'
 )
 
 assertForbidden(
