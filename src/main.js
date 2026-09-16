@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { StartupService } from './application/startup/startupService.js'
+import './styles/ui-system.css'
 
 const app = createApp(App)
 app.config.errorHandler = (err, instance, info) => {
