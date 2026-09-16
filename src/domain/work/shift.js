@@ -15,10 +15,12 @@ export function validateShiftStartOdometer(currentOdometer, previousOdometer = n
 }
 
 export function validateGapAllocation(gapKm, personalKm = 0, deadKm = 0) {
+  const gap = Number(gapKm)
   const personal = Number(personalKm || 0)
   const dead = Number(deadKm || 0)
-  if (!Number.isFinite(personal) || !Number.isFinite(dead) || personal < 0 || dead < 0 || personal + dead !== gapKm) {
-    return { valid: false, requiresGapAllocation: true, gapKm }
+  const tolerance = 0.000001
+  if (!Number.isFinite(gap) || gap < 0 || !Number.isFinite(personal) || !Number.isFinite(dead) || personal < 0 || dead < 0 || Math.abs((personal + dead) - gap) > tolerance) {
+    return { valid: false, requiresGapAllocation: true, gapKm: gap }
   }
   return { valid: true, personalKm: personal, deadKm: dead }
 }
