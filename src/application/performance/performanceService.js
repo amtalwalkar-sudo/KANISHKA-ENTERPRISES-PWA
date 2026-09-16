@@ -1,5 +1,5 @@
 import { PerformanceRepository } from '../../repositories/performanceRepository.js'
-import { derivePerformance, layerRows, previousRange } from '../../domain/performance/performanceEngine.js'
+import { derivePerformance, layerRows, previousRange } from '../../domain/performance/performanceEngineV2.js'
 
 export const PerformanceService = Object.freeze({
   async getSnapshot() {
