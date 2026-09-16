@@ -31,6 +31,6 @@ assert.equal(provider.name, 'Dropbox')
 assert.equal(typeof provider.upload, 'function')
 assert.equal(typeof provider.download, 'function')
 assert.equal(BackupService.getCloudBackupProviderName(), null)
-assert.throws(() => BackupService.backupToCloud(valid), /No cloud backup provider is configured/)
+await assert.rejects(() => BackupService.backupToCloud(valid), /No cloud backup provider is configured/)
 
 console.log('Backup contract: PASS')
