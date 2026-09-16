@@ -10,10 +10,10 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
   const lifecycleLocations = ref([])
   const tripLocations = ref([])
   const lastKnownOdometer = ref(null)
-  const defaultOperator = ref('Uber')
+  const operators = WorkService.getTripOperators()
+  const defaultOperator = ref(operators[0])
   const initialized = ref(false)
 
-  const operators = ['Uber', 'One way', 'Rapido', 'Ola', 'Savaari']
   const isShiftActive = computed(() => shift.value?.status === 'ACTIVE')
   const isTripActive = computed(() => trip.value?.status === 'ACTIVE')
   const isOnline = isShiftActive
@@ -54,7 +54,6 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
   }
 
   const initialize = async () => { if (!initialized.value) await refresh() }
-
   const calculateGap = odo => WorkService.validateShiftStartOdometer(odo, lastKnownOdometer.value)
 
   const startShift = async (odo, allocation = null) => {
@@ -63,13 +62,7 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     if (!check.valid) return { ok: false, reason: check.reason }
     const allocationCheck = WorkService.validateGapAllocation(check.gapKm, allocation?.personalKm, allocation?.deadKm)
     if (!allocationCheck.valid) return allocationCheck
-    const record = await WorkService.startShift({
-      startOdometer: Number(odo),
-      openingPersonalKm: allocationCheck.personalKm,
-      openingDeadKm: allocationCheck.deadKm,
-      openingPersonalToll: Number(allocation?.personalToll || 0),
-      openingPersonalParking: Number(allocation?.personalParking || 0)
-    })
+    const record = await WorkService.startShift({ startOdometer: Number(odo), openingPersonalKm: allocationCheck.personalKm, openingDeadKm: allocationCheck.deadKm, openingPersonalToll: Number(allocation?.personalToll || 0), openingPersonalParking: Number(allocation?.personalParking || 0) })
     shift.value = record
     await refresh()
     captureAndRefreshLocation({ entityType: 'SHIFT', entityId: record.id, eventType: 'ONLINE' })
@@ -80,7 +73,9 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     if (!isShiftActive.value) return { ok: false, reason: 'Go Online before starting a Trip.' }
     if (isTripActive.value) return { ok: false, reason: 'A Trip is already active.' }
     const selected = operators.includes(operator) ? operator : defaultOperator.value
-    const record = await WorkService.startTrip({ shiftId: shift.value.id, operator: selected })
+    const result = await WorkService.startTrip({ shiftId: shift.value.id, operator: selected })
+    if (result?.ok === false) return result
+    const record = result
     trip.value = record
     defaultOperator.value = selected
     registeredTrips.value = [...registeredTrips.value, record]
@@ -106,7 +101,12 @@ export const useShiftTripStore = defineStore('shiftTrip', () => {
     return true
   }
 
-  const updateTrip = async data => { await WorkService.updateTrip(data); await refresh(); return true }
+  const updateTrip = async data => {
+    const result = await WorkService.updateTrip(data)
+    if (result?.ok === false) return result
+    await refresh()
+    return { ok: true }
+  }
 
   const endShift = async data => {
     if (!isShiftActive.value) return { ok: false, reason: 'No active Shift.' }
