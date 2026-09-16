@@ -17,25 +17,23 @@ onMounted(async () => {
 
 <template>
   <div class="viewport-wrapper">
-    <header class="top-bar"><span class="app-title">Kanishka Enterprises</span><span class="app-context">KFE</span></header>
-    <main class="content-scroll-area">
-      <div v-if="renderError" class="error-container"><h3>Something went wrong</h3><p>{{ renderError }}</p><button @click="recoverApp" class="retry-btn">Reload Application</button></div>
-      <div v-else-if="storageError" class="error-container"><h3>Application initialization failed</h3><p>{{ storageError }}</p><button @click="recoverApp" class="retry-btn">Retry Initialization</button></div>
-      <div v-else-if="!storageReady" class="loading-container"><p>Initializing KFE…</p></div>
+    <a class="kfe-skip-link" href="#main-content">Skip to main content</a>
+    <header class="top-bar" aria-label="KFE application header"><span class="app-title">Kanishka Enterprises</span><span class="app-context">KFE</span></header>
+    <main id="main-content" class="content-scroll-area" tabindex="-1">
+      <div v-if="renderError" class="error-container" role="alert"><h3>Something went wrong</h3><p>{{ renderError }}</p><button @click="recoverApp" class="retry-btn">Reload Application</button></div>
+      <div v-else-if="storageError" class="error-container" role="alert"><h3>Application initialization failed</h3><p>{{ storageError }}</p><button @click="recoverApp" class="retry-btn">Retry Initialization</button></div>
+      <div v-else-if="!storageReady" class="loading-container" role="status" aria-live="polite"><p>Initializing KFE…</p></div>
       <router-view v-else v-slot="{ Component }"><keep-alive><component :is="Component" /></keep-alive></router-view>
     </main>
     <DiagnosticBubble />
     <nav class="bottom-nav" aria-label="Primary navigation">
-      <router-link to="/" class="nav-item" exact-active-class="nav-item-active"><span class="icon">Work</span><span>Work</span></router-link>
-      <router-link to="/performance" class="nav-item" exact-active-class="nav-item-active"><span class="icon">Performance</span><span>Performance</span></router-link>
-      <router-link to="/admin" class="nav-item" exact-active-class="nav-item-active"><span class="icon">Admin</span><span>Admin</span></router-link>
+      <router-link to="/" class="nav-item" exact-active-class="nav-item-active" aria-label="Work"><span class="icon" aria-hidden="true">WORK</span><span>Work</span></router-link>
+      <router-link to="/performance" class="nav-item" exact-active-class="nav-item-active" aria-label="Performance"><span class="icon" aria-hidden="true">KPI</span><span>Performance</span></router-link>
+      <router-link to="/admin" class="nav-item" exact-active-class="nav-item-active" aria-label="Admin"><span class="icon" aria-hidden="true">ADMIN</span><span>Admin</span></router-link>
     </nav>
   </div>
 </template>
 
-<style>
-html,body{margin:0;padding:0;height:100%;width:100%;overflow:hidden;font-family:system-ui,-apple-system,sans-serif}
-</style>
 <style scoped>
-.viewport-wrapper{position:fixed;inset:0;display:flex;flex-direction:column;height:100vh;width:100vw;background:#f8fafc;overflow:hidden}.top-bar{position:fixed;top:0;left:0;right:0;height:48px;background:#0f172a;color:white;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:9999}.app-title{font-weight:800;font-size:.9rem}.app-context{font-size:.7rem;font-weight:800;letter-spacing:.08em;opacity:.75}.content-scroll-area{position:absolute;top:48px;bottom:60px;left:0;right:0;overflow-y:auto;-webkit-overflow-scrolling:touch}.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:#fff;border-top:1px solid #e2e8f0;display:flex;justify-content:space-around;align-items:center;z-index:9999}.nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:80px;text-decoration:none;color:#64748b;font-size:.75rem}.nav-item-active{color:#2563eb;font-weight:800}.icon{font-size:.65rem;font-weight:900;letter-spacing:.04em}.error-container,.loading-container{padding:20px;text-align:center}.error-container{color:#dc2626}.retry-btn{padding:10px 16px;background:#2563eb;color:white;border:none;border-radius:6px;font-weight:bold;cursor:pointer}
+.viewport-wrapper{position:fixed;inset:0;display:flex;flex-direction:column;height:100vh;height:100dvh;width:100vw;background:var(--kfe-bg);overflow:hidden}.top-bar{position:fixed;top:0;left:0;right:0;min-height:52px;height:52px;background:var(--kfe-text);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));padding-top:env(safe-area-inset-top);z-index:9999}.app-title{font-weight:800;font-size:.9rem}.app-context{font-size:.7rem;font-weight:800;letter-spacing:.08em;opacity:.75}.content-scroll-area{position:absolute;top:52px;bottom:64px;left:0;right:0;overflow-y:auto;-webkit-overflow-scrolling:touch;scroll-padding-top:12px;padding-bottom:env(safe-area-inset-bottom)}.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:64px;padding-bottom:env(safe-area-inset-bottom);background:var(--kfe-surface);border-top:1px solid var(--kfe-border);display:flex;justify-content:space-around;align-items:center;z-index:9999}.nav-item{display:flex;flex:1;max-width:140px;min-height:44px;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:var(--kfe-text-muted);font-size:.75rem}.nav-item-active{color:var(--kfe-primary);font-weight:800}.icon{font-size:.58rem;font-weight:900;letter-spacing:.04em}.error-container,.loading-container{max-width:560px;margin:auto;padding:28px 20px;text-align:center}.error-container{color:var(--kfe-danger)}.retry-btn{min-height:44px;padding:10px 16px;background:var(--kfe-primary);color:#fff;border:0;border-radius:var(--kfe-radius-sm);font-weight:800;cursor:pointer}@media(max-width:600px){.content-scroll-area{bottom:68px}.bottom-nav{height:68px}}
 </style>
