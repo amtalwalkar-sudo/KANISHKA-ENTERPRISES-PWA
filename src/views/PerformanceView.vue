@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { PerformanceRepository } from '../repositories/performanceRepository.js'
+import { PerformanceService } from '../application/performance/performanceService.js'
 import { derivePerformance, layerRows, previousRange } from '../domain/performance/performanceEngine.js'
 
 const PERIODS = ['DAY','WEEK','MONTH','3 MONTHS','6 MONTHS','1 YEAR','MULTI-YEAR','TILL DATE','CUSTOM RANGE']
@@ -13,7 +13,7 @@ const customFrom = ref('')
 const customTo = ref('')
 const loading = ref(true)
 const error = ref('')
-const snapshot = ref({ shifts: [], trips: [], fuelLogs: [], financialInputs: [] })
+const snapshot = ref({ shifts: [], trips: [], fuelLogs: [], vehicles: [], drivers: [], compliance: [], maintenance: [], driverCollectedData: [], loans: [], loanPayments: [], prepayments: [], driverTargets: [], breakEvenInputs: [] })
 
 const money = value => Number.isFinite(value) ? `₹${Math.round(value).toLocaleString('en-IN')}` : '—'
 const num = value => Number.isFinite(value) ? value.toLocaleString('en-IN', { maximumFractionDigits: 1 }) : '—'
@@ -30,7 +30,7 @@ const range = computed(() => {
   else if (period.value === '3 MONTHS') from.setMonth(from.getMonth() - 3)
   else if (period.value === '6 MONTHS') from.setMonth(from.getMonth() - 6)
   else if (period.value === '1 YEAR') from.setFullYear(from.getFullYear() - 1)
-  else if (period.value === 'MULTI-YEAR') from.setFullYear(from.getFullYear() - 5)
+  else if (period.value === 'MULTI-YEAR') from.setFullYear(now.getFullYear() - 5)
   else if (period.value === 'TILL DATE') from = new Date(0)
   return { from, to }
 })
@@ -43,18 +43,15 @@ const cards = computed(() => ({
   cost: { title: '🧾 Cost & Break-even', rows: [['Running cost', money(metrics.value.runningCost)], ['Break-even', money(metrics.value.breakEvenRevenue)], ['Cost / KM', money(metrics.value.costPerKm)]] },
   profit: { title: '🏦 Profit & Provisions', rows: [['Actual profit', money(metrics.value.actualProfit)], ['Available profit', money(metrics.value.availableProfit)], ['Provision requirement', money(metrics.value.provisionRequired)]] }
 }))
-
 const layerTitle = computed(() => activeCard.value ? `${cards.value[activeCard.value].title.replace(/^\S+\s/, '')} — ${LAYERS[activeCard.value][activeLayer.value]}` : '')
 const completeness = computed(() => metrics.value.completeness)
-
 function choosePeriod(value) { period.value = value; if (value !== 'CUSTOM RANGE') navigatorOpen.value = false }
 function applyCustom() { if (customFrom.value && customTo.value) { period.value = 'CUSTOM RANGE'; navigatorOpen.value = false } }
 function openCard(key) { activeCard.value = key; activeLayer.value = 0 }
 function back() { if (activeLayer.value) activeLayer.value -= 1; else activeCard.value = null }
 function next() { if (activeCard.value && activeLayer.value < LAYERS[activeCard.value].length - 1) activeLayer.value += 1 }
-
 onMounted(async () => {
-  try { snapshot.value = await PerformanceRepository.getSnapshot() }
+  try { snapshot.value = await PerformanceService.getSnapshot() }
   catch (e) { error.value = e?.message || 'Performance data could not be loaded.' }
   finally { loading.value = false }
 })
@@ -77,15 +74,8 @@ onMounted(async () => {
     </template>
     <template v-else>
       <header class="head"><button class="back" @click="back">‹</button><div><small>PERFORMANCE</small><h1>{{ layerTitle }}</h1></div><button v-if="activeLayer < LAYERS[activeCard].length - 1" class="next" @click="next">Next ›</button></header>
-      <section class="detail">
-        <div class="tabs"><button v-for="(layer, index) in LAYERS[activeCard]" :key="layer" :class="{ active: index === activeLayer }" @click="activeLayer = index">{{ index + 1 }}. {{ layer }}</button></div>
-        <h2>{{ LAYERS[activeCard][activeLayer] }}</h2><p>Period: <b>{{ period }}</b></p>
-        <div class="detail-grid"><div v-for="(row, index) in activeRows" :key="index"><span>{{ row[0] }}</span><b>{{ row.slice(1).join(' · ') }}</b></div></div>
-        <div class="status-grid"><span>Target {{ completeness.target ? 'configured' : 'not configured' }}</span><span>Loan {{ completeness.loan ? 'configured' : 'not configured' }}</span><span>Hourly {{ completeness.hourlyData ? 'available' : 'unavailable' }}</span><span>Break-even {{ completeness.breakEven ? 'calculated' : 'unavailable' }}</span></div>
-        <div class="note">Read-only interpretation of authoritative KFE records. Missing authoritative inputs remain visibly unavailable; Performance never invents substitute values.</div>
-      </section>
+      <section class="detail"><div class="tabs"><button v-for="(layer, index) in LAYERS[activeCard]" :key="layer" :class="{ active: index === activeLayer }" @click="activeLayer = index">{{ index + 1 }}. {{ layer }}</button></div><h2>{{ LAYERS[activeCard][activeLayer] }}</h2><p>Period: <b>{{ period }}</b></p><div class="detail-grid"><div v-for="(row, index) in activeRows" :key="index"><span>{{ row[0] }}</span><b>{{ row.slice(1).join(' · ') }}</b></div></div><div class="status-grid"><span>Target {{ completeness.target ? 'configured' : 'not configured' }}</span><span>Loan {{ completeness.loan ? 'configured' : 'not configured' }}</span><span>Hourly {{ completeness.hourlyData ? 'available' : 'unavailable' }}</span><span>Break-even {{ completeness.breakEven ? 'calculated' : 'unavailable' }}</span></div><div class="note">Read-only interpretation of authoritative KFE records. Missing authoritative inputs remain visibly unavailable; Performance never invents substitute values.</div></section>
     </template>
-
     <div v-if="navigatorOpen" class="overlay"><section class="navigator"><header><div><small>PERIOD</small><h2>Choose reporting range</h2></div><button @click="navigatorOpen = false">✕</button></header><div class="periods"><button v-for="item in PERIODS" :key="item" :class="{ selected: period === item }" @click="choosePeriod(item)">{{ item }}<span>›</span></button></div><div v-if="period === 'CUSTOM RANGE'" class="custom"><label>From<input v-model="customFrom" type="date"></label><label>To<input v-model="customTo" type="date"></label><button @click="applyCustom">Apply range</button></div></section></div>
   </section>
 </template>
