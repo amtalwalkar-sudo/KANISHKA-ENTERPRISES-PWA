@@ -32,5 +32,7 @@ a{color:inherit}
 .kfe-visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 .kfe-skip-link{position:fixed;top:8px;left:8px;z-index:20000;padding:10px 14px;border-radius:var(--kfe-radius-sm);background:var(--kfe-text);color:#fff;text-decoration:none;font-weight:800;transform:translateY(-150%);transition:transform .15s ease}
 .kfe-skip-link:focus{transform:translateY(0)}
+.kfe-shell{padding-bottom:calc(var(--kfe-nav-height) + env(safe-area-inset-bottom, 0px))}
+.kfe-bottom-nav{padding-bottom:env(safe-area-inset-bottom, 0px)}
 @media(max-width:600px){:root{--kfe-nav-height:68px}.kfe-touch-target{min-height:48px;min-width:48px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
