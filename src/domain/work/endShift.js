@@ -1,21 +1,14 @@
-/**
- * Validates the minimum End Shift inputs.
- *
- * KFE intentionally does not make End Shift stricter based on trip count.
- * A shift may close with zero revenue and with the closing odometer equal
- * to the starting odometer, including when completed trips exist.
- */
-export function validateEndShiftEntry({ closingOdometer, revenue }) {
+export function validateEndShiftEntry({ closingOdometer, startOdometer }) {
   const odometer = Number(closingOdometer)
-  const amount = Number(revenue)
+  const start = Number(startOdometer)
 
-  if (!Number.isFinite(odometer)) {
+  if (!Number.isFinite(odometer) || odometer < 0) {
     return { valid: false, reason: 'CLOSING_ODOMETER_REQUIRED' }
   }
 
-  if (!Number.isFinite(amount) || amount < 0) {
-    return { valid: false, reason: 'REVENUE_REQUIRED' }
+  if (Number.isFinite(start) && odometer < start) {
+    return { valid: false, reason: 'Closing odometer cannot be lower than the shift opening odometer.' }
   }
 
-  return { valid: true }
+  return { valid: true, closingOdometer: odometer }
 }
