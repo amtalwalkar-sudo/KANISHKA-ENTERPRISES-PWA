@@ -1,18 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { recordFuelEntry } from '../application/work/fuel.js'
-import { FuelRepository } from '../repositories/fuelRepository.js'
+import { WorkService } from '../application/work/workService.js'
 
 export const useFuelStore = defineStore('fuel', () => {
   const logs = ref([])
   const saving = ref(false)
 
-  const refresh = async () => { logs.value = await FuelRepository.getAll() }
+  const refresh = async () => { logs.value = await WorkService.getFuelLogs() }
 
   const save = async data => {
     saving.value = true
     try {
-      const result = await recordFuelEntry(data)
+      const result = await WorkService.recordFuel(data)
       if (result.ok) await refresh()
       return result
     } finally {
