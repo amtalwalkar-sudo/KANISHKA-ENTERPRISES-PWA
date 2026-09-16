@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import UniversalAdminForm from '../components/admin/UniversalAdminForm.vue'
+import BackupRestorePanel from '../components/admin/BackupRestorePanel.vue'
 import { ADMIN_FORM_DEFINITIONS } from '../application/admin/adminFormDefinitions.js'
 import { AdminService } from '../application/admin/adminService.js'
 
@@ -30,6 +31,7 @@ onMounted(load)
 <div v-else class="record-list"><article v-for="r in records" :key="r.id" class="record"><div><strong>{{label(selected,r)}}</strong><small>Updated {{r.updatedAt||'—'}}</small><div class="chips"><span v-for="(v,k) in r.values" v-if="v!==''&&v!==null&&v!==undefined&&k!=='notes'" :key="k">{{display(v)}}</span></div></div><div class="actions"><button @click="edit(r)">Edit</button><button @click="remove(r)">Delete</button></div></article></div>
 <p v-if="!loading && records.length===0 && !formOpen" class="empty">No {{baseDefinition.title}} records yet. Create the first source record.</p>
 </section>
+<BackupRestorePanel />
 <section class="derived"><small>ERP CALCULATIONS</small><h2>Derived automatically</h2><p>Vehicle KM, Business KM, Dead KM, mileage, revenue/KM, revenue/hour, cost/KM, profit, break-even result, achievement, pace, projection and provision totals are not Admin inputs.</p></section>
 <aside class="boundary">🛡️ <span><strong>Controlled boundary</strong><br>Admin validates source records and persists through the Admin application/repository path. Operational execution and ERP calculations remain outside Admin.</span></aside>
 </section>
