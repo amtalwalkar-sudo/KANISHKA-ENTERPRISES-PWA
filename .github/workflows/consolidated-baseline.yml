@@ -2,7 +2,7 @@ name: KFE 2.0 single CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, kfe-clean-build ]
   pull_request:
     branches: [ main ]
 
