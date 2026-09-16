@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
-import { MutationRepository } from './repositories/mutationRepository.js'
+import { StartupService } from './application/startup/startupService.js'
 
 const app = createApp(App)
 app.config.errorHandler = (err, instance, info) => {
@@ -15,4 +15,4 @@ app.use(pinia)
 app.use(router)
 app.mount('#app')
 
-void MutationRepository.recoverStaleSyncing().catch(error => console.error('Offline mutation recovery failed during startup:', error))
+void StartupService.recoverPendingMutations().catch(error => console.error('Offline mutation recovery failed during startup:', error))
