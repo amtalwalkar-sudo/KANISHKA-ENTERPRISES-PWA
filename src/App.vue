@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onErrorCaptured, onMounted } from 'vue'
 import { ShellService } from './application/shell/shellService.js'
+import { BackupService } from './application/backup/backupService.js'
 import DiagnosticBubble from './components/DiagnosticBubble.vue'
 
 const renderError = ref(null)
@@ -10,8 +11,11 @@ const storageError = ref(null)
 onErrorCaptured((err) => { console.error('Captured Runtime Boundary Error:', err); renderError.value = err.message || 'An unexpected rendering error occurred.'; return false })
 const recoverApp = () => { renderError.value = null; storageError.value = null; storageReady.value = false; window.location.reload() }
 onMounted(async () => {
-  try { await ShellService.initialize(); storageReady.value = true }
-  catch (e) { console.error('Application shell initialization failed:', e); storageError.value = e?.message || 'Application initialization failed.' }
+  try {
+    await ShellService.initialize()
+    storageReady.value = true
+    void BackupService.maybeDailyLocalBackup().catch(error => console.warn('KFE daily local backup checkpoint failed:', error))
+  } catch (e) { console.error('Application shell initialization failed:', e); storageError.value = e?.message || 'Application initialization failed.' }
 })
 </script>
 
