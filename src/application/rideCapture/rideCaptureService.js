@@ -10,7 +10,11 @@ const readImage = file => new Promise((resolve, reject) => {
   reader.readAsDataURL(file)
 })
 
-const listShifts = async () => (await ShiftTripRepository.getAllShifts()).filter(s => s.status === 'COMPLETED').sort((a, b) => new Date(b.shiftEndAt || b.updatedAt) - new Date(a.shiftEndAt || a.updatedAt))
+const listShifts = async () => (await ShiftTripRepository.getAllShifts()).filter(s => s.status === 'ACTIVE' || s.status === 'COMPLETED').sort((a, b) => {
+  if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
+  if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
+  return new Date(b.shiftEndAt || b.updatedAt || b.shiftStartAt) - new Date(a.shiftEndAt || a.updatedAt || a.shiftStartAt)
+})
 
 export const RideCaptureService = Object.freeze({
   async extract(file) {
@@ -28,8 +32,7 @@ export const RideCaptureService = Object.freeze({
     return { ok: validation.valid, value: normalized, errors: validation.errors }
   },
   async getReviewContext() {
-    const [shifts] = await Promise.all([listShifts()])
-    return { shifts }
+    return { shifts: await listShifts() }
   },
   async getRecentRides(limit = 10) {
     const rides = await ShiftTripRepository.getAllTrips()
